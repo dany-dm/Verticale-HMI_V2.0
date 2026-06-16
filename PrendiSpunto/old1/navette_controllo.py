@@ -1,0 +1,447 @@
+# navette_controllo.py
+
+import tkinter as tk
+from tkinter import messagebox
+from condizioni import valida_condizioni_navetta
+
+class NavetteControllo(tk.Frame):
+    def __init__(self, parent, controller, indice_navetta_getter, invia_comando_fn, leggi_stato_fn):
+        super().__init__(parent)
+        self.controller = controller
+        self.indice_navetta_getter = indice_navetta_getter
+        self.invia_comando_fn = invia_comando_fn
+        self.leggi_stato_fn = leggi_stato_fn
+        
+        # --- Variabili ---
+        self.pulsanti_comandi = {}
+
+        # --- Layout: due colonne ---
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # --- Frame sinistro: comandi ---
+        self.frame_pulsanti = tk.LabelFrame(self, text="Comandi:", font=("Arial", 12, "bold"))
+        self.frame_pulsanti.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+        # --- Frame destro: help ---
+        self.frame_help = tk.LabelFrame(self, text="Help", font=("Arial", 12, "bold"))
+        self.frame_help.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+
+        # --- Sezione Inverter ---
+        self.frame_inverter = tk.LabelFrame(self.frame_pulsanti, text="Inverter:", font=("Arial", 12, "bold"))
+        self.frame_inverter.pack(fill="x", padx=5, pady=5)
+
+        # --- Pulsanti inverter affiancati ---
+        btn_frame = tk.Frame(self.frame_inverter)
+        btn_frame.pack(pady=5)
+
+        # --- Bottone Disabilita ---
+        self.pulsanti_comandi["EnableInverter_OFF"] = tk.Button(
+            btn_frame,
+            text="Disabilita",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_drive(0)
+        )
+        self.pulsanti_comandi["EnableInverter_OFF"].pack(side="left", padx=5)
+        self.pulsanti_comandi["EnableInverter_OFF"].bind("<Enter>", lambda e: self.aggiorna_help("EnableInverter_OFF"))
+        self.pulsanti_comandi["EnableInverter_OFF"].bind("<Leave>", lambda e: self.pulisci_help())
+        
+        # --- Bottone Abilita ---
+        self.pulsanti_comandi["EnableInverter_ON"] = tk.Button(
+            btn_frame,
+            text="Abilita",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_drive(-1)
+        )
+        self.pulsanti_comandi["EnableInverter_ON"].pack(side="left", padx=5)
+        self.pulsanti_comandi["EnableInverter_ON"].bind("<Enter>", lambda e: self.aggiorna_help("EnableInverter_ON"))
+        self.pulsanti_comandi["EnableInverter_ON"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        # --- Etichetta stato inverter ---
+        self.label_inverter_stato = tk.Label(
+            btn_frame,
+            text="❌",
+            font=("Arial", 20),
+            fg="red"
+        )
+        self.label_inverter_stato.pack(side="left", padx=10)
+        # --- Sezione HOME ---
+        self.frame_home = tk.LabelFrame(self.frame_pulsanti, text="Movimenti:", font=("Arial", 12, "bold"))
+        self.frame_home.pack(fill="x", padx=5, pady=5)
+
+        # --- Frame per bottone + etichetta ---
+        btn_home_frame = tk.Frame(self.frame_home)
+        btn_home_frame.pack(fill="x", padx=5, pady=5)
+
+        # Configuro 4 colonne: vuota - bottone - label - vuota
+        btn_home_frame.grid_columnconfigure(0, weight=1)
+        btn_home_frame.grid_columnconfigure(1, weight=0)
+        btn_home_frame.grid_columnconfigure(2, weight=0)
+        btn_home_frame.grid_columnconfigure(3, weight=1)
+
+        # Bottone Home
+        self.pulsanti_comandi["CMD_Home"] = tk.Button(
+            btn_home_frame,
+            text="Home",
+            width=14,
+            font=("Arial", 14),
+            command=self.invia_comando_home
+        )
+        self.pulsanti_comandi["CMD_Home"].grid(row=0, column=1, padx=5)
+        self.pulsanti_comandi["CMD_Home"].bind("<Enter>", lambda e: self.aggiorna_help("CMD_Home"))
+        self.pulsanti_comandi["CMD_Home"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        # Etichetta stato Home
+        self.label_home_stato = tk.Label(
+            btn_home_frame,
+            text="❎",
+            font=("Arial", 20),
+            fg="red"
+        )
+        self.label_home_stato.grid(row=0, column=2, padx=10)
+        # --- Sezione Manuale / Automatico ---
+        self.frame_auto = tk.LabelFrame(self.frame_pulsanti, text="Manuale / Automatico:", font=("Arial", 12, "bold"))
+        self.frame_auto.pack(fill="x", padx=5, pady=5)
+
+        # --- Pulsanti Manuale / Automatico affiancati ---
+        btn_frame_auto = tk.Frame(self.frame_auto)
+        btn_frame_auto.pack(pady=5)
+
+        # Bottone Manuale (OFF)
+        self.pulsanti_comandi["Enable_Auto_OFF"] = tk.Button(
+            btn_frame_auto,
+            text="Manuale",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_auto(0)
+        )
+        self.pulsanti_comandi["Enable_Auto_OFF"].pack(side="left", padx=5)
+        self.pulsanti_comandi["Enable_Auto_OFF"].bind("<Enter>", lambda e: self.aggiorna_help("Enable_Auto_OFF"))
+        self.pulsanti_comandi["Enable_Auto_OFF"].bind("<Leave>", lambda e: self.pulisci_help())
+        
+        # Bottone Automatico (ON)
+        self.pulsanti_comandi["Enable_Auto_ON"] = tk.Button(
+            btn_frame_auto,
+            text="Automatico",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_auto(-1)
+        )
+        self.pulsanti_comandi["Enable_Auto_ON"].pack(side="left", padx=5)
+        self.pulsanti_comandi["Enable_Auto_ON"].bind("<Enter>", lambda e: self.aggiorna_help("Enable_Auto_ON"))
+        self.pulsanti_comandi["Enable_Auto_ON"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        # --- Etichetta stato Manuale / Automatico ---
+        self.label_auto_stato = tk.Label(
+            btn_frame_auto,
+            text="❎",
+            font=("Arial", 20),
+            fg="red"
+        )
+        self.label_auto_stato.pack(side="left", padx=10)
+        # --- Sezione Posizione di mantenimento ---
+        self.frame_maintenance = tk.LabelFrame(self.frame_pulsanti, text="Posizione di mantenimento:", font=("Arial", 12, "bold"))
+        self.frame_maintenance.pack(fill="x", padx=5, pady=5)
+
+        # --- Pulsanti Posizione di mantenimento affiancati ---
+        btn_frame_maintenance = tk.Frame(self.frame_maintenance)
+        btn_frame_maintenance.pack(pady=5)
+
+        # Bottone Disabilita (OFF)
+        self.pulsanti_comandi["MaintenancePosition_OFF"] = tk.Button(
+            btn_frame_maintenance,
+            text="Disabilita",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_maintenance_position(0)
+        )
+        self.pulsanti_comandi["MaintenancePosition_OFF"].pack(side="left", padx=5)
+        self.pulsanti_comandi["MaintenancePosition_OFF"].bind("<Enter>", lambda e: self.aggiorna_help("MaintenancePosition_OFF"))
+        self.pulsanti_comandi["MaintenancePosition_OFF"].bind("<Leave>", lambda e: self.pulisci_help())
+        
+        # Bottone Abilita (ON)
+        self.pulsanti_comandi["MaintenancePosition_ON"] = tk.Button(
+            btn_frame_maintenance,
+            text="Abilita",
+            width=12,
+            font=("Arial", 14),
+            command=lambda: self.invia_comando_enable_maintenance_position(-1)
+        )
+        self.pulsanti_comandi["MaintenancePosition_ON"].pack(side="left", padx=5)
+        self.pulsanti_comandi["MaintenancePosition_ON"].bind("<Enter>", lambda e: self.aggiorna_help("MaintenancePosition_ON"))
+        self.pulsanti_comandi["MaintenancePosition_ON"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        # --- Etichetta stato Posizione di mantenimento ---
+        self.label_maintenance_stato = tk.Label(
+            btn_frame_maintenance,
+            text="⭕​",
+            font=("Arial", 20),
+            fg="green"
+        )
+        self.label_maintenance_stato.pack(side="left", padx=10)
+                # --- Sezione Comandi vari ---
+        self.frame_extra = tk.LabelFrame(self.frame_pulsanti, text="Comandi Extra:", font=("Arial", 12, "bold"))
+        self.frame_extra.pack(fill="x", padx=5, pady=5, anchor="center")
+
+        # --- Riga RESET ---
+        frame_reset = tk.Frame(self.frame_extra)
+        frame_reset.pack(fill="x", padx=10, pady=5)
+
+        frame_reset.grid_columnconfigure(0, weight=1)
+        frame_reset.grid_columnconfigure(1, weight=0)
+        frame_reset.grid_columnconfigure(2, weight=1)
+
+        lbl_reset_left = tk.Label(frame_reset, fg="orange", text="⚠️", font=("Arial", 24))
+        lbl_reset_left.grid(row=0, column=0, sticky="e")
+
+        self.pulsanti_comandi["CMD_Reset"] = tk.Button(
+            frame_reset,
+            text="RESET",
+            width=16,
+            font=("Arial", 14),
+            command=self.invia_comando_reset
+        )
+        self.pulsanti_comandi["CMD_Reset"].grid(row=0, column=1, padx=10)
+        self.pulsanti_comandi["CMD_Reset"].bind("<Enter>", lambda e: self.aggiorna_help("CMD_Reset"))
+        self.pulsanti_comandi["CMD_Reset"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        lbl_reset_right = tk.Label(frame_reset, fg="orange", text="⚠️", font=("Arial", 24))
+        lbl_reset_right.grid(row=0, column=2, sticky="w")
+
+        # --- Riga Stop Aria ---
+        frame_stop_air = tk.Frame(self.frame_extra)
+        frame_stop_air.pack(fill="x", padx=10, pady=5)
+
+        frame_stop_air.grid_columnconfigure(0, weight=0)
+        frame_stop_air.grid_columnconfigure(1, weight=0)
+        frame_stop_air.grid_columnconfigure(2, weight=0)
+
+        lbl_stopair_left = tk.Label(frame_stop_air, fg="orange", justify="center", text="⚠️", font=("Arial", 24))
+        lbl_stopair_left.grid(row=0, column=0, sticky="n")
+
+        self.pulsanti_comandi["CMD_StopAir"] = tk.Button(
+            frame_stop_air,
+            text="Stop Aria",
+            width=16,
+            font=("Arial", 14),
+            command=self.invia_comando_stop_air
+        )
+        self.pulsanti_comandi["CMD_StopAir"].grid(row=0, column=1, padx=10)
+        self.pulsanti_comandi["CMD_StopAir"].bind("<Enter>", lambda e: self.aggiorna_help("CMD_StopAir"))
+        self.pulsanti_comandi["CMD_StopAir"].bind("<Leave>", lambda e: self.pulisci_help())
+
+        lbl_stopair_right = tk.Label(frame_stop_air, fg="orange", text="⚠️", font=("Arial", 24))
+        lbl_stopair_right.grid(row=0, column=2, sticky="w")
+
+    def aggiorna_tutti_comandi(self, stato_navetta):
+        """
+        Aggiorna TUTTI i comandi gestiti da NavetteControllo.
+        """
+        for cmd in self.pulsanti_comandi.keys():
+            self.aggiorna_comando(cmd, stato_navetta)
+
+    def aggiorna_comando(self, cmd, stato_navetta):
+        """
+        Aggiorna un singolo comando (relief + enabled/disabled) in base allo stato della navetta.
+        """
+        comando_to_flag = {
+            "EnableInverter_ON": "Stato_EnableDrive",
+            "EnableInverter_OFF": "Stato_EnableDrive",
+            "Enable_Auto_ON": "Stato_Automatico",
+            "Enable_Auto_OFF": "Stato_Automatico",
+            "MaintenancePosition_ON": "Stato_MaintenancePosition",
+            "MaintenancePosition_OFF": "Stato_MaintenancePosition",
+            "CMD_Home": "Home_OK",
+        }
+
+        if cmd in comando_to_flag:
+            flag = comando_to_flag[cmd]
+            flag_value = stato_navetta.get(flag, False)
+
+            if cmd == "EnableInverter_ON":
+                relief = "sunken" if flag_value else "raised"
+            elif cmd == "EnableInverter_OFF":
+                relief = "raised" if flag_value else "sunken"
+            elif cmd == "Enable_Auto_ON":
+                relief = "sunken" if flag_value else "raised"
+            elif cmd == "Enable_Auto_OFF":
+                relief = "raised" if flag_value else "sunken"
+            elif cmd == "MaintenancePosition_ON":
+                relief = "sunken" if flag_value else "raised"
+            elif cmd == "MaintenancePosition_OFF":
+                relief = "raised" if flag_value else "sunken"
+            else:
+                relief = "raised"
+
+            condizioni, ok, _ = valida_condizioni_navetta(
+                self.controller.dati_navetta,
+                self.indice_navetta_getter(),
+                cmd
+            )
+
+            self.pulsanti_comandi[cmd].config(relief=relief)
+
+            new_state = "normal" if ok and relief != "sunken" else "disabled"
+            if cmd == "CMD_Home":
+                new_state = "normal" if ok else "disabled"
+
+            self.pulsanti_comandi[cmd].config(state=new_state)
+
+            # --- Aggiorna le label ---
+            if cmd in ["EnableInverter_ON", "EnableInverter_OFF"]:
+                simbolo = "✅" if flag_value else "❎"
+                colore = "green" if flag_value else "red"
+                self.label_inverter_stato.config(text=simbolo, fg=colore)
+
+            elif cmd in ["Enable_Auto_ON", "Enable_Auto_OFF"]:
+                simbolo = "✅" if flag_value else "❎"
+                colore = "green" if flag_value else "red"
+                self.label_auto_stato.config(text=simbolo, fg=colore)
+
+            elif cmd in ["MaintenancePosition_ON", "MaintenancePosition_OFF"]:
+                simbolo = "⚠️" if flag_value else "⭕​"
+                colore = "orange" if flag_value else "green"
+                self.label_maintenance_stato.config(text=simbolo, fg=colore)
+
+            elif cmd == "CMD_Home":
+                simbolo = "✅" if flag_value else "❎"
+                colore = "green" if flag_value else "red"
+                self.label_home_stato.config(text=simbolo, fg=colore)
+
+    def invia_comando_enable_drive(self, valore):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        comando_str = f"write {navetta_key} CMD_EnableDrive {valore}"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+            self.controller.dati_navetta[navetta_key]["Stato_EnableDrive"] = (valore == -1)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+    def invia_comando_enable_auto(self, valore):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        comando_str = f"write {navetta_key} CMD_Automatico {valore}"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+            self.controller.dati_navetta[navetta_key]["Stato_Automatico"] = (valore == -1)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+    def invia_comando_enable_maintenance_position(self, valore):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        comando_str = f"write {navetta_key} CMD_MaintenancePosition {valore}"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+            self.controller.dati_navetta[navetta_key]["Stato_MaintenancePosition"] = (valore == -1)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+    def invia_comando_home(self):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        stato_home = self.controller.dati_navetta.get(navetta_key, {}).get("Home_OK", False)
+
+        if stato_home:
+            risposta = messagebox.askyesno("Conferma HOME", "La navetta è già azzerata.\nSicuro di voler continuare?")
+            if not risposta:
+                print("[DEBUG] Home annullato dall'utente.")
+                return
+
+        comando_str = f"write {navetta_key} CMD_Home -1"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+    def invia_comando_reset(self):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        risposta = messagebox.askyesno("Conferma RESET", "Sei sicuro di voler inviare il comando RESET?")
+        if not risposta:
+            print("[DEBUG] RESET annullato dall'utente.")
+            return
+
+        comando_str = f"write {navetta_key} CMD_Reset -1"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+    def invia_comando_stop_air(self):
+        indice_navetta = self.indice_navetta_getter()
+        navetta_key = f"Navetta_{indice_navetta + 1}"
+
+        risposta = messagebox.askyesno("Conferma Stop Aria", "Sei sicuro di voler inviare il comando Stop Aria?")
+        if not risposta:
+            print("[DEBUG] Stop Aria annullato dall'utente.")
+            return
+
+        comando_str = f"write {navetta_key} CMD_StopAir -1"
+        print(f"[DEBUG] Invio comando: {comando_str}")
+
+        if self.invia_comando_fn:
+            self.invia_comando_fn(comando_str)
+        else:
+            print("[ERRORE] invia_comando_fn non definita!")
+
+
+    def aggiorna_help(self, cmd):
+        """
+        Aggiorna il contenuto del frame help con il tooltip + condizioni del comando selezionato.
+        """
+        condizioni, _, tooltip = valida_condizioni_navetta(
+            self.controller.dati_navetta,
+            self.indice_navetta_getter(),
+            cmd
+        )
+
+        self.pulisci_help()
+
+        lbl_tooltip = tk.Label(
+            self.frame_help,
+            text=tooltip,
+            font=("Arial", 12, "italic"),
+            fg="blue",
+            wraplength=300,
+            justify="left"
+        )
+        lbl_tooltip.pack(anchor="w", padx=5, pady=(0, 5))
+
+        for nome, ok in condizioni:
+            simbolo = "✅" if ok else "❌"
+            colore = "green" if ok else "red"
+            lbl = tk.Label(
+                self.frame_help,
+                text=f"{simbolo} {nome}",
+                font=("Arial", 12),
+                anchor="w",
+                fg=colore
+            )
+            lbl.pack(anchor="w", padx=5, pady=2)
+
+    def pulisci_help(self):
+        """
+        Pulisce il frame help.
+        """
+        for widget in self.frame_help.winfo_children():
+            widget.destroy()

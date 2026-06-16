@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verticale HMI v2.0</title>
+    <!-- Importazione Font Outfit da Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js per la futura integrazione 3D STL/OBJ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="logo-area">
+                <span class="logo-icon">▲</span>
+                <div class="logo-text">
+                    <h1>VERTICALE HMI</h1>
+                    <span class="logo-sub">REAL-TIME MONITOR & CONTROL v2.0</span>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <span class="status-label">SERVER HMI:</span>
+                    <span id="hmi-status" class="status-value val-online">ACTIVE</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-label">NETLINKER:</span>
+                    <span id="netlinker-status" class="status-value val-offline">DISCONNECTED</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-label">PID:</span>
+                    <span id="server-pid" class="status-value val-neutral">-</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT LAYER (Sidebar + Content Panels) -->
+        <div class="main-body">
+            <!-- SIDEBAR NAVIGATION -->
+            <nav class="sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item active" data-target="panel-globale">
+                        <span class="icon">📊</span>
+                        <span class="title">Stato Globale</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-navette">
+                        <span class="icon">🚚</span>
+                        <span class="title">Navette (1-4)</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-carrello">
+                        <span class="icon">🚟</span>
+                        <span class="title">Carrello</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-caricatore">
+                        <span class="icon">🏗️</span>
+                        <span class="title">Caricatore</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-rulliere">
+                        <span class="icon">🔁</span>
+                        <span class="title">Rulliere</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-logs">
+                        <span class="icon">📋</span>
+                        <span class="title">Console Log</span>
+                    </li>
+                    <li class="nav-item" data-target="panel-impostazioni">
+                        <span class="icon">⚙️</span>
+                        <span class="title">Impostazioni</span>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- CONTENT WINDOW -->
+            <main class="content-container">
+                <!-- 1. PANNELLO STATO GLOBALE -->
+                <section id="panel-globale" class="content-panel active">
+                    <div class="panel-layout-globale">
+                        <!-- Left Side: Table & Controls -->
+                        <div class="globale-left">
+                            <div class="card card-table">
+                                <h2 class="card-title">Matrice Stato Comandi Globali</h2>
+                                <div class="table-container">
+                                    <table id="global-status-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Comando</th>
+                                                <!-- Colonne popolate dinamicamente in base a config.json -->
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr id="row-enable-inverter">
+                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="EnableInverter">Abilita Inverter</button></td>
+                                            </tr>
+                                            <tr id="row-home">
+                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Home">Home</button></td>
+                                            </tr>
+                                            <tr id="row-automatico">
+                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Automatico">Automatico</button></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card card-global-actions">
+                                <button id="btn-stop-inverter" class="btn-danger-global">⚠️ DISABILITA INVERTER GLOBALE</button>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: 2D/3D Sinottico -->
+                        <div class="globale-right card card-sinottico">
+                            <div class="sinottico-header">
+                                <h2 class="card-title">Vista Sinottico Impianto</h2>
+                                <div class="view-selector">
+                                    <button id="btn-view-2d" class="btn-view active">Vista 2D (SVG)</button>
+                                    <button id="btn-view-3d" class="btn-view">Vista 3D (ThreeJS)</button>
+                                </div>
+                            </div>
+                            
+                            <div class="sinottico-viewport">
+                                <!-- Vista 2D SVG -->
+                                <div id="sinottico-2d" class="sinottico-canvas-container active">
+                                    <svg id="svg-layout" viewBox="0 0 1400 750" width="100%" height="100%">
+                                        <!-- Lo schema SVG verrà disegnato dinamicamente in app.js -->
+                                    </svg>
+                                </div>
+                                <!-- Vista 3D Canvas -->
+                                <div id="sinottico-3d" class="sinottico-canvas-container">
+                                    <div id="three-container"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. PANNELLO NAVETTE -->
+                <section id="panel-navette" class="content-panel">
+                    <div class="navetta-selector-bar">
+                        <!-- Bottoni di selezione navette dinamici (Navetta_1, Navetta_2, ecc.) -->
+                    </div>
+                    <div class="device-panel-container">
+                        <!-- Copertura offline -->
+                        <div id="navetta-offline-overlay" class="offline-overlay">
+                            <div class="overlay-content">
+                                <span class="overlay-icon">⚠️</span>
+                                <h3>NAVETTA DISCONNESSA</h3>
+                                <p>Nessun dato o comunicazione interrotta con la macchina da NetLinker.</p>
+                            </div>
+                        </div>
+
+                        <div class="device-panel-grid">
+                            <!-- Left: Status & Controls -->
+                            <div class="device-info-controls">
+                                <div class="device-header-status">
+                                    <h2 id="navetta-selezionata-title">Navetta 1</h2>
+                                    <div class="connection-led-badge">
+                                        <span class="led led-gray" id="navetta-led"></span>
+                                        <span id="navetta-connection-text">Offline</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="status-groups-container">
+                                    <!-- Azzeramenti -->
+                                    <div class="status-card-group">
+                                        <h3>Azzeramenti</h3>
+                                        <div class="status-row">
+                                            <span>Asse X Homed:</span>
+                                            <span class="badge" id="nav-val-X_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Asse Y Homed:</span>
+                                            <span class="badge" id="nav-val-Y_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Asse Z Homed:</span>
+                                            <span class="badge" id="nav-val-Z_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Tutto Home (OK):</span>
+                                            <span class="badge" id="nav-val-Home_OK">⭕</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Lavoro -->
+                                    <div class="status-card-group">
+                                        <h3>Automatico</h3>
+                                        <div class="status-row">
+                                            <span>In attesa lavoro (Pick):</span>
+                                            <span class="badge" id="nav-val-Stato_Pick">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>In lavorazione (Picked):</span>
+                                            <span class="badge" id="nav-val-Stato_Picked">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Indice Tabella Lavoro:</span>
+                                            <span class="numeric-val" id="nav-val-TabellaLavoro_Index">-</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Allarmi -->
+                                    <div class="status-card-group">
+                                        <h3>Allarmi & Stato</h3>
+                                        <div class="status-row">
+                                            <span>Emergenza attiva:</span>
+                                            <span class="badge" id="nav-val-Stato_Emergenza">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pressione Aria OK:</span>
+                                            <span class="badge" id="nav-val-Stato_Aria_OK">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Inverter Driver OK:</span>
+                                            <span class="badge" id="nav-val-Stato_Inverter_OK">⭕</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Comunicazioni -->
+                                    <div class="status-card-group">
+                                        <h3>Comunicazioni</h3>
+                                        <div class="status-row">
+                                            <span>Rete con Rulliere:</span>
+                                            <span class="badge" id="nav-val-Stato_ComunicazioneRulliere">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Rete con Carrello:</span>
+                                            <span class="badge" id="nav-val-Stato_ComunicazioneCarrello">⭕</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="control-actions-card">
+                                    <h3>Pannello di Comando</h3>
+                                    <div class="btn-control-group">
+                                        <div class="control-row">
+                                            <label>Inverter Driver:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_EnableDrive" data-val="0" id="btn-nav-drive-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_EnableDrive" data-val="-1" id="btn-nav-drive-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Asse Home (Azzeramento):</label>
+                                            <button class="btn-ctrl btn-action" data-device="Navetta" data-param="CMD_Home" data-val="-1" id="btn-nav-home">Avvia Home</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Modalità Operativa:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_Automatico" data-val="0" id="btn-nav-auto-off">Manuale</button>
+                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_Automatico" data-val="-1" id="btn-nav-auto-on">Automatico</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Posizione Manutenzione:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="0" id="btn-nav-maint-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-nav-maint-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row-extra">
+                                            <button class="btn-ctrl btn-warning" data-device="Navetta" data-param="CMD_Reset" data-val="-1" id="btn-nav-reset">RESET</button>
+                                            <button class="btn-ctrl btn-danger" data-device="Navetta" data-param="CMD_StopAir" data-val="-1" id="btn-nav-stopair">STOP ARIA</button>
+                                        </div>
+                                    </div>
+                                    <!-- Template On-Demand Activation (Navetta 4) -->
+                                    <div class="template-activation-row" id="navetta-4-tpl-group" style="display: none;">
+                                        <label>Template On-Demand (ID/Lunghezza):</label>
+                                        <button class="btn-ctrl btn-secondary" id="btn-nav-tpl-toggle">Attiva Template</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Middle: Graphic Encoders (Position visualization) -->
+                            <div class="device-graphic-encoders">
+                                <h3>Quote Encoders</h3>
+                                <div class="navetta-encoders-layout">
+                                    <!-- Encoder X (Orizzontale) -->
+                                    <div class="encoder-box horizontal">
+                                        <div class="encoder-header">
+                                            <span>Asse X (Corsa)</span>
+                                            <span class="value" id="nav-val-X_Encoder">0 mm</span>
+                                        </div>
+                                        <div class="linear-track-x">
+                                            <div class="linear-bar-fill-x" id="nav-bar-x" style="left: 0%;"></div>
+                                            <div class="linear-indicator-x" id="nav-ind-x" style="left: 0%;">
+                                                <div class="indicator-tooltip">NAV</div>
+                                            </div>
+                                            <div class="track-labels">
+                                                <span>0 mm</span>
+                                                <span id="nav-lbl-home-x">Home</span>
+                                                <span id="nav-lbl-max-x">Max</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Encoder Z (Verticale) -->
+                                    <div class="encoder-box vertical">
+                                        <div class="encoder-header">
+                                            <span>Asse Z (Altezza)</span>
+                                            <span class="value" id="nav-val-Z_Encoder">0 mm</span>
+                                        </div>
+                                        <div class="linear-track-z-container">
+                                            <div class="linear-track-z">
+                                                <div class="linear-bar-fill-z" id="nav-bar-z" style="height: 0%;"></div>
+                                                <div class="linear-indicator-z" id="nav-ind-z" style="bottom: 0%;"></div>
+                                            </div>
+                                            <div class="track-labels-z">
+                                                <span id="nav-lbl-max-z">Max</span>
+                                                <span>Home</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="numeric-stats-row">
+                                    <div class="numeric-stat-item">
+                                        <span class="lbl">Encoder Y1:</span>
+                                        <span class="val" id="nav-val-Y1_Encoder">0 mm</span>
+                                    </div>
+                                    <div class="numeric-stat-item">
+                                        <span class="lbl">Encoder Y2:</span>
+                                        <span class="val" id="nav-val-Y2_Encoder">0 mm</span>
+                                    </div>
+                                    <div class="numeric-stat-item" id="navetta-4-extra-id" style="display: none;">
+                                        <span class="lbl">ID Template:</span>
+                                        <span class="val" id="nav-val-ID">-</span>
+                                    </div>
+                                    <div class="numeric-stat-item" id="navetta-4-extra-lunghezza" style="display: none;">
+                                        <span class="lbl">Lunghezza Tpl:</span>
+                                        <span class="val" id="nav-val-Lunghezza">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Live Help Panel -->
+                            <div class="device-help-card">
+                                <h3 class="card-title">Aiuto Condizioni Comando</h3>
+                                <div id="navetta-help-content" class="help-empty-state">
+                                    Passa il mouse sopra un pulsante per visualizzare i requisiti di sicurezza necessari alla sua esecuzione.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. PANNELLO CARRELLO -->
+                <section id="panel-carrello" class="content-panel">
+                    <div class="device-panel-container">
+                        <div id="carrello-offline-overlay" class="offline-overlay">
+                            <div class="overlay-content">
+                                <span class="overlay-icon">⚠️</span>
+                                <h3>CARRELLO DISCONNESO</h3>
+                                <p>Nessun dato o comunicazione interrotta con il Carrello da NetLinker.</p>
+                            </div>
+                        </div>
+
+                        <div class="device-panel-grid">
+                            <div class="device-info-controls">
+                                <div class="device-header-status">
+                                    <h2>Carrello Traslatore</h2>
+                                    <div class="connection-led-badge">
+                                        <span class="led led-gray" id="carrello-led"></span>
+                                        <span id="carrello-connection-text">Offline</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="status-groups-container">
+                                    <div class="status-card-group">
+                                        <h3>Azzeramenti</h3>
+                                        <div class="status-row">
+                                            <span>Asse Y Homed:</span>
+                                            <span class="badge" id="carr-val-Y_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Asse Rotazione Homed:</span>
+                                            <span class="badge" id="carr-val-Rotazione_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Tutto Home (OK):</span>
+                                            <span class="badge" id="carr-val-Home_OK">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Automatico</h3>
+                                        <div class="status-row">
+                                            <span>In attesa lavoro (Pick):</span>
+                                            <span class="badge" id="carr-val-Stato_Pick">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>In lavorazione (Picked):</span>
+                                            <span class="badge" id="carr-val-Stato_Picked">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Indice Tabella Lavoro:</span>
+                                            <span class="numeric-val" id="carr-val-IndexTabellaLavoro">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Allarmi & Stato</h3>
+                                        <div class="status-row">
+                                            <span>Emergenza attiva:</span>
+                                            <span class="badge" id="carr-val-Stato_Emergenza">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pressione Aria OK:</span>
+                                            <span class="badge" id="carr-val-Stato_Aria_OK">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Inverter Driver OK:</span>
+                                            <span class="badge" id="carr-val-Stato_Inverter_OK">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Comunicazioni</h3>
+                                        <div class="status-row">
+                                            <span>Rete con Rulliere:</span>
+                                            <span class="badge" id="carr-val-Stato_ComunicazioneRulliere">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Rete con Caricatore:</span>
+                                            <span class="badge" id="carr-val-Stato_ComunicazioneCaricatore">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Rete con Navette:</span>
+                                            <span class="badge" id="carr-val-Stato_ComunicazioneNavette">⭕</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="control-actions-card">
+                                    <h3>Pannello di Comando</h3>
+                                    <div class="btn-control-group">
+                                        <div class="control-row">
+                                            <label>Inverter Driver:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_EnableDrive" data-val="0" id="btn-carr-drive-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_EnableDrive" data-val="-1" id="btn-carr-drive-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Asse Home (Azzeramento):</label>
+                                            <button class="btn-ctrl btn-action" data-device="Carrello" data-param="CMD_Home" data-val="-1" id="btn-carr-home">Avvia Home</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Modalità Operativa:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_Automatico" data-val="0" id="btn-carr-auto-off">Manuale</button>
+                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_Automatico" data-val="-1" id="btn-carr-auto-on">Automatico</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Posizione Manutenzione:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="0" id="btn-carr-maint-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-carr-maint-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row-extra">
+                                            <button class="btn-ctrl btn-warning" data-device="Carrello" data-param="CMD_Reset" data-val="-1" id="btn-carr-reset">RESET</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-graphic-encoders">
+                                <h3>Quote Encoders</h3>
+                                <div class="carrello-encoders-layout">
+                                    <!-- Traslazione Asse Y (Verticale) -->
+                                    <div class="encoder-box vertical">
+                                        <div class="encoder-header">
+                                            <span>Asse Y (Traslazione)</span>
+                                            <span class="value" id="carr-val-Y_Encoder">0 mm</span>
+                                        </div>
+                                        <div class="linear-track-z-container">
+                                            <!-- Disegniamo una traccia verticale graduata con le posizioni delle Navette visualizzate a fianco -->
+                                            <div class="linear-track-z" style="height: 400px;">
+                                                <div class="linear-bar-fill-z" id="carr-bar-y" style="height: 0%;"></div>
+                                                <div class="linear-indicator-z" id="carr-ind-y" style="bottom: 0%;"></div>
+                                                <!-- Marker Navette disegnati dinamicamente in JS -->
+                                                <div id="carr-nav-markers"></div>
+                                            </div>
+                                            <div class="track-labels-z">
+                                                <span id="carr-lbl-max-y">Max mm</span>
+                                                <span>Home</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rotazione Carrello (Angolare) -->
+                                    <div class="encoder-box angular">
+                                        <div class="encoder-header">
+                                            <span>Asse Rotazione</span>
+                                            <span class="value" id="carr-val-Rotazione_Encoder">0.0°</span>
+                                        </div>
+                                        <div class="circular-dial-container">
+                                            <svg width="150" height="150" viewBox="0 0 100 100">
+                                                <circle cx="50" cy="50" r="40" stroke="#34495e" stroke-width="6" fill="none" />
+                                                <circle cx="50" cy="50" r="3" fill="#e74c3c" />
+                                                <line id="carr-needle" x1="50" y1="50" x2="50" y2="15" stroke="#e74c3c" stroke-width="3" transform="rotate(0 50 50)" />
+                                                <text x="50" y="85" text-anchor="middle" font-size="10" fill="#95a5a6">Rotazione</text>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-help-card">
+                                <h3 class="card-title">Aiuto Condizioni Comando</h3>
+                                <div id="carrello-help-content" class="help-empty-state">
+                                    Passa il mouse sopra un pulsante per visualizzare i requisiti di sicurezza.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. PANNELLO CARICATORE -->
+                <section id="panel-caricatore" class="content-panel">
+                    <div class="device-panel-container">
+                        <div id="caricatore-offline-overlay" class="offline-overlay">
+                            <div class="overlay-content">
+                                <span class="overlay-icon">⚠️</span>
+                                <h3>CARICATORE DISCONNESSO</h3>
+                                <p>Nessun dato o comunicazione interrotta con il Caricatore da NetLinker.</p>
+                            </div>
+                        </div>
+
+                        <div class="device-panel-grid">
+                            <div class="device-info-controls">
+                                <div class="device-header-status">
+                                    <h2>Caricatore a Ventose</h2>
+                                    <div class="connection-led-badge">
+                                        <span class="led led-gray" id="caricatore-led"></span>
+                                        <span id="caricatore-connection-text">Offline</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="status-groups-container">
+                                    <div class="status-card-group">
+                                        <h3>Azzeramenti</h3>
+                                        <div class="status-row">
+                                            <span>Asse Z Homed:</span>
+                                            <span class="badge" id="car-val-Z_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Asse Rotazione Homed:</span>
+                                            <span class="badge" id="car-val-Rotazione_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Asse Telaio Homed:</span>
+                                            <span class="badge" id="car-val-Telaio_Homed">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Tutto Home (OK):</span>
+                                            <span class="badge" id="car-val-Home_OK">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Automatico</h3>
+                                        <div class="status-row">
+                                            <span>In attesa lavoro (Pick):</span>
+                                            <span class="badge" id="car-val-Stato_Pick">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>In lavorazione (Picked):</span>
+                                            <span class="badge" id="car-val-Stato_Picked">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Indice Tabella Lavoro:</span>
+                                            <span class="numeric-val" id="car-val-IndexTabellaLavoro">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Allarmi & Stato</h3>
+                                        <div class="status-row">
+                                            <span>Emergenza attiva:</span>
+                                            <span class="badge" id="car-val-Stato_Emergenza">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pressione Aria OK:</span>
+                                            <span class="badge" id="car-val-Stato_Aria_OK">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Comunicazioni</h3>
+                                        <div class="status-row">
+                                            <span>Rete con Rulliere:</span>
+                                            <span class="badge" id="car-val-Stato_ComunicazioneRulliere">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Rete con Carrello:</span>
+                                            <span class="badge" id="car-val-Stato_ComunicazioneCarrello">⭕</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="control-actions-card">
+                                    <h3>Pannello di Comando</h3>
+                                    <div class="btn-control-group">
+                                        <div class="control-row">
+                                            <label>Inverter Driver:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Caricatore" data-param="CMD_EnableDrive" data-val="0" id="btn-car-drive-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Caricatore" data-param="CMD_EnableDrive" data-val="-1" id="btn-car-drive-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Asse Home (Azzeramento):</label>
+                                            <button class="btn-ctrl btn-action" data-device="Caricatore" data-param="CMD_Home" data-val="-1" id="btn-car-home">Avvia Home</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Modalità Operativa:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Caricatore" data-param="CMD_Automatico" data-val="0" id="btn-car-auto-off">Manuale</button>
+                                            <button class="btn-ctrl btn-on" data-device="Caricatore" data-param="CMD_Automatico" data-val="-1" id="btn-car-auto-on">Automatico</button>
+                                        </div>
+                                        <div class="control-row-extra">
+                                            <button class="btn-ctrl btn-warning" data-device="Caricatore" data-param="CMD_Reset" data-val="-1" id="btn-car-reset">RESET</button>
+                                            <button class="btn-ctrl btn-danger" data-device="Caricatore" data-param="CMD_StopAir" data-val="-1" id="btn-car-stopair">STOP ARIA</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-graphic-encoders">
+                                <h3>Quote Encoders</h3>
+                                <div class="carrello-encoders-layout">
+                                    <!-- Quota Sollevamento Z (Verticale) -->
+                                    <div class="encoder-box vertical">
+                                        <div class="encoder-header">
+                                            <span>Asse Z (Sollevamento)</span>
+                                            <span class="value" id="car-val-Z_Encoder">0 mm</span>
+                                        </div>
+                                        <div class="linear-track-z-container">
+                                            <div class="linear-track-z" style="height: 400px;">
+                                                <div class="linear-bar-fill-z" id="car-bar-z" style="height: 0%;"></div>
+                                                <div class="linear-indicator-z" id="car-ind-z" style="bottom: 0%;"></div>
+                                            </div>
+                                            <div class="track-labels-z">
+                                                <span id="car-lbl-max-z">Max mm</span>
+                                                <span>Home</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rotazione Caricatore -->
+                                    <div class="encoder-box angular">
+                                        <div class="encoder-header">
+                                            <span>Asse Rotazione</span>
+                                            <span class="value" id="car-val-Rotazione_Encoder">0.0°</span>
+                                        </div>
+                                        <div class="circular-dial-container">
+                                            <svg width="150" height="150" viewBox="0 0 100 100">
+                                                <circle cx="50" cy="50" r="40" stroke="#34495e" stroke-width="6" fill="none" />
+                                                <circle cx="50" cy="50" r="3" fill="#e74c3c" />
+                                                <line id="car-needle" x1="50" y1="50" x2="50" y2="15" stroke="#e74c3c" stroke-width="3" transform="rotate(0 50 50)" />
+                                                <text x="50" y="85" text-anchor="middle" font-size="10" fill="#95a5a6">Rotazione</text>
+                                            </svg>
+                                        </div>
+                                        <div class="numeric-stat-item" style="margin-top: 15px;">
+                                            <span class="lbl">Encoder Telaio:</span>
+                                            <span class="val" id="car-val-telaio_Encoder">0.0 mm</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-help-card">
+                                <h3 class="card-title">Aiuto Condizioni Comando</h3>
+                                <div id="caricatore-help-content" class="help-empty-state">
+                                    Passa il mouse sopra un pulsante per visualizzare i requisiti di sicurezza.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. PANNELLO RULLIERE -->
+                <section id="panel-rulliere" class="content-panel">
+                    <div class="device-panel-container">
+                        <div id="rulliere-offline-overlay" class="offline-overlay">
+                            <div class="overlay-content">
+                                <span class="overlay-icon">⚠️</span>
+                                <h3>RULLIERE SCOLLEGATE</h3>
+                                <p>Nessun dato o comunicazione interrotta con le Rulliere da NetLinker.</p>
+                            </div>
+                        </div>
+
+                        <div class="device-panel-grid">
+                            <div class="device-info-controls">
+                                <div class="device-header-status">
+                                    <h2>Rulliere e Cinghie</h2>
+                                    <div class="connection-led-badge">
+                                        <span class="led led-gray" id="rulliere-led"></span>
+                                        <span id="rulliere-connection-text">Offline</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="status-groups-container">
+                                    <div class="status-card-group">
+                                        <h3>Stato Sensori (Fotocellule)</h3>
+                                        <div class="status-row">
+                                            <span>Pannello Su Biesse:</span>
+                                            <span class="badge" id="rul-val-Stato_PannelloSuBiesse">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pannello Su R1:</span>
+                                            <span class="badge" id="rul-val-Stato_PannelloSuR1">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pannello Su R2:</span>
+                                            <span class="badge" id="rul-val-Stato_PannelloSuR2">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Automatico</h3>
+                                        <div class="status-row">
+                                            <span>In attesa lavoro (Pick):</span>
+                                            <span class="badge" id="rul-val-Stato_Pick">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>In lavorazione (Picked):</span>
+                                            <span class="badge" id="rul-val-Stato_Picked">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Indice Tabella Lavoro:</span>
+                                            <span class="numeric-val" id="rul-val-IndexTabellaLavoro">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Allarmi & Stato</h3>
+                                        <div class="status-row">
+                                            <span>Emergenza attiva:</span>
+                                            <span class="badge" id="rul-val-Stato_Emergenza">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Pressione Aria OK:</span>
+                                            <span class="badge" id="rul-val-Stato_Aria_OK">⭕</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span>Inverter Driver OK:</span>
+                                            <span class="badge" id="rul-val-Stato_Inverter_OK">⭕</span>
+                                        </div>
+                                    </div>
+                                    <div class="status-card-group">
+                                        <h3>Comunicazioni</h3>
+                                        <div class="status-row">
+                                            <span>Rete con Carrello:</span>
+                                            <span class="badge" id="rul-val-Stato_ComunicazioneCarrello">⭕</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="control-actions-card">
+                                    <h3>Pannello di Comando</h3>
+                                    <div class="btn-control-group">
+                                        <div class="control-row">
+                                            <label>Inverter Driver:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Rulliere" data-param="CMD_EnableDrive" data-val="0" id="btn-rul-drive-off">Disabilita</button>
+                                            <button class="btn-ctrl btn-on" data-device="Rulliere" data-param="CMD_EnableDrive" data-val="-1" id="btn-rul-drive-on">Abilita</button>
+                                        </div>
+                                        <div class="control-row">
+                                            <label>Modalità Operativa:</label>
+                                            <button class="btn-ctrl btn-off" data-device="Rulliere" data-param="CMD_Automatico" data-val="0" id="btn-rul-auto-off">Manuale</button>
+                                            <button class="btn-ctrl btn-on" data-device="Rulliere" data-param="CMD_Automatico" data-val="-1" id="btn-rul-auto-on">Automatico</button>
+                                        </div>
+                                        <div class="control-row-extra">
+                                            <button class="btn-ctrl btn-warning" data-device="Rulliere" data-param="CMD_Reset" data-val="-1" id="btn-rul-reset">RESET</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-graphic-encoders">
+                                <!-- Rappresentazione grafica semplificata del passaggio rulliere -->
+                                <h3>Sinottico Animato Rulli</h3>
+                                <div class="rulliere-graphic-container">
+                                    <div class="belt-indicator" id="rul-belt-1">
+                                        <span>Rulliera 1 (R1)</span>
+                                        <div class="belt-status-light" id="light-r1">OFFLINE</div>
+                                    </div>
+                                    <div class="belt-indicator" id="rul-belt-carr">
+                                        <span>Cinghie Carrello (R2)</span>
+                                        <div class="belt-status-light" id="light-r2">OFFLINE</div>
+                                    </div>
+                                    <div class="belt-indicator" id="rul-belt-biesse">
+                                        <span>Biesse Carico</span>
+                                        <div class="belt-status-light" id="light-biesse">OFFLINE</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="device-help-card">
+                                <h3 class="card-title">Aiuto Condizioni Comando</h3>
+                                <div id="rulliere-help-content" class="help-empty-state">
+                                    Passa il mouse sopra un pulsante per visualizzare i requisiti di sicurezza.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. PANNELLO CONSOLE LOG -->
+                <section id="panel-logs" class="content-panel">
+                    <div class="card card-logs">
+                        <div class="logs-header">
+                            <h2 class="card-title">Console Log Comunicazioni</h2>
+                            <button id="btn-clear-logs" class="btn-ctrl btn-secondary">Cancella Console</button>
+                        </div>
+                        <div class="logs-viewport" id="logs-console">
+                            <!-- Popolato da app.js -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. PANNELLO IMPOSTAZIONI -->
+                <section id="panel-impostazioni" class="content-panel">
+                    <div class="card card-impostazioni">
+                        <h2 class="card-title">Configurazione di Sistema</h2>
+                        <form id="form-config" class="config-form">
+                            <!-- Sezione Rete -->
+                            <div class="form-section">
+                                <h3>Parametri Connessione</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="polling_ip">IP NetLinker:</label>
+                                        <input type="text" id="polling_ip" name="polling_ip" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="polling_port">Porta TCP NetLinker:</label>
+                                        <input type="number" id="polling_port" name="polling_port" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="refresh">Refresh Rate (sec):</label>
+                                        <input type="number" id="refresh" name="refresh" step="0.1" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="syslog_ip">IP Server Syslog:</label>
+                                        <input type="text" id="syslog_ip" name="syslog_ip" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="syslog_port">Porta Syslog:</label>
+                                        <input type="number" id="syslog_port" name="syslog_port" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sezione Limiti Meccanici -->
+                            <div class="form-section">
+                                <h3>Limiti Meccanici & Corse Massime</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="carrello_max_y">Carrello Corsa Max Y (mm):</label>
+                                        <input type="number" id="carrello_max_y" name="carrello_max_y" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="caricatore_max_z">Caricatore Corsa Max Z (mm):</label>
+                                        <input type="number" id="caricatore_max_z" name="caricatore_max_z" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sezione Navette Abilitate -->
+                            <div class="form-section">
+                                <h3>Abilitazione e Dimensionamento Navette</h3>
+                                <div class="navette-config-grid" id="navette-config-list">
+                                    <!-- Compilato dinamicamente via JS per le navette 1..10 -->
+                                </div>
+                            </div>
+
+                            <div class="form-submit-row">
+                                <button type="submit" class="btn-ctrl btn-on" style="width: auto; padding: 10px 30px;">SALVA CONFIGURAZIONE</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <script src="app.js"></script>
+    <script src="three_viewer.js"></script>
+</body>
+</html>

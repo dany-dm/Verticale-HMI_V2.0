@@ -1,0 +1,292 @@
+#caricatore.py
+
+
+import tkinter as tk
+from tkinter import ttk
+
+from caricatore_controllo import CaricatoreControllo
+
+class PaginaCaricatore(tk.Frame):
+    def __init__(self, parent, controller, invia_comando_fn, leggi_stato_fn):
+        super().__init__(parent)
+        self.controller = controller
+        self.invia_comando_fn = invia_comando_fn
+        self.leggi_stato_fn = leggi_stato_fn
+        
+        # --- Variabili ---
+        self.stato_labels = {}
+        self.last_x_encoder = None
+        self.last_z_encoder = None
+
+        # --- Frame selector ---
+        frame_selector = tk.Frame(self)
+        frame_selector.grid(row=0, column=0, sticky="ew", pady=5)
+
+        # --- Contenitore colonne ---
+        contenitore_colonne = tk.Frame(self)
+        contenitore_colonne.grid(row=1, column=0, sticky="nsew")
+
+        # Rendi la pagina espandibile
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        # Configura colonne di contenitore_colonne
+        contenitore_colonne.grid_columnconfigure(0, weight=1)
+        contenitore_colonne.grid_rowconfigure(0, weight=1)
+
+        # --- Frame sinistro (frame2) ---
+        frame2 = tk.Frame(contenitore_colonne)
+        frame2.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        frame2.grid_rowconfigure(2, weight=1) 
+
+        # --- Frame comunicazione ---
+        frame_comunicazione = tk.Frame(frame2)
+        frame_comunicazione.grid(row=0, column=0, sticky="ew", pady=5)
+
+        label_macchina = tk.Label(frame_comunicazione, text="Caricatore", font=("Arial", 20, "bold"))
+        label_macchina.pack(side="left", padx=10)
+
+        label_conn = tk.Label(frame_comunicazione, text="Comunicazione con PLC", font=("Arial", 16))
+        label_conn.pack(side="left")
+
+        self.canvas_comunicazione = tk.Canvas(frame_comunicazione, width=20, height=20, highlightthickness=0)
+        self.led_comunicazione_id = self.canvas_comunicazione.create_oval(2, 2, 18, 18, fill="gray")
+        self.canvas_comunicazione.pack(side="left", padx=5)
+
+        # --- Frame stati ---
+        frame_stati = tk.Frame(frame2, bd=2, relief="groove")
+        frame_stati.grid(row=1, column=0, sticky="nsew", pady=5)
+
+        colonne = [
+            [
+                ("Asse Z homed", "Z_Homed"),
+                ("Asse Rotazione homed", "Rotazione_Homed"),
+                ("Tutto home", "Home_OK")
+            ],
+            [
+                ("In attesa lavoro", "Stato_Pick"),
+                ("In lavorazione", "Stato_Picked"),
+                ("Tabella Index", "IndexTabellaLavoro"),
+            ],
+            [
+                ("Emergenza", "Stato_Emergenza"),
+                ("Aria OK", "Stato_Aria_OK"),
+                ("Inverter OK", "Stato_Inverter_OK")
+            ],
+            [
+                ("Rulliere", "Stato_ComunicazioneRulliere")
+                #("Navette", "Stato_ComunicazioneNavette"),
+                #("Caricatore", "Stato_ComunicazioneCaricatore")
+            ]
+        ]
+
+        for col_idx, gruppo in enumerate(colonne):
+            col_frame = tk.LabelFrame(frame_stati, text=["Azzeramenti:", "Automatico:", "Allarmi:", "Comunicazioni:"][col_idx],
+                                      font=("Arial", 12, "bold"), padx=5, pady=5, bd=2, relief="groove")
+            col_frame.grid(row=0, column=col_idx, padx=10, sticky="n")
+
+            for descrizione, chiave in gruppo:
+                f = tk.Frame(col_frame)
+                f.pack(anchor="w", pady=0, padx=0)
+                lbl = tk.Label(f, text=descrizione + ":", font=("Arial", 14), anchor="w")
+                lbl.pack(side="left", padx=(0, 5))
+
+                if chiave == "IndexTabellaLavoro":
+                    val = tk.Entry(f, width=3, font=("Arial", 14), state='readonly', justify="center")
+                    val.pack(side="left", padx=10)
+                    self.stato_labels[chiave] = val
+                    continue
+
+                # --- LED di stato ---
+                canvas = tk.Canvas(f, width=20, height=20, highlightthickness=0)
+                led_id = canvas.create_oval(2, 2, 18, 18, fill="gray")
+                canvas.pack(side="left")
+                self.stato_labels[chiave] = (canvas, led_id)
+
+                # --- Campi encoder ---
+
+                if col_idx == 0 and chiave == "Z_Homed":
+                    val_frame = tk.Frame(f)
+                    val_frame.pack(side="right", padx=10)
+
+                    val = tk.Entry(val_frame, width=8, font=("Arial", 14), state='readonly', justify="right")
+                    val.pack(side="left")
+                    mm_label1 = tk.Label(val_frame, text="mm", font=("Arial", 12))
+                    mm_label1.pack(side="left", padx=(5, 10))
+                    self.stato_labels["Z_Encoder"] = val
+
+
+                elif col_idx == 0 and chiave == "Rotazione_Homed":
+                    val_frame = tk.Frame(f)
+                    val_frame.pack(side="right", padx=10)
+                    val = tk.Entry(val_frame, width=8, font=("Arial", 14), state='readonly', justify="right")
+                    val.pack(side="left")
+                    mm_label = tk.Label(val_frame, text="°", font=("Arial", 12))
+                    mm_label.pack(side="left", padx=(5, 0))
+                    self.stato_labels["Rotazione_Encoder"] = val
+
+        # --- Frame comandi ---
+        frame_comandi = tk.Frame(frame2, bg="#f0f0f0")
+        frame_comandi.grid(row=2, column=0, sticky="nsew", pady=5)
+        # --- Instanzia il pannello di controllo ---
+        self.controllo = CaricatoreControllo(
+            frame_comandi,
+            self.controller,
+            self.invia_comando_fn,
+            self.leggi_stato_fn
+        )
+        self.controllo.pack(fill="both", expand=True)
+        
+
+        # --- Frame barra Z ---
+        frame_barra_z = tk.Frame(contenitore_colonne)
+        frame_barra_z.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        # TRUCCO: faccio crescere la riga 0 di frame_barra_z
+        frame_barra_z.grid_rowconfigure(0, weight=1)
+        frame_barra_z.grid_columnconfigure(0, weight=1)
+        # Canvas barra Z — usiamo grid, NON pack!
+        self.barra_Y = tk.Canvas(frame_barra_z, width=100, bg="white")
+        self.barra_Y.grid(row=0, column=0, sticky="nsew")
+        self.barra_Y.bind("<Configure>", lambda e: self.aggiorna_barra_z())
+
+
+        # --- Avvia refresh GUI ---
+        self.after(200, self.refresh_gui_periodico)
+
+    # --- Funzioni ---
+
+    def aggiorna_gui(self, dati_macchine):
+        stato = dati_macchine.get("Caricatore")
+
+        comunicazione_ok = False
+        if stato:
+            comunicazione_ok = stato.get("__comunicazione_ok__", False)
+
+        colore_led = "green" if comunicazione_ok else "red"
+        self.canvas_comunicazione.itemconfig(self.led_comunicazione_id, fill=colore_led)
+
+        if hasattr(self, 'controllo'):
+            if comunicazione_ok:
+                self.controllo.pack(fill="both", expand=True)
+            else:
+                self.controllo.pack_forget()
+        if hasattr(self.controllo, "aggiorna_tutti_comandi"):
+            self.controllo.aggiorna_tutti_comandi(stato)
+
+        for chiave, widget in self.stato_labels.items():
+            if not stato or chiave not in stato:
+                if isinstance(widget, tuple):
+                    canvas, led_id = widget
+                    canvas.itemconfig(led_id, fill="gray")
+                elif isinstance(widget, tk.Entry):
+                    widget.config(state='normal')
+                    widget.delete(0, tk.END)
+                    widget.insert(0, "")
+                    widget.config(state='disabled')
+                continue
+
+            val = stato[chiave]
+            if isinstance(widget, tuple) and isinstance(val, bool):
+                canvas, led_id = widget
+                if chiave == "Stato_Emergenza":
+                    nuovo_colore = "red" if val else "green"
+                elif chiave in ["Stato_Pick", "Stato_Picked"]:
+                    nuovo_colore = "green" if val else "yellow"
+                else:
+                    nuovo_colore = "green" if val else "red"
+                canvas.itemconfig(led_id, fill=nuovo_colore)
+            elif isinstance(widget, tk.Entry):
+                widget.config(state='normal')
+                widget.delete(0, tk.END)
+                if chiave == "IndexTabellaLavoro":
+                    try:
+                        widget.insert(0, str(int(float(val))))
+                    except:
+                        widget.insert(0, "0")
+                else:
+                    widget.insert(0, str(val))
+                widget.config(state='disabled')
+                
+
+
+
+        self.aggiorna_barra_z()
+
+    def aggiorna_barra_z(self):
+
+        try:
+            corsa_max_z = float(self.controller.configurazione["caricatore"]["corsa_max_z"])
+        except:
+            corsa_max_z = 5000
+
+        stato = self.controller.dati_macchine.get("Caricatore", {})
+
+        try:
+            z_encoder = (corsa_max_z - float(stato.get("Z_Encoder", 0)))
+        except:
+            z_encoder = 0
+
+        if self.last_z_encoder == z_encoder:
+            return
+
+        self.last_z_encoder = z_encoder
+
+        self.barra_Y.delete("all")
+
+        offset = 100
+        offset_macchina = 200
+        total_height_mm = corsa_max_z + offset + offset + offset_macchina
+        scala = self.barra_Y.winfo_height() / total_height_mm if total_height_mm != 0 else 1
+
+        y_start = offset * scala
+        y_end = (total_height_mm - offset) * scala
+        self.barra_Y.create_line(20, y_start, 20, y_end, fill="blue", width=4)
+
+        rect_y = y_end - ((z_encoder + offset_macchina) * scala)
+        rect_y_basso = rect_y + offset_macchina * scala
+        self.barra_Y.create_rectangle(10, rect_y, 30, rect_y_basso, fill="green", outline="")
+        self.barra_Y.create_polygon(10, rect_y_basso, 30, rect_y_basso - 6, 10, rect_y_basso - 12, fill="black")
+
+        indicatori = [
+            (corsa_max_z - offset, "home"),
+            (corsa_max_z - 800 - offset, "rulliera"),
+            (0 - offset, "pavimento")
+            #(corsa_max_z - offset, f"{int(corsa_max_z)} mm")
+        ]
+        for quota, label in indicatori:
+            y_pos = y_end - ((quota + offset) * scala) - 6
+            self.barra_Y.create_polygon(40, y_pos, 50, y_pos - 6, 50, y_pos + 6, fill="black")
+            self.barra_Y.create_text(40, y_pos + 15, text=label, font=("Arial", 10), anchor="w")
+            
+        # --- Indicatori posizione navette attive ---
+        for i in range(1, 11):
+            navetta_key = f"Navetta_{i}"
+            navetta_cfg = self.controller.configurazione["navette"].get(navetta_key, {})
+            #print(f"[DEBUG] Leggo {navetta_key} → {navetta_cfg}")
+            if not navetta_cfg.get("attivo", False):
+                #print(f"[DEBUG] Nav {i} NON ATTIVA")
+                continue
+            valori = navetta_cfg.get("valori", [0, 0, 0, 0, 0])
+            pos_y_navetta = valori[4]
+            #print(f"[DEBUG] Nav {i} POS_Y = {pos_y_navetta}")
+            try:
+                pos_y_navetta = float(pos_y_navetta)
+            except:
+                print(f"[DEBUG] Nav {i} POS_Y non valida")
+                continue  # Salta se vuota o non valida
+
+            # Calcola posizione Y sulla barra
+            y_pos = y_end - ((pos_y_navetta - offset) * scala) - 6
+            
+            #print(f"[DEBUG] Nav {i} y_pos disegno = {y_pos}")
+
+            # Disegna l'indicatore
+            self.barra_Y.create_polygon(55, y_pos, 65, y_pos - 6, 65, y_pos + 6, fill="orange")
+            self.barra_Y.create_text(70, y_pos, text=f"Nav {i}", font=("Arial", 10), anchor="w", fill="orange")
+
+    def refresh_gui_periodico(self):
+        if self.controller.current_page_name == "PaginaCaricatore":
+            self.aggiorna_gui(self.controller.dati_macchine)
+
+
+        self.after(200, self.refresh_gui_periodico)

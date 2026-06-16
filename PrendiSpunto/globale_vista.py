@@ -1,0 +1,206 @@
+import tkinter as tk
+from globale_vista_rulliere import disegna_rulliera, disegna_cinghie, disegna_carrello, disegna_caricatore
+
+class GlobaleVista(tk.Frame):
+    def __init__(self, parent, dati_macchine, configurazione, invia_comando_fn):
+        super().__init__(parent)
+
+        self.dati_macchine = dati_macchine
+        self.configurazione = configurazione
+        self.invia_comando_fn = invia_comando_fn
+
+        # --- Parametri scala ---
+        #self.scala = 1350 / 40000
+        #self.scala_Y = 675 / 27500
+        self.scala = 1350 / 60000
+        self.scala_Y = self.scala
+
+        # --- Canvas master ---
+        canvas_width_px = 850
+        self.canvas_master = tk.Canvas(self, bg="white", height=canvas_width_px)
+        self.canvas_master.pack(fill="both", expand=True)
+
+        # --- Primo disegno completo ---
+        self.disegna_scene()
+
+        # --- Aggiorna periodico ---
+        self.after(200, self.aggiorna)
+
+    def disegna_griglia(self):
+        step_mm = 1000
+        canvas_w = 36000
+        canvas_h = 30000
+
+        step_px = step_mm * self.scala
+        width = int(canvas_w * self.scala)
+        height = int(canvas_h * self.scala_Y)
+
+        for i, x in enumerate(range(0, width, int(step_px))):
+            self.canvas_master.create_line(x, 0, x, height, fill="lightgray")
+            self.canvas_master.create_text(x + 5, 10, text=str(i), anchor="nw", font=("Arial", 8), fill="gray")
+
+        for j, y in enumerate(range(0, height, int(step_px))):
+            self.canvas_master.create_line(0, y, width, y, fill="lightgray")
+            self.canvas_master.create_text(2, y + 2, text=str(j), anchor="nw", font=("Arial", 8), fill="gray")
+
+    def disegna_scene(self):
+        self.canvas_master.delete("all")
+        self.disegna_griglia()
+        #variabili carrello:
+        stato = self.dati_macchine.get("Carrello", {})
+        try:
+            y_encoder = float(stato.get("Y_Encoder", 0))
+        except:
+            y_encoder = 0
+
+        try:
+            corsa_max_y = float(self.configurazione["carrello"].get("corsa_max_y", 5000))
+        except:
+            corsa_max_y = 5000
+        #variabili carricatore:
+        stato = self.dati_macchine.get("Caricatore", {})
+        try:
+            rot_encoder = float(stato.get("Rotazione_Encoder", 0))
+        except:
+            rot_encoder = 0    
+        # --- Rulliera 1 ---
+        x_mm = corsa_max_y + 1000 + 1200 +700 #1000=offset 1200=carrello 700=mezza_cinghia
+        y_mm = 3000
+        x_px = x_mm * self.scala
+        y_px = y_mm * self.scala_Y
+
+        disegna_rulliera(self.canvas_master, x_px, y_px, 5500, 1200, self.scala, 18, 0)
+
+        # --- Cinghia 1 ---
+        #x_mm = 29900
+        x_mm = x_mm - 100 # sposto por simulare sporgenza cinghia
+        y_mm = 2500
+        x_px = x_mm * self.scala
+        y_px = y_mm * self.scala_Y
+
+        disegna_cinghie(self.canvas_master, x_px, y_px, 4500, 1400, self.scala, 5, 0, "red")
+
+        # --- Rulliera 2 ---
+        x_mm = x_mm + 100 # tolgo per sporgenza cinghia
+        y_mm = 8500
+        x_px = x_mm * self.scala
+        y_px = y_mm * self.scala_Y
+
+        disegna_rulliera(self.canvas_master, x_px, y_px, 4500, 1200, self.scala, 18, 90)
+
+        # --- Carrello ---
+
+        x_mm = corsa_max_y - y_encoder + 1000 + 600 #1000= offset 600= mezzo carrello
+        y_mm = 2500
+        x_px = x_mm * self.scala
+        y_px = y_mm * self.scala_Y
+
+        disegna_carrello(self.canvas_master, x_px, y_px, 4500, 1200, self.scala, 5, 0)
+
+        # --- Linee orizzontali ---
+        x_start = 1000 * self.scala
+        x_end = (corsa_max_y + 1000 + 1200) * self.scala #offset=1000 larghezza_navetta=1200
+        y1_px = 500 * self.scala_Y
+        y2_px = 4500 * self.scala_Y
+
+        # disegna linee rotaia carrello
+        self.canvas_master.create_line(x_start, y1_px, x_end, y1_px, fill="black", width=2)
+        self.canvas_master.create_line(x_start, y2_px, x_end, y2_px, fill="black", width=2)
+
+        # disegna navette
+        navette_cfg = self.configurazione.get("navette", {})
+        for i in range(1, 11):
+            navetta_key = f"Navetta_{i}"
+            navetta_data = navette_cfg.get(navetta_key, {})
+            if navetta_data.get("attivo", False):
+                try:
+                    valori = navetta_data.get("valori", [])
+                    posizione_y = float(valori[4]) if len(valori) > 4 else 0
+                    max_y = float(valori[0]) if len(valori) > 4 else 0
+                except (IndexError, ValueError):
+                    posizione_y = 0
+                    max_y = 0
+                posizione_y = posizione_y -1000
+                
+                #disegna rotaia
+                x_px = (1000 + corsa_max_y - posizione_y) * self.scala
+                y_top = 2000 * self.scala_Y
+                y_bottom = (max_y + 2000) * self.scala_Y
+                self.canvas_master.create_line(x_px, y_top, x_px, y_bottom, fill="black", width=2)
+
+                # Cantilever sx
+                from_x = x_px - (300 * self.scala)
+                to_x = x_px - (1200 * self.scala)
+                from_y = 5500 * self.scala_Y
+                to_y = (corsa_max_y * self.scala_Y) #+ from_y
+                pts = [
+                    (from_x, from_y),
+                    (from_x, to_y),
+                    (to_x, to_y),
+                    (to_x, from_y)
+                ]
+                self.canvas_master.create_polygon(pts, fill="yellow", outline="black", width=1)
+                #colonne
+                from_x = to_x
+                to_x = to_x - (300 * self.scala)
+                
+                pts = [
+                    (from_x, from_y),
+                    (from_x, to_y),
+                    (to_x, to_y),
+                    (to_x, from_y)
+                ]
+                self.canvas_master.create_polygon(pts, fill="blue")
+                # Cantilever dx
+                from_x = x_px + (300 * self.scala)
+                to_x = x_px + (1200 * self.scala)
+                
+                pts = [
+                    (from_x, from_y),
+                    (from_x, to_y),
+                    (to_x, to_y),
+                    (to_x, from_y)
+                ]
+                self.canvas_master.create_polygon(pts, fill="yellow", outline="black", width=1)
+                #colonne
+                from_x = to_x
+                to_x = to_x + (300 * self.scala)
+                
+                pts = [
+                    (from_x, from_y),
+                    (from_x, to_y),
+                    (to_x, to_y),
+                    (to_x, from_y)
+                ]
+                self.canvas_master.create_polygon(pts, fill="blue")
+                
+                # Rettangolo navetta
+                stato_nav = self.dati_macchine.get(navetta_key, {})
+                #print(f"[all] {stato_nav}")
+                try:
+                    x_encoder = int(stato_nav.get("X_Encoder"))
+                except:
+                    x_encoder = 0
+                #print(f"[DEBUG] {navetta_key} → X_Encoder: {x_encoder}")
+
+                #x_encoder_px = posizione_y * self.scala
+                y_rect_top = (400 +x_encoder)* self.scala
+                y_rect_bottom = y_rect_top + (4200 * self.scala_Y)
+                self.canvas_master.create_rectangle(
+                    x_px - 300 * self.scala, y_rect_top,
+                    x_px + 300 * self.scala, y_rect_bottom,
+                    fill="Green", outline="black"
+                )
+
+        # --- Caricatore ---
+
+        x_mm = corsa_max_y + 1000 + 600 #1000= offset 600= mezzo carrello
+        y_mm = 5000
+        x_px = x_mm * self.scala
+        y_px = y_mm * self.scala_Y
+        #angolo = 135 - rot_encoder 
+        disegna_caricatore(self.canvas_master, x_px, y_px, self.scala, rot_encoder)
+
+    def aggiorna(self):
+        self.disegna_scene()
+        self.after(100, self.aggiorna)

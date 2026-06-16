@@ -1,0 +1,20 @@
+# PyInstaller build directories
+build/
+dist/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller specification file
+*.spec
+
+# Local server runtime status and logs
+hmi_server.log
+netlinker_status.json
+
+# IDE config
+.vscode/
+.idea/
