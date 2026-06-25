@@ -165,6 +165,11 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    flex: 1;
+}
+
+.nav-item[data-target="panel-logs"] {
+    margin-top: auto;
 }
 
 .nav-item {
@@ -261,18 +266,79 @@ html, body {
 
 /* --- GLOBALE PANEL LAYOUT --- */
 .panel-layout-globale {
-    display: grid;
-    grid-template-columns: 480px 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 15px;
     height: 100%;
     overflow: hidden;
 }
 
-.globale-left {
+.globale-top-container {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    height: 220px;
+    flex-shrink: 0;
+}
+
+.globale-top-container .table-container {
+    overflow-y: hidden;
+}
+
+/* Compattamento verticale tabella globale */
+.globale-top-container .card-table {
+    padding: 10px 14px;
+}
+
+.globale-top-container .card-title {
+    margin-bottom: 6px;
+}
+
+.globale-top-container th,
+.globale-top-container td {
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+.globale-controls-legend {
+    width: 250px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    height: 100%;
+    gap: 10px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    justify-content: space-between;
+}
+
+.global-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background-color: rgba(15, 23, 42, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.legend-symbol {
+    font-size: 14px;
+}
+
+.legend-text {
+    color: var(--text-secondary);
+}
+
+.globale-bottom {
+    flex: 1;
     overflow: hidden;
 }
 
@@ -478,12 +544,45 @@ td:first-child, th:first-child {
     overflow: hidden;
 }
 
-.device-panel-grid {
-    display: grid;
-    grid-template-columns: 380px 1fr 280px;
+.device-panel-layout {
+    display: flex;
+    flex-direction: column;
     gap: 15px;
     height: 100%;
     overflow: hidden;
+}
+
+.device-top-block {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 16px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.device-header-status {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 150px;
+    flex-shrink: 0;
+}
+
+.device-bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.device-bottom-grid > div {
+    min-height: 380px;
 }
 
 /* --- OFFLINE OVERLAY --- */
@@ -588,16 +687,20 @@ td:first-child, th:first-child {
 .led-orange { background-color: var(--accent-orange); box-shadow: 0 0 8px var(--accent-orange); }
 
 .status-groups-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    flex: 1;
+    justify-content: flex-start;
 }
 
 .status-card-group {
-    background-color: rgba(255, 255, 255, 0.02);
+    flex: 1;
+    min-width: 120px;
+    background-color: rgba(255, 255, 255, 0.01);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 8px 12px;
 }
 
 .status-card-group h3 {
@@ -1271,4 +1374,34 @@ td:first-child, th:first-child {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Rimuove le frecce (spinner) dagli input numerici */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+/* Caselle di testo non editabili per quote negli azzeramenti */
+.homing-quota-input {
+    width: 100px;
+    background-color: #0b0f19;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--accent-cyan);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 4px;
+    outline: none;
+    cursor: default;
+    user-select: none;
+}
+
+#nav-val-Y_Encoder-h {
+    width: 135px;
 }

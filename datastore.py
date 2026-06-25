@@ -33,12 +33,28 @@ class Datastore:
             if name not in self._states:
                 self._states[name] = {}
             
+            # Copia lo stato corrente prima dell'aggiornamento per tracciare le transizioni
+            stato_precedente = dict(self._states[name])
+            
             # Aggiorna i valori
             for k, v in data.items():
                 self._states[name][k] = v
                 
             self._states[name]["__comunicazione_ok__"] = online
             self._states[name]["__last_update__"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
+            # Traccia transizioni allarmi per la console
+            for k, v in data.items():
+                if k in ["Stato_Emergenza", "Stato_Inverter_OK"]:
+                    val_prec = stato_precedente.get(k)
+                    if val_prec is not None and val_prec != v:
+                        if k == "Stato_Emergenza":
+                            msg = "ALLARME EMERGENZA ATTIVA!" if v else "Emergenza ripristinata."
+                            level = "WARNING" if v else "INFO"
+                        else:  # Stato_Inverter_OK
+                            msg = "Inverter OK." if v else "ALLARME INVERTER FAULT!"
+                            level = "INFO" if v else "WARNING"
+                        self.add_log(name, msg, level=level)
 
     def set_device_online(self, name, online):
         """Imposta lo stato di connessione di una macchina."""

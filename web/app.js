@@ -197,7 +197,8 @@ function aggiornaMatriceGlobale() {
         
         // Ricostruisci anche le celle del corpo
         ["EnableInverter", "Home", "Automatico"].forEach(cmd => {
-            const row = document.getElementById(`row-${cmd.toLowerCase()}`);
+            const rowId = cmd === "EnableInverter" ? "row-enable-inverter" : `row-${cmd.toLowerCase()}`;
+            const row = document.getElementById(rowId);
             if (row) {
                 // Rimuovi celle tranne la prima
                 const cells = row.querySelectorAll("td");
@@ -210,7 +211,7 @@ function aggiornaMatriceGlobale() {
                     const td = document.createElement("td");
                     td.id = `cell-${cmd}-${m}`;
                     td.className = "state-cell";
-                    td.innerHTML = `<span class="badge-state">❎</span>`;
+                    td.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
                     row.appendChild(td);
                 });
             }
@@ -244,9 +245,9 @@ function aggiornaMatriceGlobale() {
             if (flag) {
                 cell.innerHTML = `<span class="badge-state" style="color:var(--accent-green)">✅</span>`;
             } else if (!comunicazione_ok) {
-                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted)">❎</span>`;
+                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
             } else if (!ok) {
-                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted)">❎</span>`;
+                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
             } else {
                 cell.innerHTML = `<span class="badge-state" style="color:var(--accent-red)">⭕</span>`;
             }
@@ -305,7 +306,8 @@ function aggiornaSchedaNavette() {
         "X_Homed", "Y_Homed", "Z_Homed", "Home_OK",
         "Stato_Pick", "Stato_Picked", "TabellaLavoro_Index",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello"
+        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello",
+        "Stato_EnableDrive"
     ];
     
     keys.forEach(k => {
@@ -344,10 +346,20 @@ function aggiornaSchedaNavette() {
     // Aggiorna i quote encoders
     const xVal = stato.Encoder_X || 0;
     const zVal = stato.Encoder_Z || 0;
+    const y1Val = stato.Encoder_Y1 || 0;
+    const y2Val = stato.Encoder_Y2 || 0;
     document.getElementById("nav-val-X_Encoder").innerText = `${xVal} mm`;
     document.getElementById("nav-val-Z_Encoder").innerText = `${zVal} mm`;
-    document.getElementById("nav-val-Y1_Encoder").innerText = `${stato.Encoder_Y1 || 0} mm`;
-    document.getElementById("nav-val-Y2_Encoder").innerText = `${stato.Encoder_Y2 || 0} mm`;
+    document.getElementById("nav-val-Y1_Encoder").innerText = `${y1Val} mm`;
+    document.getElementById("nav-val-Y2_Encoder").innerText = `${y2Val} mm`;
+    
+    // Aggiorna gli input non editabili negli azzeramenti
+    const navXh = document.getElementById("nav-val-X_Encoder-h");
+    const navYh = document.getElementById("nav-val-Y_Encoder-h");
+    const navZh = document.getElementById("nav-val-Z_Encoder-h");
+    if (navXh) navXh.value = `${xVal} mm`;
+    if (navYh) navYh.value = `Y1: ${y1Val} / Y2: ${y2Val}`;
+    if (navZh) navZh.value = `${zVal} mm`;
     
     if (nomeMacchina === "Navetta_4") {
         document.getElementById("nav-val-ID").innerText = stato.ID !== undefined ? stato.ID : "-";
@@ -398,7 +410,8 @@ function aggiornaSchedaCarrello() {
         "Y_Homed", "Rotazione_Homed", "Home_OK",
         "Stato_Pick", "Stato_Picked", "IndexTabellaLavoro",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCaricatore", "Stato_ComunicazioneNavette"
+        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCaricatore", "Stato_ComunicazioneNavette",
+        "Stato_EnableDrive"
     ];
     
     keys.forEach(k => {
@@ -438,6 +451,12 @@ function aggiornaSchedaCarrello() {
     const rotVal = stato.Rotazione_Encoder || 0;
     document.getElementById("carr-val-Y_Encoder").innerText = `${yVal} mm`;
     document.getElementById("carr-val-Rotazione_Encoder").innerText = `${rotVal.toFixed(1)}°`;
+    
+    // Aggiorna gli input non editabili negli azzeramenti
+    const carrYh = document.getElementById("carr-val-Y_Encoder-h");
+    const carrRoth = document.getElementById("carr-val-Rotazione_Encoder-h");
+    if (carrYh) carrYh.value = `${yVal} mm`;
+    if (carrRoth) carrRoth.value = `${rotVal.toFixed(1)}°`;
 
     // Visualizzazione Y
     const corsaMaxY = 28500;
@@ -493,7 +512,8 @@ function aggiornaSchedaCaricatore() {
         "Z_Homed", "Rotazione_Homed", "Telaio_Homed", "Home_OK",
         "Stato_Pick", "Stato_Picked", "IndexTabellaLavoro",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello"
+        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello",
+        "Stato_EnableDrive"
     ];
     
     keys.forEach(k => {
@@ -530,9 +550,18 @@ function aggiornaSchedaCaricatore() {
     // Encoders
     const zVal = stato.Z_Encoder || 0;
     const rotVal = stato.Rotazione_Encoder || 0;
+    const telVal = stato.telaio_Encoder || 0;
     document.getElementById("car-val-Z_Encoder").innerText = `${zVal} mm`;
     document.getElementById("car-val-Rotazione_Encoder").innerText = `${rotVal.toFixed(1)}°`;
-    document.getElementById("car-val-telaio_Encoder").innerText = `${stato.telaio_Encoder || 0} mm`;
+    document.getElementById("car-val-telaio_Encoder").innerText = `${telVal} mm`;
+    
+    // Aggiorna gli input non editabili negli azzeramenti
+    const carZh = document.getElementById("car-val-Z_Encoder-h");
+    const carRoth = document.getElementById("car-val-Rotazione_Encoder-h");
+    const carTelh = document.getElementById("car-val-telaio_Encoder-h");
+    if (carZh) carZh.value = `${zVal} mm`;
+    if (carRoth) carRoth.value = `${rotVal.toFixed(1)}°`;
+    if (carTelh) carTelh.value = `${telVal} mm`;
 
     // Visualizzazione Z (corsa_max_z default 1500)
     const corsaMaxZ = 1500;
@@ -570,7 +599,8 @@ function aggiornaSchedaRulliere() {
         "Stato_PannelloSuBiesse", "Stato_PannelloSuR1", "Stato_PannelloSuR2",
         "Stato_Pick", "Stato_Picked", "IndexTabellaLavoro",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneCarrello"
+        "Stato_ComunicazioneCarrello",
+        "Stato_EnableDrive"
     ];
     
     keys.forEach(k => {
@@ -627,8 +657,13 @@ function updateBeltLight(el, active, text) {
 
 // Helpers pulsanti toggle
 function updateButtonToggle(prefix, param, active) {
-    const btnOn = document.getElementById(`btn-${prefix}-${param.split("_")[1].toLowerCase()}-on`);
-    const btnOff = document.getElementById(`btn-${prefix}-${param.split("_")[1].toLowerCase()}-off`);
+    let suffix = param.split("_")[1].toLowerCase();
+    if (suffix === "enabledrive") suffix = "drive";
+    if (suffix === "automatico") suffix = "auto";
+    if (suffix === "maintenanceposition") suffix = "maint";
+    
+    const btnOn = document.getElementById(`btn-${prefix}-${suffix}-on`);
+    const btnOff = document.getElementById(`btn-${prefix}-${suffix}-off`);
     
     if (btnOn && btnOff) {
         if (active) {
@@ -1132,6 +1167,59 @@ function setupCommandButtons() {
             });
         }
     });
+
+    // Controlli GoTo per Navette
+    document.getElementById("btn-nav-goto-x")?.addEventListener("click", () => {
+        const devName = `Navetta_${activeNavettaIndex + 1}`;
+        const val = document.getElementById("nav-goto-x-val").value;
+        eseguiGoTo(devName, "Target_X", val, "CMD_GoToX");
+    });
+    
+    document.getElementById("btn-nav-goto-z")?.addEventListener("click", () => {
+        const devName = `Navetta_${activeNavettaIndex + 1}`;
+        const val = document.getElementById("nav-goto-z-val").value;
+        eseguiGoTo(devName, "Target_Z", val, "CMD_GoToZ");
+    });
+
+    // Controlli GoTo per Carrello
+    document.getElementById("btn-carr-goto-y")?.addEventListener("click", () => {
+        const val = document.getElementById("carr-goto-y-val").value;
+        eseguiGoTo("Carrello", "GoToY", val, "CMD_GoToY");
+    });
+    
+    document.getElementById("btn-carr-goto-rot")?.addEventListener("click", () => {
+        const val = document.getElementById("carr-goto-rot-val").value;
+        eseguiGoTo("Carrello", "GoToRotazione", val, "CMD_GoToRotazione");
+    });
+}
+
+function eseguiGoTo(device, targetParam, targetVal, cmdParam) {
+    if (targetVal === "" || isNaN(targetVal)) {
+        alert("Inserire una coordinata valida!");
+        return;
+    }
+    
+    fetch(`/api/write?device=${device}&parameter=${targetParam}&value=${targetVal}`)
+        .then(res => res.json())
+        .then(data1 => {
+            if (!data1.success) {
+                alert(`Impossibile impostare ${targetParam}: ${data1.error}`);
+                return;
+            }
+            fetch(`/api/write?device=${device}&parameter=${cmdParam}&value=-1`)
+                .then(res => res.json())
+                .then(data2 => {
+                    if (!data2.success) {
+                        alert(`Impossibile attivare il comando ${cmdParam}: ${data2.error}`);
+                    } else {
+                        console.log(`Comando GoTo attivato con successo su ${device}`);
+                    }
+                });
+        })
+        .catch(err => {
+            console.error("Errore durante l'esecuzione del GoTo:", err);
+            alert("Errore di rete durante il comando GoTo");
+        });
 }
 
 function inviaScrittura(device, parameter, value) {
@@ -1175,7 +1263,6 @@ function aggiornaSinottico2D() {
     
     const carrelloY = (currentStates.Carrello || {}).Y_Encoder || 0;
     const caricatoreRot = (currentStates.Caricatore || {}).Rotazione_Encoder || 0;
-    const caricatoreZ = (currentStates.Caricatore || {}).Z_Encoder || 0;
     
     // Rigenera lo schema SVG statico se non ancora presente
     if (svg.children.length === 0) {
@@ -1186,87 +1273,56 @@ function aggiornaSinottico2D() {
                     <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
                 </pattern>
                 <linearGradient id="railGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#334155" />
-                    <stop offset="50%" stop-color="#475569" />
+                    <stop offset="0%" stop-color="#475569" />
+                    <stop offset="50%" stop-color="#64748b" />
                     <stop offset="100%" stop-color="#1e293b" />
                 </linearGradient>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
             
-            <!-- Rotaia Carrello (Orizzontale) -->
-            <rect x="50" y="80" width="1300" height="10" rx="3" fill="url(#railGrad)" stroke="rgba(255,255,255,0.1)" />
-            
-            <!-- Rulliere e cinghie statiche -->
-            <!-- Rulliera 1 Biesse -->
-            <g id="sin-rulliera-1" transform="translate(1100, 150)">
-                <rect x="0" y="0" width="220" height="70" fill="#334155" rx="4" stroke="#475569" stroke-width="2" />
-                <!-- Rulli -->
-                <line x1="20" y1="5" x2="20" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="50" y1="5" x2="50" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="80" y1="5" x2="80" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="110" y1="5" x2="110" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="140" y1="5" x2="140" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="170" y1="5" x2="170" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <line x1="200" y1="5" x2="200" y2="65" stroke="#94a3b8" stroke-width="3" />
-                <text x="110" y="40" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="middle">RULLIERA 1 (R1)</text>
-            </g>
-
-            <!-- Cinghie C1 -->
-            <g id="sin-cinghie-1" transform="translate(1100, 240)">
-                <rect x="0" y="0" width="200" height="60" fill="#1e293b" rx="4" stroke="#ef4444" stroke-width="2" />
-                <!-- Cinghie rosse -->
-                <rect x="20" y="5" width="160" height="8" fill="#ef4444" />
-                <rect x="20" y="26" width="160" height="8" fill="#ef4444" />
-                <rect x="20" y="47" width="160" height="8" fill="#ef4444" />
-                <text x="100" y="35" font-size="11" font-weight="700" fill="#ef4444" text-anchor="middle">CINGHIE C1</text>
-            </g>
-
-            <!-- Rulliera 2 -->
-            <g id="sin-rulliera-2" transform="translate(1100, 320)">
-                <rect x="0" y="0" width="220" height="70" fill="#334155" rx="4" stroke="#475569" stroke-width="2" />
-                <text x="110" y="40" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="middle">RULLIERA 2 (R2)</text>
-            </g>
-
-            <!-- Rotaie Verticali Navette -->
-            <!-- Disegniamo binari per Navette 1..4 in base alla loro Y predefinita -->
-            <!-- Nav 1 (Y=18500), Nav 2 (Y=21200), Nav 3 (Y=24040), Nav 4 (Y=27060) -->
-            <!-- Mappiamo Y su asse X dell'SVG -->
+            <!-- Rotaie Carrello (Orizzontale, distanti 4500mm/110px, tratteggiate) -->
+            <line x1="40" y1="40" x2="1110" y2="40" stroke="rgba(255,255,255,0.15)" stroke-width="4" stroke-dasharray="4,4" />
+            <line x1="40" y1="150" x2="1110" y2="150" stroke="rgba(255,255,255,0.15)" stroke-width="4" stroke-dasharray="4,4" />
+            <text x="50" y="30" font-size="10" font-weight="700" fill="#475569">BINARIO CARRELLO (SCALA 1:10)</text>
         `;
         
         svg.innerHTML = staticHTML;
     }
 
     // Calcolo scala di visualizzazione
-    // Il carrello si muove lungo l'asse X dell'SVG (da X=100 a X=1000)
-    // Mappa corsaMaxY (28500) a larghezza SVG (900 pixel, da X=100 a X=1000)
-    const startX = 100;
-    const endX = 1000;
-    const scaleX = (endX - startX) / corsaMaxY;
+    // Mappa corsaMaxY (28500) a larghezza SVG (1050 pixel, da X=50 a X=1100)
+    const scaleX = 1050 / corsaMaxY;
 
-    // Rotaie Navette dinamiche
+    // Rotaie Navette e scaffali dinamici
     const valoriNavetta = [18500, 21200, 24040, 27060];
     
-    // Disegna binari navette se non ancora presenti
+    // Mappa corsaMaxX (27000) a altezza SVG (da Y=40 a Y=620)
+    const startY = 40;
+    const endY = 620;
+    const scaleY = (endY - startY) / corsaMaxX;
+    
+    // Disegna binari navette, scaffali e divisori se non ancora presenti
     for (let i = 1; i <= 4; i++) {
-        const xBinario = startX + (valoriNavetta[i-1] * scaleX);
+        const xBin = 1100 - (valoriNavetta[i-1] * scaleX);
+        
+        // Rotaia verticale
         let bin = document.getElementById(`bin-nav-${i}`);
         if (!bin) {
-            // Rotaia verticale
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("id", `bin-nav-${i}`);
-            line.setAttribute("x1", xBinario);
-            line.setAttribute("y1", "90");
-            line.setAttribute("x2", xBinario);
-            line.setAttribute("y2", "680");
-            line.setAttribute("stroke", "rgba(255,255,255,0.06)");
-            line.setAttribute("stroke-width", "4");
-            line.setAttribute("stroke-dasharray", "4,4");
-            svg.appendChild(line);
+            bin = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            bin.setAttribute("id", `bin-nav-${i}`);
+            bin.setAttribute("x1", xBin);
+            bin.setAttribute("y1", "40");
+            bin.setAttribute("x2", xBin);
+            bin.setAttribute("y2", "730");
+            bin.setAttribute("stroke", "rgba(255,255,255,0.15)");
+            bin.setAttribute("stroke-width", "4");
+            bin.setAttribute("stroke-dasharray", "4,4");
+            svg.appendChild(bin);
             
             // Etichetta del binario
             const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            txt.setAttribute("x", xBinario);
-            txt.setAttribute("y", "705");
+            txt.setAttribute("x", xBin);
+            txt.setAttribute("y", "742");
             txt.setAttribute("fill", "#64748b");
             txt.setAttribute("font-size", "10");
             txt.setAttribute("text-anchor", "middle");
@@ -1274,38 +1330,103 @@ function aggiornaSinottico2D() {
             txt.textContent = `BIN ${i}`;
             svg.appendChild(txt);
         }
+
+        // Scaffale Sinistro (partono da X=5000 / Y_svg=147, larghi 41px ~ 1100mm)
+        let shelfLeft = document.getElementById(`shelf-left-${i}`);
+        if (!shelfLeft) {
+            shelfLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            shelfLeft.setAttribute("id", `shelf-left-${i}`);
+            shelfLeft.setAttribute("x", xBin - 7.5 - 41);
+            shelfLeft.setAttribute("y", 147);
+            shelfLeft.setAttribute("width", 41);
+            shelfLeft.setAttribute("height", 583);
+            shelfLeft.setAttribute("fill", "rgba(30, 41, 59, 0.6)");
+            shelfLeft.setAttribute("stroke", "rgba(255, 255, 255, 0.15)");
+            shelfLeft.setAttribute("stroke-width", "1");
+            svg.appendChild(shelfLeft);
+        }
+
+        // Scaffale Destro
+        let shelfRight = document.getElementById(`shelf-right-${i}`);
+        if (!shelfRight) {
+            shelfRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            shelfRight.setAttribute("id", `shelf-right-${i}`);
+            shelfRight.setAttribute("x", xBin + 7.5);
+            shelfRight.setAttribute("y", 147);
+            shelfRight.setAttribute("width", 41);
+            shelfRight.setAttribute("height", 583);
+            shelfRight.setAttribute("fill", "rgba(30, 41, 59, 0.6)");
+            shelfRight.setAttribute("stroke", "rgba(255, 255, 255, 0.15)");
+            shelfRight.setAttribute("stroke-width", "1");
+            svg.appendChild(shelfRight);
+        }
+
+        // Divisori Scaffali
+        let shelfDividers = document.getElementById(`shelf-dividers-${i}`);
+        if (!shelfDividers) {
+            shelfDividers = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            shelfDividers.setAttribute("id", `shelf-dividers-${i}`);
+            let linesHtml = "";
+            for (let y = 147 + 30; y < 730; y += 30) {
+                linesHtml += `
+                    <line x1="${xBin - 7.5 - 41}" y1="${y}" x2="${xBin - 7.5}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+                    <line x1="${xBin + 7.5}" y1="${y}" x2="${xBin + 7.5 + 41}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+                `;
+            }
+            shelfDividers.innerHTML = linesHtml;
+            svg.appendChild(shelfDividers);
+        }
     }
 
     // 1. CARRELLO TRASLATORE (Si muove in orizzontale)
-    // Nota: Nel PLC l'encoder Y decresce o cresce. Mappiamo Y_Encoder all'asse X
-    const posXCarrello = endX - (carrelloY * scaleX);
+    // 0 a destra, corsa max a sinistra. Rappresenta la quota del centro macchina.
+    const posXCarrello = 1100 - (carrelloY * scaleX);
     
     let carrGroup = document.getElementById("sin-carrello");
     if (!carrGroup) {
         carrGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
         carrGroup.setAttribute("id", "sin-carrello");
         carrGroup.innerHTML = `
-            <rect x="-40" y="-15" width="80" height="30" fill="url(#railGrad)" stroke="#ef4444" stroke-width="2" rx="4" />
-            <circle cx="0" cy="0" r="5" fill="#ef4444" />
-            <text x="0" y="-22" font-size="10" font-weight="800" fill="#ef4444" text-anchor="middle">CARRELLO</text>
+            <!-- Carrello (larghezza 1100mm -> 40px, altezza 4500mm -> 110px) -->
+            <rect id="carr-rect" x="-20" y="40" width="40" height="110" fill="rgba(239, 68, 68, 0.2)" stroke="#ef4444" stroke-width="2.5" rx="3" />
+            <!-- Ruote e dettagli -->
+            <circle cx="-16" cy="45" r="4" fill="#64748b" />
+            <circle cx="16" cy="45" r="4" fill="#64748b" />
+            <circle cx="-16" cy="145" r="4" fill="#64748b" />
+            <circle cx="16" cy="145" r="4" fill="#64748b" />
+            <circle cx="0" cy="95" r="5" fill="#ef4444" />
+            <text x="0" y="32" font-size="10" font-weight="900" fill="#ef4444" text-anchor="middle">CARRELLO</text>
+            <!-- Offline Warning Overlay -->
+            <g id="carr-warning" style="display: none;">
+                <rect x="-15" y="80" width="30" height="30" fill="#0f172a" rx="4" opacity="0.85" />
+                <text x="0" y="102" font-size="22" text-anchor="middle">⚠️</text>
+            </g>
         `;
         svg.appendChild(carrGroup);
     }
-    carrGroup.setAttribute("transform", `translate(${posXCarrello}, 85)`);
+    carrGroup.setAttribute("transform", `translate(${posXCarrello}, 0)`);
+    
+    // Toggle warning carrello
+    const carrOnline = (currentStates.Carrello || {}).__comunicazione_ok__;
+    const carrWarning = document.getElementById("carr-warning");
+    if (carrWarning) {
+        carrWarning.style.display = carrOnline ? "none" : "block";
+    }
+    const carrRect = document.getElementById("carr-rect");
+    if (carrRect) {
+        carrRect.setAttribute("stroke", carrOnline ? "#ef4444" : "#475569");
+        carrRect.setAttribute("fill", carrOnline ? "rgba(239, 68, 68, 0.2)" : "rgba(71, 85, 105, 0.2)");
+    }
 
     // 2. NAVETTE (Si muovono in verticale sui rispettivi binari)
-    // Corsa max X è 27000. Mappiamo Z/X_Encoder sull'asse Y dell'SVG (da Y=100 a Y=650)
-    const startY = 110;
-    const endY = 650;
-    const scaleY = (endY - startY) / corsaMaxX;
-
+    // 0 in alto, max in basso. La coordinata rappresenta il bordo superiore.
     for (let i = 1; i <= 4; i++) {
         const navName = `Navetta_${i}`;
         const navState = currentStates[navName] || {};
         const xEnc = navState.Encoder_X || 0;
         const online = navState.__comunicazione_ok__;
         
-        const xBin = startX + (valoriNavetta[i-1] * scaleX);
+        const xBin = 1100 - (valoriNavetta[i-1] * scaleX);
         const yNav = startY + (xEnc * scaleY);
         
         let navGroup = document.getElementById(`sin-nav-${i}`);
@@ -1313,29 +1434,86 @@ function aggiornaSinottico2D() {
             navGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
             navGroup.setAttribute("id", `sin-nav-${i}`);
             navGroup.innerHTML = `
-                <rect x="-18" y="-25" width="36" height="50" fill="#1e293b" stroke="#3b82f6" stroke-width="2" rx="4" />
-                <rect x="-12" y="-18" width="24" height="8" fill="#e2e8f0" rx="1" />
-                <text x="0" y="5" font-size="9" font-weight="800" fill="#3b82f6" text-anchor="middle">N${i}</text>
+                <!-- Navetta (larghezza 400mm -> 15px, altezza 4500mm -> 110px) -->
+                <rect id="nav-rect-${i}" x="-7.5" y="0" width="15" height="110" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2" rx="2" />
+                <rect x="-5" y="5" width="10" height="20" fill="#e2e8f0" rx="1" opacity="0.8" />
+                <text x="0" y="-8" font-size="10" font-weight="900" fill="#3b82f6" text-anchor="middle">N${i}</text>
+                <!-- Offline Warning Overlay -->
+                <g id="nav-warning-${i}" style="display: none;">
+                    <rect x="-12" y="40" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
+                    <text x="0" y="59" font-size="16" text-anchor="middle">⚠️</text>
+                </g>
             `;
             svg.appendChild(navGroup);
         }
         navGroup.setAttribute("transform", `translate(${xBin}, ${yNav})`);
         
-        // Colora in base allo stato online/offline
-        const rect = navGroup.querySelector("rect");
-        if (rect) {
-            rect.setAttribute("stroke", online ? "var(--accent-blue)" : "#475569");
-            rect.setAttribute("fill", online ? "#1e293b" : "#0f172a");
+        const navWarning = document.getElementById(`nav-warning-${i}`);
+        if (navWarning) {
+            navWarning.style.display = online ? "none" : "block";
+        }
+        const navRect = document.getElementById(`nav-rect-${i}`);
+        if (navRect) {
+            navRect.setAttribute("stroke", online ? "#3b82f6" : "#475569");
+            navRect.setAttribute("fill", online ? "rgba(59, 130, 246, 0.2)" : "rgba(71, 85, 105, 0.2)");
         }
     }
 
-    // 3. CARICATORE A VENTOSE (Centro di rotazione fisso su Biesse o rulliere)
-    // Disegnamo il braccio del caricatore
+    // 3. RULLIERE E CINGHIE (Colonna verticale ad Y=-1500 -> X_svg=1155)
+    let rullGroup = document.getElementById("sin-rulliere-col");
+    if (!rullGroup) {
+        rullGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        rullGroup.setAttribute("id", "sin-rulliere-col");
+        
+        let r1Rollers = "";
+        for (let y = 160; y < 275; y += 15) {
+            r1Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
+        }
+        
+        let r2Rollers = "";
+        for (let y = 440; y < 555; y += 15) {
+            r2Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
+        }
+        
+        rullGroup.innerHTML = `
+            <!-- Rulliera 1 (R1) -->
+            <rect id="rul-r1-rect" x="1120" y="150" width="70" height="130" fill="#2d3748" rx="4" stroke="#4a5568" stroke-width="2" />
+            ${r1Rollers}
+            <text x="1155" y="215" font-size="10" font-weight="700" fill="#a0aec0" text-anchor="middle" transform="rotate(-90 1155 215)">RULLIERA 1 (R1)</text>
+            
+            <!-- Cinghie C1 -->
+            <rect id="rul-c1-rect" x="1125" y="295" width="60" height="120" fill="#1a202c" rx="4" stroke="#ef4444" stroke-width="2" />
+            <rect x="1135" y="300" width="8" height="110" fill="#ef4444" />
+            <rect x="1151" y="300" width="8" height="110" fill="#ef4444" />
+            <rect x="1167" y="300" width="8" height="110" fill="#ef4444" />
+            <text x="1155" y="355" font-size="10" font-weight="700" fill="#ef4444" text-anchor="middle" transform="rotate(-90 1155 355)">CINGHIE C1</text>
+            
+            <!-- Rulliera 2 (R2) -->
+            <rect id="rul-r2-rect" x="1120" y="430" width="70" height="130" fill="#2d3748" rx="4" stroke="#4a5568" stroke-width="2" />
+            ${r2Rollers}
+            <text x="1155" y="495" font-size="10" font-weight="700" fill="#a0aec0" text-anchor="middle" transform="rotate(-90 1155 495)">RULLIERA 2 (R2)</text>
+            
+            <!-- Offline Warning Overlay -->
+            <g id="rul-warning" style="display: none;">
+                <rect x="1135" y="320" width="40" height="40" fill="#0f172a" rx="6" opacity="0.85" />
+                <text x="1155" y="348" font-size="26" text-anchor="middle">⚠️</text>
+            </g>
+        `;
+        svg.appendChild(rullGroup);
+    }
+    
+    // Toggle warning rulliere
+    const rullOnline = (currentStates.Rulliere || {}).__comunicazione_ok__;
+    const rulWarning = document.getElementById("rul-warning");
+    if (rulWarning) {
+        rulWarning.style.display = rullOnline ? "none" : "block";
+    }
+
+    // 4. CARICATORE A VENTOSE
     let carGroup = document.getElementById("sin-caricatore");
     if (!carGroup) {
         carGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
         carGroup.setAttribute("id", "sin-caricatore");
-        // Centro di rotazione posizionato vicino a Rulliera 1 (es: X=1210, Y=185)
         carGroup.innerHTML = `
             <!-- Base caricatore -->
             <circle cx="0" cy="0" r="15" fill="#f59e0b" stroke="#000" stroke-width="1.5" />
@@ -1353,12 +1531,29 @@ function aggiornaSinottico2D() {
         `;
         svg.appendChild(carGroup);
     }
-    carGroup.setAttribute("transform", "translate(1210, 185)");
+    // Posizionato vicino a R1 (X=1155, Y=215)
+    carGroup.setAttribute("transform", "translate(1210, 215)");
     
     // Ruota il braccio in base all'encoder
     const arm = document.getElementById("sin-caricatore-braccio");
     if (arm) {
         arm.setAttribute("transform", `rotate(${caricatoreRot})`);
+    }
+
+    // Toggle warning caricatore
+    const caricatoreOnline = (currentStates.Caricatore || {}).__comunicazione_ok__;
+    let caricatoreWarning = document.getElementById("sin-caricatore-warning");
+    if (!caricatoreWarning) {
+        caricatoreWarning = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        caricatoreWarning.setAttribute("id", "sin-caricatore-warning");
+        caricatoreWarning.innerHTML = `
+            <rect x="-15" y="-15" width="30" height="30" fill="#0f172a" rx="4" opacity="0.85" />
+            <text x="0" y="7" font-size="20" text-anchor="middle">⚠️</text>
+        `;
+        carGroup.appendChild(caricatoreWarning);
+    }
+    if (caricatoreWarning) {
+        caricatoreWarning.style.display = caricatoreOnline ? "none" : "block";
     }
 }
 
@@ -1435,42 +1630,32 @@ function caricaConfigForm() {
 }
 
 function aggiornaCampiConfig() {
-    // Leggi i dati correnti direttamente dalle chiavi globali (arrivate via SSE/state)
-    fetch("/api/state")
+    fetch("/api/config")
         .then(res => res.json())
-        .then(states => {
-            // Ricaviamo i parametri generali memorizzati nella Navetta_1 come metadati fittizi o impostazioni locali
-            // In una HMI reale, le impostazioni sono servite da un endpoint dedicato
-            // Per ora popoliamo con dati ricavati da stati / defaults
-            document.getElementById("polling_ip").value = "192.168.3.66";
-            document.getElementById("polling_port").value = "9000";
-            document.getElementById("refresh").value = "0.3";
-            document.getElementById("syslog_ip").value = "127.0.0.1";
-            document.getElementById("syslog_port").value = "514";
-            document.getElementById("carrello_max_y").value = "28500";
-            document.getElementById("caricatore_max_z").value = "1500";
+        .then(cfg => {
+            document.getElementById("polling_ip").value = cfg.polling_ip || "localhost";
+            document.getElementById("polling_port").value = cfg.polling_port || 9000;
+            document.getElementById("refresh").value = cfg.refresh || 0.3;
+            document.getElementById("syslog_ip").value = cfg.syslog_ip || "127.0.0.1";
+            document.getElementById("syslog_port").value = cfg.syslog_port || 514;
+            document.getElementById("carrello_max_y").value = (cfg.carrello && cfg.carrello.corsa_max_y) || 28500;
+            document.getElementById("caricatore_max_z").value = (cfg.caricatore && cfg.caricatore.corsa_max_z) || 1500;
             
             // Popola campi navette 1..10
             for (let i = 1; i <= 10; i++) {
                 const navName = `Navetta_${i}`;
-                const active = (i <= 4); // Di default 1-4 attive
-                document.getElementById(`cfg-nav-active-${i}`).checked = active;
+                const navCfg = (cfg.navette && cfg.navette[navName]) || { attivo: false, valori: [27000, 1200, 1200, 3685, 0] };
                 
-                const valoriNavetta = [
-                    [27000, 1200, 1200, 3685, 18500],
-                    [27000, 1200, 1200, 3685, 21200],
-                    [27000, 1200, 1200, 3685, 24040],
-                    [27000, 1200, 1200, 3685, 27060],
-                ];
-                
-                const vals = valoriNavetta[i-1] || [27000, 1200, 1200, 3685, 0];
+                document.getElementById(`cfg-nav-active-${i}`).checked = !!navCfg.attivo;
+                const vals = navCfg.valori || [27000, 1200, 1200, 3685, 0];
                 document.getElementById(`cfg-nav-x-${i}`).value = vals[0];
                 document.getElementById(`cfg-nav-y1-${i}`).value = vals[1];
                 document.getElementById(`cfg-nav-y2-${i}`).value = vals[2];
                 document.getElementById(`cfg-nav-z-${i}`).value = vals[3];
                 document.getElementById(`cfg-nav-posy-${i}`).value = vals[4];
             }
-        });
+        })
+        .catch(err => console.error("Errore caricamento configurazione:", err));
 }
 
 function salvaConfigurazione(e) {

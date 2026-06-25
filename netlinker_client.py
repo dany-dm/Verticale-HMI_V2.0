@@ -4,9 +4,11 @@ import time
 import threading
 
 def to_netlinker_name(name):
+    # NetLinker reale risponde a Navetta_X (senza zero pad), quindi restituiamo inalterato
     return name
 
 def from_netlinker_name(name):
+    # NetLinker reale risponde a Navetta_X (senza zero pad), quindi restituiamo inalterato
     return name
 
 class NetLinkerClient:

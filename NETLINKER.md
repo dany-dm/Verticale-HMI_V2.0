@@ -21,12 +21,18 @@ Se il client invia stringhe composte da più comandi separati dal punto e virgol
 ### 2.2. Regole di Formattazione dei Dati
 * **Spazi nell'Uguale**: Nelle risposte a comandi di lettura (`read`, `read_all`, `read_template`), è tassativamente presente uno spazio prima e uno dopo il carattere `=`.  
   *Sintassi esatta*: `NomeMacchina.Parametro = Valore`
-* **Rappresentazione dei Bit (Booleani)**: I valori binari/booleani (`True`/`False`) non vengono mai trasmessi come testo, ma vengono sempre convertiti e scritti come:
+* **Rappresentazione dei Bit (Booleani)**: I valori binari/booleani (`True`/`False`) non vengono mai trasmessi como testo, ma vengono sempre convertiti e scritti come:
   * `1` per lo stato logico Alto (True)
   * `0` per lo stato logico Basso (False)  
   *Esempio*: `Navetta_04.Stato_Home_OK = 1`
 
-### 2.3. Elenco dei Comandi Implementati
+### 2.3. Endianness e Word Order (Ordinamento dei Byte)
+Per garantire la massima semplicità ed evitare configurazioni errate, NetLinker **non espone campi o parametri configurabili** per "Byte Order (Endian)" o "Word Order (Swap)". 
+Il sistema applica rigidamente ed in modo uniforme la codifica standard Big Endian su tutti i dispositivi ed i registri a 32 bit:
+* **Byte Order (Ordinamento Byte)**: `Big Endian` (byte più significativo per primo)
+* **Word Order (Ordinamento Parola)**: `Big Endian` (parola a 16 bit più significativa per prima)
+
+### 2.4. Elenco dei Comandi Implementati
 
 * **`connect [NomeMacchina]`** / **`connect [NomeMacchina:TemplateID]`**
   * *Azione*: Attiva lo stato di connessione del polling per tutti i template della macchina (o per lo specifico template). Esegue una connessione di test immediata.
@@ -134,7 +140,8 @@ Ogni 2 secondi il programma scrive nella stessa directory dell'eseguibile il fil
   "last_update": "2026-06-16 09:52:00",
   "configured_ports": {
     "modbus_tcp_server": 502,
-    "socket_control_port": 499,
+    "socket_control_port": 9000,
+    "compatibility_socket_port": 9001,
     "api_port": 8080
   },
   "connected_devices": ["Navetta_02", "Carrello"]
