@@ -1,0 +1,74 @@
+{
+  "enabled": true,
+  "ip": "192.168.7.37",
+  "port": 503,
+  "registers": {
+    "Stato_Y_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 0
+    },
+    "Stato_Rotazione_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 1
+    },
+    "Stato_HomeOK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 2
+    },
+    "Stato_Pick": {
+      "address": 0,
+      "type": "bit",
+      "bit": 3
+    },
+    "Stato_Picked": {
+      "address": 0,
+      "type": "bit",
+      "bit": 4
+    },
+    "Stato_Emergenza": {
+      "address": 0,
+      "type": "bit",
+      "bit": 5
+    },
+    "Stato_Aria_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 6
+    },
+    "Stato_Inverter_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 7
+    },
+    "Stato_ComunicazioneRulliere": {
+      "address": 0,
+      "type": "bit",
+      "bit": 8
+    },
+    "Stato_ComunicazioneCaricatore": {
+      "address": 0,
+      "type": "bit",
+      "bit": 9
+    },
+    "Stato_ComunicazioneNavette": {
+      "address": 0,
+      "type": "bit",
+      "bit": 10
+    },
+    "EncoderY": {
+      "address": 1,
+      "type": "float"
+    },
+    "EncoderRotazione": {
+      "address": 3,
+      "type": "float"
+    },
+    "IndexTabellaLavoro": {
+      "address": 5,
+      "type": "int16"
+    }
+  }
+}

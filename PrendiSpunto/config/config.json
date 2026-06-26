@@ -1,6 +1,6 @@
 {
     "polling_ip": "192.168.3.66",
-    "polling_port": 499,
+    "polling_port": 9001,
     "refresh": 0.3,
     "carrello": {
         "corsa_max_y": 28500.0
@@ -12,7 +12,7 @@
         "Navetta_1": {
             "attivo": true,
             "valori": [
-                27000.0,
+                29000.0,
                 1200.0,
                 1200.0,
                 3685.0,
@@ -32,7 +32,7 @@
         "Navetta_3": {
             "attivo": true,
             "valori": [
-                27000.0,
+                28500.0,
                 1200.0,
                 1200.0,
                 3685.0,
@@ -42,7 +42,7 @@
         "Navetta_4": {
             "attivo": true,
             "valori": [
-                27000.0,
+                29000.0,
                 1200.0,
                 1200.0,
                 3685.0,

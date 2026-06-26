@@ -4,107 +4,107 @@ import threading
 import time
 import sys
 
-# Stato simulato dei PLC (con nomi conformi a NetLinker, es. Navetta_01)
+# Stato simulato dei PLC (con nomi conformi a NetLinker, es. Navetta_1)
 plc_state = {
-    "Navetta_01": {
+    "Navetta_1": {
         "Stato_Inverter_OK": 1,
         "Stato_ComunicazioneRulliere": 1,
         "Stato_ComunicazioneCarrello": 1,
-        "Stato_X_Homed": 1,
-        "Stato_Y_Homed": 1,
-        "Stato_Z_Homed": 1,
+        "X_Homed": 1,
+        "Y_Homed": 1,
+        "Z_Homed": 1,
         "Home_OK": 1,
         "Stato_Pick": 1,
         "Stato_Picked": 0,
         "Stato_Emergenza": 0,
         "Stato_Aria_OK": 1,
-        "Encoder_X": 5000.0,
-        "Encoder_Y1": 1200.0,
-        "Encoder_Y2": 1200.0,
-        "Encoder_Z": 800.0,
-        "TabellaLavoro_Index": 1,
+        "X_Encoder": 5000.0,
+        "Y1_Encoder": 1200.0,
+        "Y2_Encoder": 1200.0,
+        "Z_Encoder": 800.0,
+        "IndexTabellaLavoro": 1,
         "Stato_EnableDrive": 1,
         "Stato_Automatico": 0,
-        "Stato_GoToX": 0,
-        "Stato_GoToZ": 0,
+        "GoToX": 0.0,
+        "GoToZ": 0.0,
         "Stato_MaintenancePosition": 0,
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0
     },
-    "Navetta_02": {
+    "Navetta_2": {
         "Stato_Inverter_OK": 1,
         "Stato_ComunicazioneRulliere": 1,
         "Stato_ComunicazioneCarrello": 1,
-        "Stato_X_Homed": 1,
-        "Stato_Y_Homed": 1,
-        "Stato_Z_Homed": 1,
+        "X_Homed": 1,
+        "Y_Homed": 1,
+        "Z_Homed": 1,
         "Home_OK": 1,
         "Stato_Pick": 0,
         "Stato_Picked": 0,
         "Stato_Emergenza": 0,
         "Stato_Aria_OK": 1,
-        "Encoder_X": 12000.0,
-        "Encoder_Y1": 1200.0,
-        "Encoder_Y2": 1200.0,
-        "Encoder_Z": 200.0,
-        "TabellaLavoro_Index": 0,
+        "X_Encoder": 12000.0,
+        "Y1_Encoder": 1200.0,
+        "Y2_Encoder": 1200.0,
+        "Z_Encoder": 200.0,
+        "IndexTabellaLavoro": 0,
         "Stato_EnableDrive": 1,
         "Stato_Automatico": 1,
-        "Stato_GoToX": 0,
-        "Stato_GoToZ": 0,
+        "GoToX": 0.0,
+        "GoToZ": 0.0,
         "Stato_MaintenancePosition": 0,
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0
     },
-    "Navetta_03": {
+    "Navetta_3": {
         "Stato_Inverter_OK": 1,
         "Stato_ComunicazioneRulliere": 1,
         "Stato_ComunicazioneCarrello": 1,
-        "Stato_X_Homed": 1,
-        "Stato_Y_Homed": 1,
-        "Stato_Z_Homed": 1,
+        "X_Homed": 1,
+        "Y_Homed": 1,
+        "Z_Homed": 1,
         "Home_OK": 1,
         "Stato_Pick": 0,
         "Stato_Picked": 1,
         "Stato_Emergenza": 0,
         "Stato_Aria_OK": 1,
-        "Encoder_X": 18000.0,
-        "Encoder_Y1": 1200.0,
-        "Encoder_Y2": 1200.0,
-        "Encoder_Z": 1500.0,
-        "TabellaLavoro_Index": 3,
+        "X_Encoder": 18000.0,
+        "Y1_Encoder": 1200.0,
+        "Y2_Encoder": 1200.0,
+        "Z_Encoder": 1500.0,
+        "IndexTabellaLavoro": 3,
         "Stato_EnableDrive": 1,
         "Stato_Automatico": 0,
-        "Stato_GoToX": 0,
-        "Stato_GoToZ": 0,
+        "GoToX": 0.0,
+        "GoToZ": 0.0,
         "Stato_MaintenancePosition": 0,
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0
     },
-    "Navetta_04": {
+    "Navetta_4": {
         "Stato_Inverter_OK": 1,
         "Stato_ComunicazioneRulliere": 1,
         "Stato_ComunicazioneCarrello": 1,
-        "Stato_X_Homed": 1,
-        "Stato_Y_Homed": 1,
-        "Stato_Z_Homed": 1,
+        "X_Homed": 1,
+        "Y_Homed": 1,
+        "Z_Homed": 1,
         "Home_OK": 1,
         "Stato_Pick": 0,
         "Stato_Picked": 0,
         "Stato_Emergenza": 0,
         "Stato_Aria_OK": 1,
-        "Encoder_X": 25000.0,
-        "Encoder_Y1": 1200.0,
-        "Encoder_Y2": 1200.0,
-        "Encoder_Z": 3000.0,
-        "TabellaLavoro_Index": 0,
+        "X_Encoder": 25000.0,
+        "Y1_Encoder": 1200.0,
+        "Y2_Encoder": 1200.0,
+        "Z_Encoder": 3000.0,
+        "IndexTabellaLavoro": 0,
         "Stato_EnableDrive": 1,
         "Stato_Automatico": 0,
-        "Stato_GoToX": 0,
-        "Stato_GoToZ": 0,
+        "GoToX": 0.0,
+        "GoToZ": 0.0,
         "Stato_MaintenancePosition": 0,
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
@@ -177,7 +177,7 @@ def animazione_loop():
     """Simula l'avanzamento dei motori per mostrare movimento in tempo reale."""
     global plc_state, simulation_running
     direzioni = {
-        "Navetta_01": 1, "Navetta_02": -1, "Navetta_03": 1, "Navetta_04": -1,
+        "Navetta_1": 1, "Navetta_2": -1, "Navetta_3": 1, "Navetta_4": -1,
         "Carrello": 1, "Caricatore_Z": 1, "Caricatore_Rot": 1
     }
     
@@ -185,12 +185,12 @@ def animazione_loop():
         try:
             # 1. Animazione Navette (movimento asse X)
             for i in range(1, 5):
-                name = f"Navetta_0{i}"
+                name = f"Navetta_{i}"
                 if plc_state[name]["Stato_EnableDrive"] == 1:
-                    plc_state[name]["Encoder_X"] += direzioni[name] * 200
-                    if plc_state[name]["Encoder_X"] > 26000:
+                    plc_state[name]["X_Encoder"] += direzioni[name] * 200
+                    if plc_state[name]["X_Encoder"] > 26000:
                         direzioni[name] = -1
-                    elif plc_state[name]["Encoder_X"] < 1000:
+                    elif plc_state[name]["X_Encoder"] < 1000:
                         direzioni[name] = 1
                         
             # 2. Animazione Carrello (Asse Y)
@@ -224,7 +224,7 @@ def animazione_loop():
 def client_handler(sock):
     sock.settimeout(5.0)
     buffer = ""
-    active_templates = {"Navetta_04": {"navetta": True, "tpl_1781456080355": False}}
+    active_templates = {"Navetta_4": {"navetta": True, "tpl_1781456080355": False}}
     
     while simulation_running:
         try:
@@ -245,32 +245,32 @@ def client_handler(sock):
                     macchina = parti[1]
                     if macchina in plc_state:
                         res = []
-                        # Se è Navetta_04, restituisce solo i campi del template attivo
+                        # Se è Navetta_4, restituisce solo i campi del template attivo
                         for k, v in plc_state[macchina].items():
                             # Se è navetta 4 ed il template non-ciclico è spento, escludiamo ID e Lunghezza
-                            if macchina == "Navetta_04" and k in ["ID", "Lunghezza"] and not active_templates["Navetta_04"]["tpl_1781456080355"]:
+                            if macchina == "Navetta_4" and k in ["ID", "Lunghezza"] and not active_templates["Navetta_4"]["tpl_1781456080355"]:
                                 continue
                             res.append(f"{macchina}.{k} = {v}")
-                        sock.sendall(("\n".join(res) + "\n").encode("utf-8"))
+                        sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
                     else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n".encode("utf-8"))
+                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
                         
                 elif cmd == "read_template":
                     macchina = parti[1]
                     tpl = parti[2]
                     if macchina in plc_state:
                         res = []
-                        if tpl == "tpl_1781456080355" and macchina == "Navetta_04":
+                        if tpl == "tpl_1781456080355" and macchina == "Navetta_4":
                             # Restituisce solo i campi del template
-                            res.append(f"Navetta_04.ID = 17814")
-                            res.append(f"Navetta_04.Lunghezza = 2200")
+                            res.append(f"Navetta_4.ID = 17814")
+                            res.append(f"Navetta_4.Lunghezza = 2200")
                         else:
                             # Restituisce tutto
                             for k, v in plc_state[macchina].items():
                                 res.append(f"{macchina}.{k} = {v}")
-                        sock.sendall(("\n".join(res) + "\n").encode("utf-8"))
+                        sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
                     else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n".encode("utf-8"))
+                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
                         
                 elif cmd == "write":
                     macchina = parti[1]
@@ -302,37 +302,37 @@ def client_handler(sock):
                         elif parametro == "CMD_Home":
                             plc_state[macchina]["Home_OK"] = 1
                             
-                        sock.sendall(f"{macchina}.{parametro} scritto: {valore}\n".encode("utf-8"))
+                        sock.sendall(f"{macchina}.{parametro} scritto: {valore}\n\x03".encode("utf-8"))
                     else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n".encode("utf-8"))
+                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
                         
                 elif cmd == "connect":
                     target = parti[1]
                     if ":" in target:
                         macchina, tpl = target.split(":", 1)
-                        if macchina == "Navetta_04" and tpl == "tpl_1781456080355":
-                            active_templates["Navetta_04"]["tpl_1781456080355"] = True
+                        if macchina == "Navetta_4" and tpl == "tpl_1781456080355":
+                            active_templates["Navetta_4"]["tpl_1781456080355"] = True
                             # Scrive nel datastore simulato
-                            plc_state["Navetta_04"]["ID"] = 178145608
-                            plc_state["Navetta_04"]["Lunghezza"] = 4500
-                        sock.sendall(f"{target} connesso.\n".encode("utf-8"))
+                            plc_state["Navetta_4"]["ID"] = 178145608
+                            plc_state["Navetta_4"]["Lunghezza"] = 4500
+                        sock.sendall(f"{target} connesso.\n\x03".encode("utf-8"))
                     else:
-                        sock.sendall(f"{target} connesso.\n".encode("utf-8"))
+                        sock.sendall(f"{target} connesso.\n\x03".encode("utf-8"))
                         
                 elif cmd == "disconnect":
                     target = parti[1]
                     if ":" in target:
                         macchina, tpl = target.split(":", 1)
-                        if macchina == "Navetta_04" and tpl == "tpl_1781456080355":
-                            active_templates["Navetta_04"]["tpl_1781456080355"] = False
+                        if macchina == "Navetta_4" and tpl == "tpl_1781456080355":
+                            active_templates["Navetta_4"]["tpl_1781456080355"] = False
                             # Rimuove dal datastore simulato
-                            if "ID" in plc_state["Navetta_04"]:
-                                del plc_state["Navetta_04"]["ID"]
-                            if "Lunghezza" in plc_state["Navetta_04"]:
-                                del plc_state["Navetta_04"]["Lunghezza"]
-                        sock.sendall(f"{target} disconnesso.\n".encode("utf-8"))
+                            if "ID" in plc_state["Navetta_4"]:
+                                del plc_state["Navetta_4"]["ID"]
+                            if "Lunghezza" in plc_state["Navetta_4"]:
+                                del plc_state["Navetta_4"]["Lunghezza"]
+                        sock.sendall(f"{target} disconnesso.\n\x03".encode("utf-8"))
                     else:
-                        sock.sendall(f"{target} disconnesso.\n".encode("utf-8"))
+                        sock.sendall(f"{target} disconnesso.\n\x03".encode("utf-8"))
                         
                 elif cmd == "status":
                     res = [
@@ -342,10 +342,10 @@ def client_handler(sock):
                     ]
                     for m in plc_state.keys():
                         res.append(f"{m}: connected")
-                    sock.sendall(("\n".join(res) + "\n").encode("utf-8"))
+                    sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
                     
                 else:
-                    sock.sendall(f"Comando '{cmd}' non supportato dal mock.\n".encode("utf-8"))
+                    sock.sendall(f"Comando '{cmd}' non supportato dal mock.\n\x03".encode("utf-8"))
         except Exception:
             break
     sock.close()

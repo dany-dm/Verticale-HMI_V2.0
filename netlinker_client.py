@@ -18,6 +18,7 @@ class NetLinkerClient:
         self.host = "localhost"
         self.port = 9000
         self.refresh_rate = 0.3
+        self.server_supports_etx = None
         
         self._sock = None
         self._sock_lock = threading.Lock()
@@ -60,9 +61,21 @@ class NetLinkerClient:
             self.syslog.log(f"Errore connessione a NetLinker: {e}", severity=3)
             return None
 
+    def _socket_flush(self, sock):
+        """Svuota il buffer di ricezione del socket da eventuali dati residui."""
+        sock.setblocking(False)
+        try:
+            while True:
+                data = sock.recv(8192)
+                if not data:
+                    break
+        except BlockingIOError:
+            pass
+        finally:
+            sock.setblocking(True)
+
     def invia_comando(self, comando):
-        """Invia un comando sincrono a NetLinker e restituisce la risposta."""
-        # Traduci i nomi HMI in nomi NetLinker nel comando
+        """Invia un comando sincrono a NetLinker (via socket persistente) con rilevamento ETX (\\x03) e flushing."""
         parti = comando.strip().split()
         if len(parti) > 1:
             parti[1] = to_netlinker_name(parti[1])
@@ -77,13 +90,35 @@ class NetLinkerClient:
                     if not s_attiva:
                         return ""
                     connessione_temporanea = True
+                    if self._running:
+                        self._sock = s_attiva
 
                 try:
+                    # Svuota buffer prima dell'invio
+                    self._socket_flush(s_attiva)
+                    
                     s_attiva.sendall((comando_tradotto + "\n").encode("utf-8"))
-                    risposta_bytes = s_attiva.recv(16384)
-                    if not risposta_bytes:
-                        raise socket.error("Connessione chiusa dall'host remoto (recv ha restituito 0 byte)")
-                    risposta = risposta_bytes.decode("utf-8")
+                    
+                    if getattr(self, "server_supports_etx", False):
+                        # Nuova modalità: leggi fino a ETX (\x03)
+                        buffer = ""
+                        while "\x03" not in buffer:
+                            chunk_bytes = s_attiva.recv(4096)
+                            if not chunk_bytes:
+                                raise socket.error("Connessione chiusa dall'host remoto prima del carattere ETX")
+                            buffer += chunk_bytes.decode("utf-8")
+                        risposta, _ = buffer.split("\x03", 1)
+                    else:
+                        # Vecchia modalità o rilevamento iniziale: singola recv
+                        risposta_bytes = s_attiva.recv(16384)
+                        if not risposta_bytes:
+                            raise socket.error("Connessione chiusa dall'host remoto")
+                        risposta = risposta_bytes.decode("utf-8")
+                        
+                        # Rilevamento dinamico di ETX
+                        if "\x03" in risposta:
+                            self.server_supports_etx = True
+                            risposta, _ = risposta.split("\x03", 1)
                     
                     # Traduci la risposta da NetLinker a nomi HMI
                     risposta_tradotta = []
@@ -94,7 +129,6 @@ class NetLinkerClient:
                             risposta_tradotta.append(f"{macchina_hmi}.{resto}")
                         elif ":" in riga:
                             macchina, resto = riga.split(":", 1)
-                            # Gestisce formati tipo Navetta_04: connected o Navetta_04:Template: connected
                             macchina_pulita = macchina.strip()
                             template_id = ""
                             if ":" in macchina_pulita:
@@ -103,36 +137,34 @@ class NetLinkerClient:
                             tag = f"{macchina_hmi}:{template_id}" if template_id else macchina_hmi
                             risposta_tradotta.append(f"{tag}:{resto}")
                         else:
-                            # Rimpiazza i nomi grezzi anche nelle stringhe generiche
                             riga_tradotta = riga
                             for i in range(1, 20):
                                 riga_tradotta = riga_tradotta.replace(f"Navetta_{i:02d}", f"Navetta_{i}")
                             risposta_tradotta.append(riga_tradotta)
                     
-                    final_res = "\n".join(risposta_tradotta)
-                    
                     if connessione_temporanea:
                         s_attiva.close()
-                        
-                    return final_res
+                        if self._sock == s_attiva:
+                            self._sock = None
+                            
+                    return "\n".join(risposta_tradotta)
                 except Exception as e:
                     self.syslog.log(f"Errore durante l'invio del comando '{comando}' (tentativo {tentativo+1}): {e}", severity=3)
-                    if not connessione_temporanea and self._sock:
+                    if self._sock:
                         try:
                             self._sock.close()
                         except Exception:
                             pass
                         self._sock = None
-                    elif connessione_temporanea and s_attiva:
+                    if connessione_temporanea and s_attiva:
                         try:
                             s_attiva.close()
                         except Exception:
                             pass
                     
                     if connessione_temporanea:
-                        # Se è fallito con connessione temporanea appena stabilita, non riprovare
                         break
-                return ""
+        return ""
 
     def _polling_loop(self):
         """Ciclo continuo di polling per tutte le macchine abilitate."""
@@ -187,28 +219,39 @@ class NetLinkerClient:
 
                     # Parsing dei dati
                     righe = risposta.strip().split("\n")
-                    dati_macchina = {}
+                    dati_per_macchina = {} # { nome_macchina: { chiave: valore } }
                     for riga in righe:
                         if "=" in riga and "." in riga:
                             try:
-                                _, coppia = riga.split(".", 1)
+                                prefix, coppia = riga.split(".", 1)
+                                prefix = prefix.strip()
+                                macchina_hmi = from_netlinker_name(prefix)
+                                
                                 chiave, valore = coppia.split("=", 1)
                                 chiave = chiave.strip()
                                 valore = valore.strip()
                                 
                                 # Parsing valore
-                                if valore in ["0", "1"]:
+                                is_boolean = False
+                                if chiave.startswith("Stato_") or chiave.startswith("CMD_") or chiave.endswith("_Homed") or chiave in ["Home_OK", "attivo"]:
+                                    is_boolean = True
+                                    
+                                if is_boolean and valore in ["0", "1"]:
                                     valore_parsed = (valore == "1")
                                 else:
                                     try:
                                         valore_parsed = round(float(valore), 2) if "." in valore else int(valore)
                                     except ValueError:
                                         valore_parsed = valore
-                                dati_macchina[chiave] = valore_parsed
+                                
+                                if macchina_hmi not in dati_per_macchina:
+                                    dati_per_macchina[macchina_hmi] = {}
+                                dati_per_macchina[macchina_hmi][chiave] = valore_parsed
                             except Exception:
                                 pass
                     
-                    if dati_macchina:
-                        self.datastore.update_device_data(nome_macchina, dati_macchina, online=True)
+                    for macch, dati in dati_per_macchina.items():
+                        if macch in stati_locali:
+                            self.datastore.update_device_data(macch, dati, online=True)
             
             time.sleep(self.refresh_rate)

@@ -41,7 +41,7 @@ class LauncherGUI:
         main_frame.pack(fill="both", expand=True)
 
         # Titolo
-        lbl_title = tk.Label(main_frame, text="Verticale HMI v2.0", font=("Arial", 16, "bold"), fg="#ecf0f1", bg="#2c3e50")
+        lbl_title = tk.Label(main_frame, text="Verticale HMI v2.0.1", font=("Arial", 16, "bold"), fg="#ecf0f1", bg="#2c3e50")
         lbl_title.pack(anchor="w", pady=(0, 10))
 
         # Stato Server

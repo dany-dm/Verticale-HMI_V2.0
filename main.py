@@ -193,7 +193,7 @@ def main():
     global datastore, syslog, client, tcp_server, http_server, launcher, running
     
     # 1. Parsing Argomenti CLI
-    parser = argparse.ArgumentParser(description="Verticale HMI v2.0 - Interfaccia Controllo Navette")
+    parser = argparse.ArgumentParser(description="Verticale HMI v2.0.1 - Interfaccia Controllo Navette")
     parser.add_argument("--port-socket", type=int, default=9001, help="Porta server TCP Socket HMI (default: 9001)")
     parser.add_argument("--port-web", type=int, default=8080, help="Porta server Web HMI/API (default: 8080)")
     parser.add_argument("--no-gui", action="store_true", help="Avvia il server in modalità headless (senza finestra Tkinter)")

@@ -1,0 +1,5 @@
+{
+  "auto_connect": true,
+  "socket_port": "499",
+  "polling_interval": 300
+}

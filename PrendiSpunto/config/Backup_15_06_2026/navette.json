@@ -1,0 +1,169 @@
+{
+  "registers": {
+    "Stato_Inverter_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 0
+    },
+    "Stato_ComunicazioneRulliere": {
+      "address": 0,
+      "type": "bit",
+      "bit": 1
+    },
+    "Stato_ComunicazioneCarrello": {
+      "address": 0,
+      "type": "bit",
+      "bit": 2
+    },
+    "X_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 8
+    },
+    "Y_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 9
+    },
+    "Z_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 10
+    },
+    "Home_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 11
+    },
+    "Stato_Pick": {
+      "address": 0,
+      "type": "bit",
+      "bit": 12
+    },
+    "Stato_Picked": {
+      "address": 0,
+      "type": "bit",
+      "bit": 13
+    },
+    "Stato_Emergenza": {
+      "address": 0,
+      "type": "bit",
+      "bit": 14
+    },
+    "Stato_Aria_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 15
+    },
+    "X_Encoder": {
+      "address": 1,
+      "type": "float"
+    },
+    "Y1_Encoder": {
+      "address": 3,
+      "type": "float"
+    },
+    "Y2_Encoder": {
+      "address": 5,
+      "type": "float"
+    },
+    "Z_Encoder": {
+      "address": 7,
+      "type": "float"
+    },
+    "IndexTabellaLavoro": {
+      "address": 9,
+      "type": "int16"
+    },
+    "CMD_Home": {
+      "address": 10,
+      "type": "int16"
+    },
+    "CMD_EnableDrive": {
+      "address": 11,
+      "type": "int16"
+    },
+    "Stato_EnableDrive": {
+      "address": 11,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Automatico": {
+      "address": 12,
+      "type": "int16"
+    },
+    "Stato_Automatico": {
+      "address": 12,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Reset": {
+      "address": 13,
+      "type": "int16"
+    },
+    "GoToX": {
+      "address": 14,
+      "type": "float"
+    },
+    "CMD_GoToX": {
+      "address": 16,
+      "type": "int16"
+    },
+    "Stato_GoToX": {
+      "address": 16,
+      "type": "bit",
+      "bit": 9
+    },
+    "GoToZ": {
+      "address": 17,
+      "type": "float"
+    },
+    "CMD_GoToZ": {
+      "address": 19,
+      "type": "int16"
+    },
+    "Stato_GoToZ": {
+      "address": 19,
+      "type": "bit",
+      "bit": 9
+    },
+    "CMD_MaintenancePosition": {
+      "address": 20,
+      "type": "int16"
+    },
+    "Stato_MaintenancePosition": {
+      "address": 20,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_StopAir": {
+      "address": 21,
+      "type": "int16"
+    }
+  },
+  "Navetta_1": {
+    "enabled": true,
+    "ip": "192.168.3.97",
+    "port": 503
+  },
+  "Navetta_2": {
+    "enabled": true,
+    "ip": "192.168.3.95",
+    "port": 503
+  },
+  "Navetta_3": {
+    "enabled": true,
+    "ip": "127.0.0.1",
+    "port": 5026
+  },
+  "Navetta_4": {
+    "enabled": true,
+    "ip": "192.168.3.66",
+    "port": 5027
+  },
+  "Navetta_5": {
+    "enabled": false,
+    "ip": "192.168.3.91",
+    "port": 503
+  }
+}

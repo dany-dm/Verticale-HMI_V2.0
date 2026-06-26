@@ -1,0 +1,78 @@
+{
+  "enabled": true,
+  "ip": "192.168.7.8",
+  "port": 506,
+  "registers": {
+    "Stato_PannelloSuBiesse": {
+      "address": 3,
+      "type": "bit",
+      "bit": 8
+    },
+    "Stato_PannelloSuR1": {
+      "address": 3,
+      "type": "bit",
+      "bit": 9
+    },
+    "Stato_PannelloSuR2": {
+      "address": 3,
+      "type": "bit",
+      "bit": 10
+    },
+    "Stato_PannelloSuR1": {
+      "address": 3,
+      "type": "bit",
+      "bit": 9
+    },
+    "Stato_Pick": {
+      "address": 14,
+      "type": "bit",
+      "bit": 8
+    },
+    "Stato_Picked": {
+      "address": 14,
+      "type": "bit",
+      "bit": 9
+    },
+    "Stato_Emergenza": {
+      "address": 14,
+      "type": "bit",
+      "bit": 10
+    },
+    "Stato_Aria_OK": {
+      "address": 14,
+      "type": "bit",
+      "bit": 11
+    },
+    "Stato_ComunicazioneCarrello": {
+      "address": 14,
+      "type": "bit",
+      "bit": 12
+    },
+    "IndexTabellaLavoro": {
+      "address": 15,
+      "type": "int16"
+    },
+    "CMD_EnableDrive": {
+      "address": 16,
+      "type": "int16"
+    },
+    "Stato_EnableDrive": {
+      "address": 16,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Automatico": {
+      "address": 17,
+      "type": "int16"
+    },
+    "Stato_Automatico": {
+      "address": 17,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Reset": {
+      "address": 18,
+      "type": "int16"
+    }
+  }
+}

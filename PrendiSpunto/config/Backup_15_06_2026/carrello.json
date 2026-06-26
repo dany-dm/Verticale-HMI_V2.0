@@ -1,0 +1,135 @@
+{
+  "enabled": true,
+  "ip": "192.168.7.37",
+  "port": "503",
+  "registers": {
+    "Y_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 8
+    },
+    "Rotazione_Homed": {
+      "address": 0,
+      "type": "bit",
+      "bit": 9
+    },
+    "Home_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 10
+    },
+    "Stato_Pick": {
+      "address": 0,
+      "type": "bit",
+      "bit": 11
+    },
+    "Stato_Picked": {
+      "address": 0,
+      "type": "bit",
+      "bit": 12
+    },
+    "Stato_Emergenza": {
+      "address": 0,
+      "type": "bit",
+      "bit": 13
+    },
+    "Stato_Aria_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 14
+    },
+    "Stato_Inverter_OK": {
+      "address": 0,
+      "type": "bit",
+      "bit": 15
+    },
+    "Stato_ComunicazioneRulliere": {
+      "address": 0,
+      "type": "bit",
+      "bit": 0
+    },
+    "Stato_ComunicazioneCaricatore": {
+      "address": 0,
+      "type": "bit",
+      "bit": 1
+    },
+    "Stato_ComunicazioneNavette": {
+      "address": 0,
+      "type": "bit",
+      "bit": 2
+    },
+    "Y_Encoder": {
+      "address": 1,
+      "type": "float"
+    },
+    "Rotazione_Encoder": {
+      "address": 3,
+      "type": "float"
+    },
+    "IndexTabellaLavoro": {
+      "address": 5,
+      "type": "int16"
+	},
+    "CMD_Home": {
+      "address": 6,
+      "type": "int16"
+    },
+    "CMD_EnableDrive": {
+      "address": 7,
+      "type": "int16"
+    },
+    "Stato_EnableDrive": {
+      "address": 7,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Automatico": {
+      "address": 8,
+      "type": "int16"
+    },
+    "Stato_Automatico": {
+      "address": 8,
+      "type": "bit",
+      "bit": 8
+    },
+    "CMD_Reset": {
+      "address": 9,
+      "type": "int16"
+    },
+    "GoToY": {
+      "address": 10,
+      "type": "float"
+    },
+    "CMD_GoToY": {
+      "address": 12,
+      "type": "int16"
+    },
+    "Stato_GoToY": {
+      "address": 12,
+      "type": "bit",
+      "bit": 9
+    },
+    "GoToRotazione": {
+      "address": 13,
+      "type": "float"
+    },
+    "CMD_GoToRotazione": {
+      "address": 15,
+      "type": "int16"
+    },
+    "Stato_GoToRotazione": {
+      "address": 15,
+      "type": "bit",
+      "bit": 9
+    },
+    "CMD_MaintenancePosition": {
+      "address": 16,
+      "type": "int16"
+    },
+    "Stato_MaintenancePosition": {
+      "address": 16,
+      "type": "bit",
+      "bit": 8
+	}
+  }
+}

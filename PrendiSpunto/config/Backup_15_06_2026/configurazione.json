@@ -1,0 +1,83 @@
+{
+  "Polling IP": "localhost",
+  "Polling Port": "499",
+  "Refresh": "0.3",
+  "Carrello": {
+    "Corsa max Y": "24500"
+  },
+  "Caricatore": {
+    "Corsa max Z": "1500"
+  },
+  "Navetta_1": {
+    "attivo": true,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": "18500"
+  },
+  "Navetta_2": {
+    "attivo": true,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": "20200"
+  },
+  "Navetta_3": {
+    "attivo": true,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": "21900"
+  },
+  "Navetta_4": {
+    "attivo": true,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": "23600"
+  },
+  "Navetta_5": {
+    "attivo": false,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": ""
+  },
+  "Navetta_6": {
+    "attivo": false,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": ""
+  },
+  "Navetta_7": {
+    "attivo": false,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": ""
+  },
+  "Navetta_8": {
+    "attivo": false,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": ""
+  },
+  "Navetta_10": {
+    "attivo": false,
+    "Corsa max X": "27000",
+    "Corsa max Y1": "1200",
+    "Corsa max Y2": "1200",
+    "Corsa max Z": "3685",
+    "Posizione Y navetta": ""
+  }
+}

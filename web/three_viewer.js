@@ -85,6 +85,11 @@ function initThreeJS() {
     const navGeom = new THREE.BoxGeometry(4, 2, 6);
     const navMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4 });
     const valoriYNavette = [18500, 21200, 24040, 27060]; // Posizioni statiche binari
+    for (let i = 1; i <= 4; i++) {
+        if (typeof config !== "undefined" && config.navette && config.navette[`Navetta_${i}`] && config.navette[`Navetta_${i}`].valori) {
+            valoriYNavette[i-1] = config.navette[`Navetta_${i}`].valori[4];
+        }
+    }
 
     for (let i = 1; i <= 4; i++) {
         // Binario verticale per ciascuna navetta
@@ -142,9 +147,17 @@ function animateThree() {
         const navMesh = navette3D[i];
         const navState = currentStates[`Navetta_${i}`];
         if (navMesh && navState) {
-            const xEnc = navState.Encoder_X || 0;
+            const xEnc = navState.X_Encoder || 0;
             // Spostamento lungo il binario (asse Z 3D)
             navMesh.position.z = -30 + (xEnc * 0.002);
+
+            // Spostamento Y dinamico (asse X 3D)
+            let yNav = [18500, 21200, 24040, 27060][i-1];
+            if (typeof config !== "undefined" && config.navette && config.navette[`Navetta_${i}`] && config.navette[`Navetta_${i}`].valori) {
+                yNav = config.navette[`Navetta_${i}`].valori[4];
+            }
+            const zRailPos = -40 + (yNav * 0.003);
+            navMesh.position.x = zRailPos;
         }
     }
 
@@ -201,3 +214,11 @@ function animateThree() {
           });
       });
    ========================================================================= */
+
+function aggiornaSinottico3D() {
+    if (document.getElementById("sinottico-3d")?.classList.contains("active")) {
+        if (!isThreeInitialized) {
+            initThreeJS();
+        }
+    }
+}

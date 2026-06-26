@@ -1,0 +1,113 @@
+{
+    "polling_ip": "192.168.3.66",
+    "polling_port": 499,
+    "refresh": 0.3,
+    "carrello": {
+        "corsa_max_y": 24500.0
+    },
+    "caricatore": {
+        "corsa_max_z": 1500.0
+    },
+    "navette": {
+        "Navetta_1": {
+            "attivo": true,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                18500.0
+            ]
+        },
+        "Navetta_2": {
+            "attivo": true,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                20200.0
+            ]
+        },
+        "Navetta_3": {
+            "attivo": true,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                21900.0
+            ]
+        },
+        "Navetta_4": {
+            "attivo": true,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                23600.0
+            ]
+        },
+        "Navetta_5": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        },
+        "Navetta_6": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        },
+        "Navetta_7": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        },
+        "Navetta_8": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        },
+        "Navetta_9": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        },
+        "Navetta_10": {
+            "attivo": false,
+            "valori": [
+                27000.0,
+                1200.0,
+                1200.0,
+                3685.0,
+                0.0
+            ]
+        }
+    }
+}
