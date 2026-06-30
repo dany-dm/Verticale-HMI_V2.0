@@ -288,6 +288,12 @@ function aggiornaMatriceGlobale() {
             const statoMacchina = currentStates[m] || {};
             const comunicazione_ok = statoMacchina.__comunicazione_ok__;
             
+            // L'home di rulliere non esiste e deve sparire (mostrando X)
+            if (cmd === "Home" && m === "Rulliere") {
+                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
+                return;
+            }
+            
             // Mappatura comandi -> flag di stato reali PLC
             let flag = false;
             let ok = false;
@@ -394,7 +400,7 @@ function aggiornaSchedaNavette() {
                 el.innerText = val !== undefined ? val : "-";
             }
         } else if (k === "Stato_Emergenza") {
-            el.innerText = val ? "❌ ALLARME" : "✅ OK";
+            el.innerText = val ? "❌ ALLARME" : "✅";
             el.className = `badge ${val ? 'val-offline' : 'val-online'}`;
         } else if (typeof val === "boolean") {
             el.innerText = val ? "✅" : "❌";
@@ -414,9 +420,10 @@ function aggiornaSchedaNavette() {
     });
 
     // Aggiorna pulsanti (Sunken / Raised) e disabilita se già attivi (dopo il controllo condizioni)
-    updateButtonToggle("nav", "CMD_EnableDrive", stato.Stato_EnableDrive);
-    updateButtonToggle("nav", "CMD_Automatico", stato.Stato_Automatico);
-    updateButtonToggle("nav", "CMD_MaintenancePosition", stato.Stato_MaintenancePosition);
+    updateButtonToggle("nav", "CMD_EnableDrive", stato.Stato_EnableDrive, nomeMacchina);
+    updateButtonToggle("nav", "CMD_Automatico", stato.Stato_Automatico, nomeMacchina);
+    updateButtonToggle("nav", "CMD_MaintenancePosition", stato.Stato_MaintenancePosition, nomeMacchina);
+    aggiornaIndicatoriComandiPrincipali("nav", stato);
 
     // Aggiorna i quote encoders
     const xVal = stato.X_Encoder || 0;
@@ -425,8 +432,13 @@ function aggiornaSchedaNavette() {
     const y2Val = stato.Y2_Encoder || 0;
     document.getElementById("nav-val-X_Encoder").innerText = `${xVal} mm`;
     document.getElementById("nav-val-Z_Encoder").innerText = `${zVal} mm`;
-    document.getElementById("nav-val-Y1_Encoder").innerText = `${y1Val} mm`;
-    document.getElementById("nav-val-Y2_Encoder").innerText = `${y2Val} mm`;
+    const y1El = document.getElementById("nav-val-Y1_Encoder");
+    if (y1El) y1El.innerText = `${y1Val} mm`;
+    const y2El = document.getElementById("nav-val-Y2_Encoder");
+    if (y2El) y2El.innerText = `${y2Val} mm`;
+    
+    // Aggiorna la vista Canvas Y1 e Y2
+    renderNavettaYCanvas(y1Val, y2Val, stato);
     
     // Aggiorna gli input non editabili negli azzeramenti
     const navXh = document.getElementById("nav-val-X_Encoder-h");
@@ -438,11 +450,55 @@ function aggiornaSchedaNavette() {
     if (navY2h) navY2h.value = `${y2Val} mm`;
     if (navZh) navZh.value = `${zVal} mm`;
     
+    // Aggiorna Dati Commessa
+    const inLavoro = (stato.Stato_Picked ? true : false);
+    const noJobEl = document.getElementById("nav-comm-no-job");
+    const detailsEl = document.getElementById("nav-comm-details");
+    
+    if (noJobEl && detailsEl) {
+        if (inLavoro) {
+            noJobEl.style.display = "none";
+            detailsEl.style.display = "flex";
+            
+            // Popola i campi
+            const valID = document.getElementById("nav-comm-val-ID");
+            const valDim = document.getElementById("nav-comm-val-Dimensioni");
+            const valFrom = document.getElementById("nav-comm-val-From");
+            const valTo = document.getElementById("nav-comm-val-To");
+            
+            if (valID) valID.innerText = stato.comanda_ID !== undefined ? stato.comanda_ID : "-";
+            
+            if (valDim) {
+                const len = stato.comanda_Lunghezza !== undefined ? stato.comanda_Lunghezza : "-";
+                const wid = stato.comanda_Larghezza !== undefined ? stato.comanda_Larghezza : "-";
+                const thk = stato.comanda_Spessore !== undefined ? stato.comanda_Spessore : "-";
+                valDim.innerText = `${len} x ${wid} x ${thk} mm`;
+            }
+            
+            if (valFrom) {
+                const fx_val = stato.comanda_From_X !== undefined ? stato.comanda_From_X : "-";
+                const fy_val = stato.comanda_From_Y !== undefined ? stato.comanda_From_Y : "-";
+                const fz_val = stato.comanda_From_Z !== undefined ? stato.comanda_From_Z : "-";
+                valFrom.innerText = `${fx_val} / ${fy_val} / ${fz_val} mm`;
+            }
+            
+            if (valTo) {
+                const tx_val = stato.comanda_To_X !== undefined ? stato.comanda_To_X : "-";
+                const ty_val = stato.comanda_To_Y !== undefined ? stato.comanda_To_Y : "-";
+                const tz_val = stato.comanda_ToZ !== undefined ? stato.comanda_ToZ : "-";
+                valTo.innerText = `${tx_val} / ${ty_val} / ${tz_val} mm`;
+            }
+        } else {
+            noJobEl.style.display = "flex";
+            detailsEl.style.display = "none";
+        }
+    }
+
     if (nomeMacchina === "Navetta_4") {
         const elId = document.getElementById("nav-val-ID");
-        if (elId) elId.innerText = stato.ID !== undefined ? stato.ID : "-";
+        if (elId) elId.innerText = stato.comanda_ID !== undefined ? stato.comanda_ID : "-";
         const elLen = document.getElementById("nav-val-Lunghezza");
-        if (elLen) elLen.innerText = stato.Lunghezza !== undefined ? `${stato.Lunghezza} mm` : "-";
+        if (elLen) elLen.innerText = stato.comanda_Lunghezza !== undefined ? `${stato.comanda_Lunghezza} mm` : "-";
         
         // Stato del template on-demand
         const tplBtn = document.getElementById("btn-nav-tpl-toggle");
@@ -555,7 +611,7 @@ function aggiornaSchedaCarrello() {
                 el.innerText = val !== undefined ? val : "-";
             }
         } else if (k === "Stato_Emergenza") {
-            el.innerText = val ? "❌ ALLARME" : "✅ OK";
+            el.innerText = val ? "❌ ALLARME" : "✅";
             el.className = `badge ${val ? 'val-offline' : 'val-online'}`;
         } else if (typeof val === "boolean") {
             el.innerText = val ? "✅" : "❌";
@@ -575,9 +631,10 @@ function aggiornaSchedaCarrello() {
     });
 
     // Aggiorna pulsanti (Sunken / Raised) e disabilita se già attivi (dopo il controllo condizioni)
-    updateButtonToggle("carr", "CMD_EnableDrive", stato.Stato_EnableDrive);
-    updateButtonToggle("carr", "CMD_Automatico", stato.Stato_Automatico);
-    updateButtonToggle("carr", "CMD_MaintenancePosition", stato.Stato_MaintenancePosition);
+    updateButtonToggle("carr", "CMD_EnableDrive", stato.Stato_EnableDrive, nomeMacchina);
+    updateButtonToggle("carr", "CMD_Automatico", stato.Stato_Automatico, nomeMacchina);
+    updateButtonToggle("carr", "CMD_MaintenancePosition", stato.Stato_MaintenancePosition, nomeMacchina);
+    aggiornaIndicatoriComandiPrincipali("carr", stato);
 
     // Encoders
     const yVal = stato.Y_Encoder || 0;
@@ -691,7 +748,7 @@ function aggiornaSchedaCaricatore() {
                 el.innerText = val !== undefined ? val : "-";
             }
         } else if (k === "Stato_Emergenza") {
-            el.innerText = val ? "❌ ALLARME" : "✅ OK";
+            el.innerText = val ? "❌ ALLARME" : "✅";
             el.className = `badge ${val ? 'val-offline' : 'val-online'}`;
         } else if (typeof val === "boolean") {
             el.innerText = val ? "✅" : "❌";
@@ -711,8 +768,9 @@ function aggiornaSchedaCaricatore() {
     });
 
     // Aggiorna pulsanti (Sunken / Raised) e disabilita se già attivi (dopo il controllo condizioni)
-    updateButtonToggle("car", "CMD_EnableDrive", stato.Stato_EnableDrive);
-    updateButtonToggle("car", "CMD_Automatico", stato.Stato_Automatico);
+    updateButtonToggle("car", "CMD_EnableDrive", stato.Stato_EnableDrive, nomeMacchina);
+    updateButtonToggle("car", "CMD_Automatico", stato.Stato_Automatico, nomeMacchina);
+    aggiornaIndicatoriComandiPrincipali("car", stato);
 
     // Encoders
     const zVal = stato.Z_Encoder || 0;
@@ -797,11 +855,12 @@ function aggiornaSchedaRulliere() {
                 el.innerText = val !== undefined ? val : "-";
             }
         } else if (k === "Stato_Emergenza") {
-            el.innerText = val ? "❌ ALLARME" : "✅ OK";
+            el.innerText = val ? "❌ ALLARME" : "✅";
             el.className = `badge ${val ? 'val-offline' : 'val-online'}`;
-        } else if (typeof val === "boolean") {
-            el.innerText = val ? "✅" : "❌";
-            el.style.color = val ? "var(--accent-green)" : "var(--accent-red)";
+        } else if (typeof val === "boolean" || val === 1 || val === -1 || val === 0) {
+            const isTrue = val === true || val === 1 || val === -1;
+            el.innerText = isTrue ? "✅" : "❌";
+            el.style.color = isTrue ? "var(--accent-green)" : "var(--accent-red)";
         }
     });
 
@@ -817,8 +876,9 @@ function aggiornaSchedaRulliere() {
     });
 
     // Aggiorna pulsanti (Sunken / Raised) e disabilita se già attivi (dopo il controllo condizioni)
-    updateButtonToggle("rul", "CMD_EnableDrive", stato.Stato_EnableDrive);
-    updateButtonToggle("rul", "CMD_Automatico", stato.Stato_Automatico);
+    updateButtonToggle("rul", "CMD_EnableDrive", stato.Stato_EnableDrive, nomeMacchina);
+    updateButtonToggle("rul", "CMD_Automatico", stato.Stato_Automatico, nomeMacchina);
+    aggiornaIndicatoriComandiPrincipali("rul", stato);
 
     // Aggiorna luci sinottico rulli
     const biesseLight = document.getElementById("light-biesse");
@@ -842,25 +902,84 @@ function updateBeltLight(el, active, text) {
 }
 
 // Helpers pulsanti toggle
-function updateButtonToggle(prefix, param, active) {
+function updateButtonToggle(prefix, param, active, nomeMacchina) {
     let suffix = param.split("_")[1].toLowerCase();
     if (suffix === "enabledrive") suffix = "drive";
     if (suffix === "automatico") suffix = "auto";
     if (suffix === "maintenanceposition") suffix = "maint";
     
+    // Check if there is a checkbox switch for this parameter (like Inverter Driver)
+    const sw = document.getElementById(`switch-${prefix}-${suffix}`);
+    if (sw) {
+        sw.checked = !!active;
+        // Disable switch if the safety conditions for the next state are not met
+        if (nomeMacchina) {
+            const condON = validaCondizioni(nomeMacchina, "EnableInverter_ON");
+            const condOFF = validaCondizioni(nomeMacchina, "EnableInverter_OFF");
+            if (active) {
+                sw.disabled = !condOFF.allOk;
+            } else {
+                sw.disabled = !condON.allOk;
+            }
+        }
+    }
+    
     const btnOn = document.getElementById(`btn-${prefix}-${suffix}-on`);
     const btnOff = document.getElementById(`btn-${prefix}-${suffix}-off`);
     
-    if (btnOn && btnOff) {
+    if (btnOn && btnOff && nomeMacchina) {
+        // Mappatura dei comandi per recuperare le condizioni di sicurezza reali
+        let cmdOn = "";
+        let cmdOff = "";
+        if (suffix === "auto") {
+            cmdOn = "Enable_Auto_ON";
+            cmdOff = "Enable_Auto_OFF";
+        } else if (suffix === "maint") {
+            cmdOn = "MaintenancePosition_ON";
+            cmdOff = "MaintenancePosition_OFF";
+        } else if (suffix === "drive") {
+            cmdOn = "EnableInverter_ON";
+            cmdOff = "EnableInverter_OFF";
+        }
+        
+        const condON = cmdOn ? validaCondizioni(nomeMacchina, cmdOn) : { allOk: true };
+        const condOFF = cmdOff ? validaCondizioni(nomeMacchina, cmdOff) : { allOk: true };
+        
         if (active) {
             btnOn.classList.add("sunken");
             btnOff.classList.remove("sunken");
-            btnOn.disabled = true; // Se già attivo, non ri-abilitare
+            btnOn.disabled = true; // Se già attivo, disabilita il pulsante di attivazione
+            btnOff.disabled = !condOFF.allOk; // Il pulsante di disattivazione rispetta la sicurezza
         } else {
             btnOn.classList.remove("sunken");
             btnOff.classList.add("sunken");
-            btnOff.disabled = true; // Se già spento, non ri-disabilitare
+            btnOff.disabled = true; // Se già disattivo, disabilita il pulsante di disattivazione
+            btnOn.disabled = !condON.allOk; // Il pulsante di attivazione rispetta la sicurezza
         }
+    }
+}
+
+// Aggiorna gli indicatori a destra (✅ verde / ❌ rosso) dei 3 comandi principali
+function aggiornaIndicatoriComandiPrincipali(prefix, stato) {
+    // 1. Inverter driver
+    const indDrive = document.getElementById(`check-${prefix}-drive`);
+    if (indDrive) {
+        const active = !!stato.Stato_EnableDrive;
+        indDrive.innerHTML = active ? '<span style="color:var(--accent-green)">✅</span>' : '<span style="color:var(--accent-red)">❌</span>';
+    }
+    
+    // 2. Asse Home
+    const indHome = document.getElementById(`check-${prefix}-home`);
+    if (indHome) {
+        const active = !!stato.Home_OK;
+        indHome.innerHTML = active ? '<span style="color:var(--accent-green)">✅</span>' : '<span style="color:var(--accent-red)">❌</span>';
+    }
+    
+    // 3. Modalità Operativa
+    const indAuto = document.getElementById(`check-${prefix}-auto`);
+    if (indAuto) {
+        const active = !!stato.Stato_Automatico;
+        indAuto.innerHTML = active ? '<span style="color:var(--accent-green)">✅</span>' : '<span style="color:var(--accent-red)">❌</span>';
     }
 }
 
@@ -906,8 +1025,10 @@ function invalidaDatiNavetta() {
 
     document.getElementById("nav-val-X_Encoder").innerText = "-";
     document.getElementById("nav-val-Z_Encoder").innerText = "-";
-    document.getElementById("nav-val-Y1_Encoder").innerText = "-";
-    document.getElementById("nav-val-Y2_Encoder").innerText = "-";
+    const y1El = document.getElementById("nav-val-Y1_Encoder");
+    if (y1El) y1El.innerText = "-";
+    const y2El = document.getElementById("nav-val-Y2_Encoder");
+    if (y2El) y2El.innerText = "-";
 
     const navXh = document.getElementById("nav-val-X_Encoder-h");
     const navY1h = document.getElementById("nav-val-Y1_Encoder-h");
@@ -931,6 +1052,13 @@ function invalidaDatiNavetta() {
             }
         });
     }
+    // Invalida Dati Commessa
+    const noJobEl = document.getElementById("nav-comm-no-job");
+    const detailsEl = document.getElementById("nav-comm-details");
+    if (noJobEl) noJobEl.style.display = "flex";
+    if (detailsEl) detailsEl.style.display = "none";
+
+    renderNavettaYCanvas(0, 0, {});
 }
 
 function invalidaDatiCarrello() {
@@ -1499,6 +1627,34 @@ function setupCommandButtons() {
         inviaScrittura(device, parameter, value);
     });
 
+    // Gestione change sui checkbox switch di comando (Inverter Driver)
+    document.addEventListener("change", (e) => {
+        const sw = e.target.closest(".cyber-switch-input");
+        if (!sw || sw.disabled) return;
+        
+        let device = sw.getAttribute("data-device");
+        const parameter = sw.getAttribute("data-param");
+        const value = sw.checked ? "-1" : "0";
+        
+        if (!device || !parameter) return;
+        
+        // Risolvi Navetta corrente
+        if (device === "Navetta") {
+            device = `Navetta_${activeNavettaIndex + 1}`;
+        }
+        
+        // Chiedi conferma
+        const actionWord = sw.checked ? "ABILITARE" : "DISABILITARE";
+        if (!confirm(`Sei sicuro di voler ${actionWord} l'Inverter Driver per ${device}?`)) {
+            // Ripristina lo stato precedente se annullato
+            sw.checked = !sw.checked;
+            return;
+        }
+        
+        // Effettua la chiamata API
+        inviaScrittura(device, parameter, value);
+    });
+
     // Bottone Stop Inverter Globale
     document.getElementById("btn-stop-inverter")?.addEventListener("click", () => {
         if (confirm("⚠️ ATTENZIONE ⚠️\nSei sicuro di voler DISABILITARE tutti gli inverter di tutte le macchine attive?")) {
@@ -1659,18 +1815,36 @@ function aggiornaSinottico2D() {
     const carrelloY = (currentStates.Carrello || {}).Y_Encoder || 0;
     const caricatoreRot = (currentStates.Caricatore || {}).Rotazione_Encoder || 0;
     
+    // Calcolo scala di visualizzazione
+    // Mappa corsaMaxY (28500) a larghezza SVG (1050 pixel, da X=50 a X=1100)
+    const scaleX = 1050 / corsaMaxY;
+
+    // Mappa corsaMaxX (27000) + 1500mm offset a altezza SVG (da Y=40 a Y=620)
+    const startY = 40;
+    const endY = 620;
+    const scaleY = (endY - startY) / (corsaMaxX + 1500);
+
+    // Dimensioni griglia (1000x1000mm) in pixel
+    const gridW = 1000 * scaleX;
+    const gridH = 1000 * scaleY;
+
     // Rigenera lo schema SVG statico se non ancora presente
     if (svg.children.length === 0) {
         let staticHTML = `
             <!-- Sfondo scuro griglia -->
             <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
+                <pattern id="grid" width="${gridW}" height="${gridH}" patternUnits="userSpaceOnUse">
+                    <path d="M ${gridW} 0 L 0 0 0 ${gridH}" fill="none" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
                 </pattern>
                 <linearGradient id="railGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stop-color="#475569" />
                     <stop offset="50%" stop-color="#64748b" />
                     <stop offset="100%" stop-color="#1e293b" />
+                </linearGradient>
+                <linearGradient id="woodGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#b45309" stop-opacity="0.85" />
+                    <stop offset="50%" stop-color="#d97706" stop-opacity="0.85" />
+                    <stop offset="100%" stop-color="#92400e" stop-opacity="0.85" />
                 </linearGradient>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
@@ -1684,10 +1858,6 @@ function aggiornaSinottico2D() {
         svg.innerHTML = staticHTML;
     }
 
-    // Calcolo scala di visualizzazione
-    // Mappa corsaMaxY (28500) a larghezza SVG (1050 pixel, da X=50 a X=1100)
-    const scaleX = 1050 / corsaMaxY;
-
     // Rotaie Navette e scaffali dinamici
     const valoriNavetta = [18500, 21200, 24040, 27060];
     for (let i = 1; i <= 4; i++) {
@@ -1695,16 +1865,14 @@ function aggiornaSinottico2D() {
             valoriNavetta[i-1] = config.navette[`Navetta_${i}`].valori[4];
         }
     }
-    
-    // Mappa corsaMaxX (27000) + 3000mm offset a altezza SVG (da Y=40 a Y=620)
-    const startY = 40;
-    const endY = 620;
-    const scaleY = (endY - startY) / (corsaMaxX + 3000);
 
-    // Helper per verificare se una macchina è pronta (EnableDrive, Home_OK e Automatico attivi)
+    // Helper per verificare se una macchina è pronta (EnableDrive, Home_OK e Automatico attivi). Rulliere ignora Home_OK.
     function isMachineReady(name, state) {
         const enableDrive = state.Stato_EnableDrive !== undefined ? state.Stato_EnableDrive : true;
-        const homeOk = state.Home_OK !== undefined ? state.Home_OK : true;
+        let homeOk = state.Home_OK !== undefined ? state.Home_OK : true;
+        if (name === "Rulliere") {
+            homeOk = true;
+        }
         const automatico = state.Stato_Automatico !== undefined ? state.Stato_Automatico : true;
         return (enableDrive && homeOk && automatico);
     }
@@ -1763,8 +1931,8 @@ function aggiornaSinottico2D() {
         if (!shelfLeft) {
             shelfLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
             shelfLeft.setAttribute("id", `shelf-left-${i}`);
-            shelfLeft.setAttribute("y", 147);
-            shelfLeft.setAttribute("height", 583);
+            shelfLeft.setAttribute("y", 167); // Spostato in basso di 20px (1000mm)
+            shelfLeft.setAttribute("height", 563);
             shelfLeft.setAttribute("fill", "rgba(30, 41, 59, 0.6)");
             shelfLeft.setAttribute("stroke", "rgba(255, 255, 255, 0.15)");
             shelfLeft.setAttribute("stroke-width", "1");
@@ -1778,8 +1946,8 @@ function aggiornaSinottico2D() {
         if (!shelfRight) {
             shelfRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
             shelfRight.setAttribute("id", `shelf-right-${i}`);
-            shelfRight.setAttribute("y", 147);
-            shelfRight.setAttribute("height", 583);
+            shelfRight.setAttribute("y", 167); // Spostato in basso di 20px (1000mm)
+            shelfRight.setAttribute("height", 563);
             shelfRight.setAttribute("fill", "rgba(30, 41, 59, 0.6)");
             shelfRight.setAttribute("stroke", "rgba(255, 255, 255, 0.15)");
             shelfRight.setAttribute("stroke-width", "1");
@@ -1796,7 +1964,7 @@ function aggiornaSinottico2D() {
         shelfDividers = document.createElementNS("http://www.w3.org/2000/svg", "g");
         shelfDividers.setAttribute("id", `shelf-dividers-${i}`);
         let linesHtml = "";
-        for (let y = 147 + 30; y < 730; y += 30) {
+        for (let y = 167 + 30; y < 730; y += 30) {
             linesHtml += `
                 <line x1="${xPosBin - 7.5 - wLeft[i-1]}" y1="${y}" x2="${xPosBin - 7.5}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
                 <line x1="${xPosBin + 7.5}" y1="${y}" x2="${xPosBin + 7.5 + wRight[i-1]}" y2="${y}" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
@@ -1868,8 +2036,8 @@ function aggiornaSinottico2D() {
         const online = navState.__comunicazione_ok__;
         
         const xPosBin = xBin[i-1];
-        // Applicazione offset verticale di 3000mm per evitare clipping a quote negative
-        const yNav = startY + ((xEnc + 3000) * scaleY);
+        // Applicazione offset verticale di 1500mm per spostare lo 0 delle navette più in alto
+        const yNav = startY + ((xEnc + 1500) * scaleY);
         
         let navGroup = document.getElementById(`sin-nav-${i}`);
         if (!navGroup) {
@@ -1901,13 +2069,25 @@ function aggiornaSinottico2D() {
             navWarning.style.display = navReady ? "none" : "block";
         }
         const navRect = document.getElementById(`nav-rect-${i}`);
-        if (navRect) {
-            navRect.setAttribute("stroke", navReady ? "#3b82f6" : "#ef4444");
-            navRect.setAttribute("fill", navReady ? "rgba(59, 130, 246, 0.2)" : "rgba(239, 68, 68, 0.2)");
-        }
         const navLabel = document.getElementById(`nav-text-label-${i}`);
+        
+        let strokeColor = "#3b82f6"; // Blu default (pronto)
+        let fillColor = "rgba(59, 130, 246, 0.2)";
+        
+        if (!navReady) {
+            strokeColor = "#ef4444"; // Rosso allarme / offline
+            fillColor = "rgba(239, 68, 68, 0.2)";
+        } else if (navState.Stato_Picked) {
+            strokeColor = "#10b981"; // Verde smeraldo (in lavoro)
+            fillColor = "rgba(16, 185, 129, 0.2)";
+        }
+        
+        if (navRect) {
+            navRect.setAttribute("stroke", strokeColor);
+            navRect.setAttribute("fill", fillColor);
+        }
         if (navLabel) {
-            navLabel.setAttribute("fill", navReady ? "#3b82f6" : "#ef4444");
+            navLabel.setAttribute("fill", strokeColor);
         }
     }
 
@@ -1919,32 +2099,47 @@ function aggiornaSinottico2D() {
         rullGroup.setAttribute("style", "cursor: pointer;");
         
         let r1Rollers = "";
-        for (let y = 160; y < 275; y += 15) {
+        for (let y = 42; y < 177; y += 15) {
             r1Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
         }
         
         let r2Rollers = "";
-        for (let y = 440; y < 555; y += 15) {
+        for (let y = 200; y < 315; y += 15) {
             r2Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
         }
         
+        const panelW = (800 * scaleX).toFixed(1);
+        const panelH = (4200 * scaleY).toFixed(1);
+        const panelX = (1120 + 100 * scaleX).toFixed(1);
+        const panel1Y = (107 - (4200 * scaleY) / 2).toFixed(1);
+        const panel2Y = (255 - (4200 * scaleY) / 2).toFixed(1);
+        const panelBiesseX = (1155 - (800 * scaleX) / 2).toFixed(1);
+        
         rullGroup.innerHTML = `
-            <!-- Rulliera 1 (R1) -->
-            <rect id="rul-r1-rect" x="1120" y="150" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
+            <!-- Biesse Carico (Molto compatto verticalmente, adiacente al bordo del canvas Y=0) -->
+            <rect id="rul-biesse-rect" x="1120" y="0" width="70" height="10" fill="rgba(59, 130, 246, 0.2)" rx="2" stroke="#3b82f6" stroke-width="2" />
+            <!-- Pannello di legno Biesse (altezza 10px, larghezza 800mm = panelW) allineato al centro -->
+            <rect id="rul-wood-panel-biesse" x="${panelBiesseX}" y="0" width="${panelW}" height="10" fill="url(#woodGrad)" rx="1" stroke="#78350f" stroke-width="1.5" />
+
+            <!-- Rulliera 1 (R1) sposta ulteriormente di 400mm più in alto (Y=32, height=150) -->
+            <rect id="rul-r1-rect" x="1120" y="32" width="70" height="150" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
             ${r1Rollers}
-            <text x="1155" y="215" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 215)" id="rul-r1-label">RULLIERA 1 (R1)</text>
+            <text x="1155" y="107" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 107)" id="rul-r1-label">RULLIERA 1 (R1)</text>
             
-            <!-- Cinghie C1 -->
-            <rect id="rul-c1-rect" x="1125" y="295" width="60" height="120" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
-            <rect x="1135" y="300" width="8" height="110" fill="#3b82f6" id="rul-belt-line-1" />
-            <rect x="1151" y="300" width="8" height="110" fill="#3b82f6" id="rul-belt-line-2" />
-            <rect x="1167" y="300" width="8" height="110" fill="#3b82f6" id="rul-belt-line-3" />
-            <text x="1155" y="355" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 355)" id="rul-c1-label">CINGHIE C1</text>
+            <!-- Pannello di legno R1 (4200x800mm) sovrapposto, allineato al centro di R1 a 100mm dal bordo sx verso dx -->
+            <rect id="rul-wood-panel-r1" x="${panelX}" y="${panel1Y}" width="${panelW}" height="${panelH}" fill="url(#woodGrad)" rx="3" stroke="#78350f" stroke-width="1.5" />
+
+            <!-- Rulliera 2 (R2) - Rotata 45 gradi con centro il centro del lato inferiore, adiacente a R1 spostata in basso di 400mm (starts at Y=190, pivot at Y=320) -->
+            <g id="rul-r2-group" transform="rotate(45 1155 320)">
+                <rect id="rul-r2-rect" x="1120" y="190" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
+                ${r2Rollers}
+                <text x="1155" y="255" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 255)" id="rul-r2-label">RULLIERA 2 (R2)</text>
+                <!-- Pannello di legno R2 (4200x800mm) sovrapposto, allineato al centro di R2 a 100mm dal bordo sx verso dx, ruota con R2 -->
+                <rect id="rul-wood-panel-r2" x="${panelX}" y="${panel2Y}" width="${panelW}" height="${panelH}" fill="url(#woodGrad)" rx="3" stroke="#78350f" stroke-width="1.5" />
+            </g>
             
-            <!-- Rulliera 2 (R2) -->
-            <rect id="rul-r2-rect" x="1120" y="430" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
-            ${r2Rollers}
-            <text x="1155" y="495" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 495)" id="rul-r2-label">RULLIERA 2 (R2)</text>
+            <!-- Macchina troncatrice a destra di R2 quando ruotata a 90 gradi (alta come la larghezza di R2=70, lunga 1500mm = 30px) -->
+            <rect id="rul-r2-out-rect" x="1285" y="285" width="30" height="70" fill="rgba(0, 242, 254, 0.15)" rx="3" stroke="var(--accent-cyan)" stroke-width="2" />
             
             <!-- Warning Overlay -->
             <g id="rul-warning" style="display: none;">
@@ -1964,38 +2159,42 @@ function aggiornaSinottico2D() {
     const rulReady = rullOnline && isMachineReady("Rulliere", rulState);
     
     const r1Rect = document.getElementById("rul-r1-rect");
-    const c1Rect = document.getElementById("rul-c1-rect");
     const r2Rect = document.getElementById("rul-r2-rect");
+    const biesseRect = document.getElementById("rul-biesse-rect");
     const rulWarning = document.getElementById("rul-warning");
     
-    const b1 = document.getElementById("rul-belt-line-1");
-    const b2 = document.getElementById("rul-belt-line-2");
-    const b3 = document.getElementById("rul-belt-line-3");
-    
     const r1Label = document.getElementById("rul-r1-label");
-    const c1Label = document.getElementById("rul-c1-label");
     const r2Label = document.getElementById("rul-r2-label");
     
     const colorVal = rulReady ? "#3b82f6" : "#ef4444";
     const fillVal = rulReady ? "rgba(59, 130, 246, 0.2)" : "rgba(239, 68, 68, 0.2)";
     
     if (r1Rect) { r1Rect.setAttribute("stroke", colorVal); r1Rect.setAttribute("fill", fillVal); }
-    if (c1Rect) { c1Rect.setAttribute("stroke", colorVal); c1Rect.setAttribute("fill", fillVal); }
     if (r2Rect) { r2Rect.setAttribute("stroke", colorVal); r2Rect.setAttribute("fill", fillVal); }
-    
-    if (b1) b1.setAttribute("fill", colorVal);
-    if (b2) b2.setAttribute("fill", colorVal);
-    if (b3) b3.setAttribute("fill", colorVal);
+    if (biesseRect) { biesseRect.setAttribute("stroke", colorVal); biesseRect.setAttribute("fill", fillVal); }
     
     if (r1Label) r1Label.setAttribute("fill", colorVal);
-    if (c1Label) c1Label.setAttribute("fill", colorVal);
     if (r2Label) r2Label.setAttribute("fill", colorVal);
     
     if (rulWarning) {
         rulWarning.style.display = rulReady ? "none" : "block";
     }
 
+    // Toggle visibilità pannelli in legno basati sui registri PLC
+    const hasPanelBiesse = !!rulState.Stato_PannelloSuBiesse;
+    const hasPanelR1 = !!rulState.Stato_PannelloSuR1;
+    const hasPanelR2 = !!rulState.Stato_PannelloSuR2;
+
+    const pBiesse = document.getElementById("rul-wood-panel-biesse");
+    const pR1 = document.getElementById("rul-wood-panel-r1");
+    const pR2 = document.getElementById("rul-wood-panel-r2");
+
+    if (pBiesse) pBiesse.style.display = hasPanelBiesse ? "block" : "none";
+    if (pR1) pR1.style.display = hasPanelR1 ? "block" : "none";
+    if (pR2) pR2.style.display = hasPanelR2 ? "block" : "none";
+
     // 4. CARICATORE A VENTOSE
+    const armLen = (120 - 700 * scaleY).toFixed(1);
     let carGroup = document.getElementById("sin-caricatore");
     if (!carGroup) {
         carGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -2004,15 +2203,19 @@ function aggiornaSinottico2D() {
         carGroup.innerHTML = `
             <!-- Base caricatore -->
             <circle cx="0" cy="0" r="15" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="1.5" id="sin-caricatore-base" />
-            <!-- Braccio rotante -->
+            <!-- Braccio rotante (accorciato di 700mm in scala) -->
             <g id="sin-caricatore-braccio">
-                <line x1="0" y1="0" x2="60" y2="0" stroke="#3b82f6" stroke-width="4" id="sin-caricatore-arm-line" />
-                <!-- Telaio ventose -->
-                <rect x="50" y="-12" width="20" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
-                <circle cx="55" cy="-6" r="3" fill="blue" />
-                <circle cx="65" cy="-6" r="3" fill="blue" />
-                <circle cx="55" cy="6" r="3" fill="blue" />
-                <circle cx="65" cy="6" r="3" fill="blue" />
+                <line x1="0" y1="0" x2="${armLen}" y2="0" stroke="#3b82f6" stroke-width="4" id="sin-caricatore-arm-line" />
+                <!-- Gruppo del telaio ventose rotato di -135 gradi rispetto al braccio -->
+                <g id="sin-caricatore-telaio" transform="rotate(-135 ${armLen} 0)">
+                    <!-- Telaio ventose (lungo 80px) centrato su X=${armLen} -->
+                    <rect x="${armLen - 40}" y="-12" width="80" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
+                    <!-- I 4 punti/ventose distanziati lungo la larghezza del telaio centrati su ${armLen} -->
+                    <circle cx="${armLen - 30}" cy="-6" r="3" fill="blue" />
+                    <circle cx="${armLen + 30}" cy="-6" r="3" fill="blue" />
+                    <circle cx="${armLen - 30}" cy="6" r="3" fill="blue" />
+                    <circle cx="${armLen + 30}" cy="6" r="3" fill="blue" />
+                </g>
             </g>
             <text x="0" y="-22" font-size="10" font-weight="800" fill="#3b82f6" text-anchor="middle" id="sin-caricatore-label">CARICATORE</text>
             <!-- Warning Overlay -->
@@ -2026,13 +2229,13 @@ function aggiornaSinottico2D() {
         });
         svg.appendChild(carGroup);
     }
-    // Posizionato vicino a R1 (X=1155, Y=215)
-    carGroup.setAttribute("transform", "translate(1210, 215)");
+    // Spostato 200mm a sx e 1340mm in alto (840 + 500) rispetto al riferimento
+    carGroup.setAttribute("transform", `translate(1092.6, ${215 - (840 + 500) * scaleY})`);
     
-    // Ruota il braccio in base all'encoder
+    // Ruota il braccio in base all'encoder (base angle 225 - caricatoreRot)
     const arm = document.getElementById("sin-caricatore-braccio");
     if (arm) {
-        arm.setAttribute("transform", `rotate(${caricatoreRot})`);
+        arm.setAttribute("transform", `rotate(${225 - caricatoreRot})`);
     }
 
     // Toggle colore/warning caricatore in base a prontezza (EnableDrive + Home_OK + Automatico)
@@ -2057,6 +2260,30 @@ function aggiornaSinottico2D() {
     if (caricatoreWarning) {
         caricatoreWarning.style.display = carReady ? "none" : "block";
     }
+}
+
+// Animazione temporanea per R2 (da 0 a 90)
+let sinAnimTime = 0;
+function animateSinottico() {
+    sinAnimTime += 0.02;
+    
+    // Rulliera R2: ruota da 0 a 90 gradi rispetto a pivot (orario)
+    const r2Group = document.getElementById("rul-r2-group");
+    if (r2Group) {
+        const angle = ((Math.sin(sinAnimTime) + 1) / 2) * 90;
+        r2Group.setAttribute("transform", `rotate(${angle} 1155 320)`);
+    }
+    
+    requestAnimationFrame(animateSinottico);
+}
+
+// Avvio automatico dell'animazione
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(animateSinottico, 1000);
+    });
+} else {
+    setTimeout(animateSinottico, 1000);
 }
 
 // --- CONSOLE LOG UPDATER ---
@@ -2212,4 +2439,486 @@ function salvaConfigurazione(e) {
                 alert("Salvataggio fallito: " + data.error);
             }
         });
+}
+
+// ============================================================
+//  NAVETTA Y1 / Y2 2D CANVAS DRAWING (INTEGRATA)
+// ============================================================
+const NAV_Y_GEO = {
+    column: { width: 45, profileHeight: 90 },
+    body:   { width: 150, height: 500 },
+    arm:    { length: 1200, height: 350, thickness: 45 },
+    frame:  { width: 45, height: 400 },
+    cup:    { count: 4, stemLen: 28, cupW: 16, cupH: 22 },
+};
+const NAV_Y_SCALE = 0.38;
+const NAV_Y_HINGE_X_MM = NAV_Y_GEO.body.width / 2; // 75mm dal centro
+
+function renderNavettaYCanvas(y1Val, y2Val, stato) {
+    const canvas = document.getElementById("navetta-y-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    
+    const ORIGIN_X = W / 2;
+    const ORIGIN_Y = 190; // Abbassato per allineare testa colonna in alto col bordo (spazio ottimale per box HUD)
+    
+    function toS(mm) { return mm * NAV_Y_SCALE; }
+    function toX(mm) { return ORIGIN_X + mm * NAV_Y_SCALE; }
+    
+    // Helper per rettangolo arrotondato
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w,y, x+w,y+r);
+        ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w,y+h, x+w-r,y+h);
+        ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x,y+h, x,y+h-r);
+        ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x,y, x+r,y);
+        ctx.closePath();
+    }
+    
+    // Helper per disegnare i box di quota simili a quelli HTML (scritte più grandi)
+    function drawEncoderHUD(x, y, w, h, label, valStr, activeColor) {
+        // Sfondo box
+        ctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
+        roundRect(x, y, w, h, 8);
+        ctx.fill();
+        
+        // Bordo box
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Testo label (Sinistra) - ingrandito a 12px
+        ctx.font = '600 12px "Outfit", sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x + 14, y + h/2);
+        
+        // Testo valore (Destra) - ingrandito a 16px
+        ctx.font = '800 16px "Outfit", sans-serif';
+        ctx.fillStyle = activeColor;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(valStr, x + w - 14, y + h/2);
+    }
+    
+    // 1. Pulisci sfondo
+    ctx.clearRect(0, 0, W, H);
+    
+    // 2. Disegna griglia
+    const sp = 40;
+    ctx.strokeStyle = 'rgba(148,163,184,0.02)';
+    ctx.lineWidth = 0.5;
+    for (let x=0; x<W; x+=sp) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y=0; y<H; y+=sp) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(148,163,184,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(ORIGIN_X,0); ctx.lineTo(ORIGIN_X,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,ORIGIN_Y); ctx.lineTo(W,ORIGIN_Y); ctx.stroke();
+    
+    // 3. Disegna Corpo Centrale (dietro)
+    function drawBody() {
+        const bw = toS(NAV_Y_GEO.body.width);
+        const bh = toS(NAV_Y_GEO.body.height);
+        const bx = ORIGIN_X - bw/2;
+        const by = ORIGIN_Y - bh/2;
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        roundRect(bx+3, by+3, bw, bh, 5); ctx.fill();
+        
+        const grad = ctx.createLinearGradient(bx, 0, bx+bw, 0);
+        grad.addColorStop(0, '#1e293b'); grad.addColorStop(0.5, '#293548'); grad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = grad;
+        roundRect(bx, by, bw, bh, 5); ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(148,163,184,0.12)';
+        ctx.lineWidth = 1;
+        roundRect(bx, by, bw, bh, 5); ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(100,116,139,0.08)';
+        const plateH = toS(60);
+        for (let i = 0; i < 5; i++) {
+            const py = by + 20 + i * (bh - 40) / 4 - plateH/2;
+            roundRect(bx+6, py, bw-12, plateH, 3); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(71,85,105,0.2)';
+        const boltOff = [[15,30],[bw-15,30],[15,bh-30],[bw-15,bh-30]];
+        boltOff.forEach(([ox,oy]) => { ctx.beginPath(); ctx.arc(bx+ox, by+oy, 3, 0, Math.PI*2); ctx.fill(); });
+    }
+    drawBody();
+    
+    // 4. Disegna bracci, telai, ventose e pannelli
+    
+    function drawArm(yVal, isLeft) {
+        let ymm = yVal;
+        if (ymm < 1) ymm = 1;
+        
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(ymm / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + ymm;
+        
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const armH = toS(NAV_Y_GEO.arm.height);
+        const armTop = ORIGIN_Y - armH / 2;
+        const armBot = ORIGIN_Y + armH / 2;
+        
+        const edgePx = toS(edgeVisible);
+        if (edgePx > 1) {
+            const edgeGrad = ctx.createLinearGradient(hingeX, 0, hingeX + edgePx, 0);
+            edgeGrad.addColorStop(0, '#1e3a8a'); edgeGrad.addColorStop(1, '#1e40af');
+            ctx.fillStyle = edgeGrad;
+            roundRect(hingeX, armTop, edgePx, armH, 2); ctx.fill();
+        }
+        
+        const facePx = toS(ymm);
+        if (facePx > 1) {
+            const faceGrad = ctx.createLinearGradient(0, armTop, 0, armBot);
+            faceGrad.addColorStop(0, '#60a5fa');
+            faceGrad.addColorStop(0.12, '#3b82f6');
+            faceGrad.addColorStop(0.88, '#2563eb');
+            faceGrad.addColorStop(1, '#1d4ed8');
+            ctx.fillStyle = faceGrad;
+            roundRect(hingeX + edgePx, armTop, facePx, armH, 2); ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(30,58,138,0.3)';
+            ctx.lineWidth = 0.8;
+            const ribSpacing = toS(80);
+            for (let rx = hingeX + edgePx + ribSpacing; rx < hingeX + edgePx + facePx - 5; rx += ribSpacing) {
+                ctx.beginPath(); ctx.moveTo(rx, armTop + 6); ctx.lineTo(rx, armBot - 6); ctx.stroke();
+            }
+        }
+        
+        ctx.strokeStyle = 'rgba(96,165,250,0.4)';
+        ctx.lineWidth = 1.5;
+        const totalPx = toS(totalProjW);
+        roundRect(hingeX, armTop, totalPx, armH, 2); ctx.stroke();
+        
+        if (edgePx > 2 && facePx > 2) {
+            ctx.strokeStyle = 'rgba(30,58,138,0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(hingeX + edgePx, armTop + 2); ctx.lineTo(hingeX + edgePx, armBot - 2); ctx.stroke();
+        }
+        
+        if (facePx > 80) {
+            ctx.save();
+            ctx.font = '10px "Outfit", sans-serif';
+            ctx.fillStyle = 'rgba(191,219,254,0.25)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const tx = hingeX + edgePx + facePx / 2;
+            const ty = ORIGIN_Y;
+            if (isLeft) {
+                ctx.translate(tx, ty);
+                ctx.scale(-1, 1);
+                ctx.fillText('BRACCIO', 0, 0);
+            } else {
+                ctx.fillText('BRACCIO', tx, ty);
+            }
+            ctx.restore();
+        }
+    }
+    
+    function drawHinge() {
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const armH = toS(NAV_Y_GEO.arm.height);
+        [ORIGIN_Y - armH/2 + 15, ORIGIN_Y + armH/2 - 15].forEach(hy => {
+            ctx.beginPath(); ctx.arc(hingeX, hy, 7, 0, Math.PI*2);
+            ctx.fillStyle = '#334155'; ctx.fill();
+            ctx.strokeStyle = 'rgba(148,163,184,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.beginPath(); ctx.arc(hingeX, hy, 2.5, 0, Math.PI*2);
+            ctx.fillStyle = '#64748b'; ctx.fill();
+        });
+    }
+    
+    function drawFrame(yVal, isLeft) {
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(yVal / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + yVal;
+        
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const fx = hingeX + toS(totalProjW);
+        const fw = toS(NAV_Y_GEO.frame.width);
+        const fh = toS(NAV_Y_GEO.frame.height);
+        const fy = ORIGIN_Y - fh / 2;
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        roundRect(fx+2, fy+2, fw, fh, 3); ctx.fill();
+        
+        const grad = ctx.createLinearGradient(fx, 0, fx+fw, 0);
+        grad.addColorStop(0, '#334155'); grad.addColorStop(0.5, '#475569'); grad.addColorStop(1, '#334155');
+        ctx.fillStyle = grad;
+        roundRect(fx, fy, fw, fh, 3); ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+        ctx.lineWidth = 1;
+        roundRect(fx, fy, fw, fh, 3); ctx.stroke();
+        
+        ctx.strokeStyle = 'rgba(100,116,139,0.15)';
+        ctx.lineWidth = 0.8;
+        const divs = 5;
+        for (let i = 1; i < divs; i++) {
+            const dy = fy + (fh / divs) * i;
+            ctx.beginPath(); ctx.moveTo(fx+3, dy); ctx.lineTo(fx+fw-3, dy); ctx.stroke();
+        }
+        
+        const jointY2 = ORIGIN_Y + toS(NAV_Y_GEO.arm.height)/2;
+        ctx.beginPath(); ctx.arc(fx, jointY2, 5, 0, Math.PI*2);
+        ctx.fillStyle = '#1e293b'; ctx.fill();
+        ctx.strokeStyle = 'rgba(148,163,184,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+        
+        if (fw > 15) {
+            ctx.save();
+            const textX = fx + fw/2;
+            const textY = ORIGIN_Y;
+            ctx.translate(textX, textY);
+            if (isLeft) ctx.scale(-1, 1);
+            ctx.rotate(-Math.PI/2);
+            ctx.font = '8px "Outfit", sans-serif';
+            ctx.fillStyle = 'rgba(148,163,184,0.25)';
+            ctx.textAlign = 'center';
+            ctx.fillText('TELAIO', 0, 3);
+            ctx.restore();
+        }
+    }
+    
+    function drawCups(yVal) {
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(yVal / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + yVal;
+        
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const frameRightX = hingeX + toS(totalProjW) + toS(NAV_Y_GEO.frame.width);
+        const fh = NAV_Y_GEO.frame.height;
+        const n = NAV_Y_GEO.cup.count;
+        const spacing = fh / (n + 1);
+        
+        for (let i = 1; i <= n; i++) {
+            const cupCenterY = ORIGIN_Y - toS(fh/2) + toS(spacing * i);
+            const stemEnd = frameRightX + toS(NAV_Y_GEO.cup.stemLen);
+            const cw = toS(NAV_Y_GEO.cup.cupW);
+            const ch = toS(NAV_Y_GEO.cup.cupH);
+            
+            const glowGrad = ctx.createRadialGradient(stemEnd + cw/2, cupCenterY, 2, stemEnd + cw/2, cupCenterY, ch);
+            glowGrad.addColorStop(0, 'rgba(0,242,254,0.12)');
+            glowGrad.addColorStop(1, 'transparent');
+            ctx.beginPath(); ctx.arc(stemEnd + cw/2, cupCenterY, ch, 0, Math.PI*2);
+            ctx.fillStyle = glowGrad; ctx.fill();
+            
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(frameRightX, cupCenterY); ctx.lineTo(stemEnd, cupCenterY); ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(stemEnd, cupCenterY - ch * 0.3);
+            ctx.lineTo(stemEnd + cw, cupCenterY - ch * 0.5);
+            ctx.lineTo(stemEnd + cw, cupCenterY + ch * 0.5);
+            ctx.lineTo(stemEnd, cupCenterY + ch * 0.3);
+            ctx.closePath();
+            ctx.fillStyle = '#2d3748';
+            ctx.fill();
+            ctx.strokeStyle = '#4a5568';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(stemEnd + cw, cupCenterY - ch * 0.5);
+            ctx.lineTo(stemEnd + cw + 3, cupCenterY - ch * 0.55);
+            ctx.lineTo(stemEnd + cw + 3, cupCenterY + ch * 0.55);
+            ctx.lineTo(stemEnd + cw, cupCenterY + ch * 0.5);
+            ctx.closePath();
+            ctx.fillStyle = '#4a5568';
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(100,116,139,0.3)';
+            ctx.lineWidth = 0.6;
+            for (let s = 0; s < 0.9; s += 0.2) {
+                const sx = stemEnd + cw * s;
+                const hf = 0.3 + (0.5 - 0.3) * s;
+                ctx.beginPath(); ctx.moveTo(sx, cupCenterY - ch * hf); ctx.lineTo(sx, cupCenterY + ch * hf); ctx.stroke();
+            }
+            
+            ctx.beginPath(); ctx.arc(stemEnd + cw * 0.4, cupCenterY, 1.5, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba(0,242,254,0.5)'; ctx.fill();
+        }
+    }
+    
+    function drawWoodPanel(yVal, isLeft) {
+        const hasPanel = isLeft 
+            ? (stato && stato.Y2_PannelloPreso)
+            : (stato && stato.Y1_PannelloPreso);
+        if (!hasPanel) return;
+        
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(yVal / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + yVal;
+        
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const frameRightX = hingeX + toS(totalProjW) + toS(NAV_Y_GEO.frame.width);
+        const stemEnd = frameRightX + toS(NAV_Y_GEO.cup.stemLen);
+        const cw = toS(NAV_Y_GEO.cup.cupW);
+        const cupRightX = stemEnd + cw + 3;
+        
+        const pw = toS(20);
+        const ph = toS(400);
+        const px = cupRightX;
+        const py = ORIGIN_Y - ph / 2;
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        roundRect(px + 2, py + 2, pw, ph, 2); ctx.fill();
+        
+        const woodGrad = ctx.createLinearGradient(px, py, px + pw, py);
+        woodGrad.addColorStop(0, '#e5c07b');
+        woodGrad.addColorStop(0.3, '#ebd09f');
+        woodGrad.addColorStop(0.7, '#e5c07b');
+        woodGrad.addColorStop(1, '#cca359');
+        ctx.fillStyle = woodGrad;
+        roundRect(px, py, pw, ph, 2); ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(139, 90, 43, 0.15)';
+        ctx.lineWidth = 1;
+        [0.25, 0.5, 0.75].forEach(f => {
+            ctx.beginPath();
+            ctx.moveTo(px + pw * f, py + 2);
+            for (let currY = py + 6; currY < py + ph - 2; currY += 12) {
+                const wobble = Math.sin(currY * 0.04) * 0.9;
+                ctx.lineTo(px + pw * f + wobble, currY);
+            }
+            ctx.lineTo(px + pw * f, py + ph - 2);
+            ctx.stroke();
+        });
+        
+        ctx.strokeStyle = '#cda160';
+        ctx.lineWidth = 1;
+        roundRect(px, py, pw, ph, 2); ctx.stroke();
+    }
+    
+    // RENDER LATO DESTRO (Y1)
+    {
+        ctx.save();
+        drawArm(y1Val, false);
+        
+        // Pivot point per rotazione telaio Y1 (cerniera inferiore)
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(y1Val / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + y1Val;
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const px = hingeX + toS(totalProjW);
+        const py = ORIGIN_Y + toS(NAV_Y_GEO.arm.height)/2;
+        const isBascula = (stato && (stato.Y1_bascula || stato.Stato_Bascula1)) ? true : false;
+        
+        ctx.save();
+        if (isBascula) {
+            ctx.translate(px, py);
+            ctx.rotate(10 * Math.PI / 180); // Inclinazione di 10 gradi in senso orario
+            ctx.translate(-px, -py);
+        }
+        drawFrame(y1Val, false);
+        drawCups(y1Val);
+        drawWoodPanel(y1Val, false);
+        ctx.restore();
+        
+        ctx.restore();
+        drawHinge();
+    }
+    
+    // RENDER LATO SINISTRO (Y2)
+    {
+        ctx.save();
+        ctx.translate(ORIGIN_X, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-ORIGIN_X, 0);
+        
+        drawArm(y2Val, true);
+        
+        // Pivot point per rotazione telaio Y2 (cerniera inferiore, in coordinate locali specchiate)
+        const L = NAV_Y_GEO.arm.length;
+        const T = NAV_Y_GEO.arm.thickness;
+        const theta = Math.asin(Math.min(y2Val / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + y2Val;
+        const hingeX = toX(NAV_Y_HINGE_X_MM);
+        const px = hingeX + toS(totalProjW);
+        const py = ORIGIN_Y + toS(NAV_Y_GEO.arm.height)/2;
+        const isBascula = (stato && (stato.Y2_bascula || stato.Stato_Bascula2)) ? true : false;
+        
+        ctx.save();
+        if (isBascula) {
+            ctx.translate(px, py);
+            ctx.rotate(10 * Math.PI / 180); // Inclinazione locale di 10 gradi in senso orario (in coord. globali diventa antiorario)
+            ctx.translate(-px, -py);
+        }
+        drawFrame(y2Val, true);
+        drawCups(y2Val);
+        drawWoodPanel(y2Val, true);
+        ctx.restore();
+        
+        ctx.restore();
+        
+        ctx.save();
+        ctx.translate(ORIGIN_X, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-ORIGIN_X, 0);
+        drawHinge();
+        ctx.restore();
+    }
+    
+    // 5. Disegna Colonna Centrale (sopra a tutto)
+    function drawColumn() {
+        const cw = toS(NAV_Y_GEO.column.width);
+        const cx = ORIGIN_X - cw/2;
+        const bh = toS(NAV_Y_GEO.body.height);
+        const by = ORIGIN_Y - bh/2;
+        
+        // Alta 900mm (sporge 200mm in alto, 200mm in basso rispetto al corpo)
+        const cy = by - toS(200);
+        const ch = toS(200) + bh + toS(200);
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(cx+3, cy, cw, ch);
+        
+        const grad = ctx.createLinearGradient(cx, 0, cx+cw, 0);
+        grad.addColorStop(0, '#475569'); grad.addColorStop(0.15, '#8494a7'); grad.addColorStop(0.3, '#94a3b8');
+        grad.addColorStop(0.5, '#a0aec0'); grad.addColorStop(0.7, '#94a3b8'); grad.addColorStop(0.85, '#8494a7');
+        grad.addColorStop(1, '#475569');
+        ctx.fillStyle = grad;
+        ctx.fillRect(cx, cy, cw, ch);
+        
+        const slotW = toS(10);
+        const slotX = cx + cw/2 - slotW/2;
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(slotX, cy, slotW, ch);
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(slotX + 2, cy, slotW - 4, ch);
+        
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(cx+1, cy); ctx.lineTo(cx+1, cy+ch); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath(); ctx.moveTo(cx+cw-1, cy); ctx.lineTo(cx+cw-1, cy+ch); ctx.stroke();
+        
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 0.8;
+        [0.2, 0.8].forEach(f => {
+            const lx = cx + cw * f;
+            ctx.beginPath(); ctx.moveTo(lx, cy); ctx.lineTo(lx, cy+ch); ctx.stroke();
+        });
+    }
+    drawColumn();
+    
+    // 6. HUD TESTUALE QUOTE ENCODER IN ALTO STILE BOX HMI (Scritte più grandi)
+    drawEncoderHUD(15, 12, 260, 44, 'Encoder Asse Y2 (SX)', `${y2Val.toFixed(1)} mm`, '#60a5fa');
+    drawEncoderHUD(W - 275, 12, 260, 44, 'Encoder Asse Y1 (DX)', `${y1Val.toFixed(1)} mm`, '#34d399');
 }

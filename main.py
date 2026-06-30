@@ -145,11 +145,7 @@ def esegui_reset_a_caldo():
             nav_cfg = config.get("navette", {}).get(nav_name, {})
             attivo = nav_cfg.get("attivo", False)
             if attivo:
-                # Navetta 4 ha template aggiuntivo on-demand
-                templates = {"navetta": True}
-                if i == 4:
-                    templates["tpl_1781456080355"] = False
-                datastore.initialize_device(nav_name, templates)
+                datastore.initialize_device(nav_name, {"navetta": True})
                 
         datastore.initialize_device("Carrello", {"carrello": True})
         datastore.initialize_device("Caricatore", {"caricatore": True})
@@ -193,7 +189,7 @@ def main():
     global datastore, syslog, client, tcp_server, http_server, launcher, running
     
     # 1. Parsing Argomenti CLI
-    parser = argparse.ArgumentParser(description="Verticale HMI v2.0.1 - Interfaccia Controllo Navette")
+    parser = argparse.ArgumentParser(description="Verticale HMI v2.0.11 - Interfaccia Controllo Navette")
     parser.add_argument("--port-socket", type=int, default=9001, help="Porta server TCP Socket HMI (default: 9001)")
     parser.add_argument("--port-web", type=int, default=8080, help="Porta server Web HMI/API (default: 8080)")
     parser.add_argument("--no-gui", action="store_true", help="Avvia il server in modalità headless (senza finestra Tkinter)")
@@ -222,10 +218,7 @@ def main():
         nav_name = f"Navetta_{i}"
         nav_cfg = config.get("navette", {}).get(nav_name, {})
         if nav_cfg.get("attivo", i <= 4): # Di default 1-4
-            templates = {"navetta": True}
-            if i == 4:
-                templates["tpl_1781456080355"] = False # on-demand
-            datastore.initialize_device(nav_name, templates)
+            datastore.initialize_device(nav_name, {"navetta": True})
             
     # Altre macchine
     datastore.initialize_device("Carrello", {"carrello": True})

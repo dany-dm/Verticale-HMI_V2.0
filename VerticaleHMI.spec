@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='VerticaleHMI_V2.0.1',
+    name='VerticaleHMI_V2.0.11',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verticale HMI v2.0.1</title>
+    <title>Verticale HMI v2.0.11</title>
     <!-- Importazione Font Outfit da Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.0.3">
+    <link rel="stylesheet" href="style.css?v=2.0.12">
     <!-- Three.js per la futura integrazione 3D STL/OBJ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -20,7 +20,7 @@
                 <span class="logo-icon">▲</span>
                 <div class="logo-text">
                     <h1>VERTICALE HMI</h1>
-                    <span class="logo-sub">REAL-TIME MONITOR & CONTROL v2.0.1</span>
+                    <span class="logo-sub">REAL-TIME MONITOR & CONTROL v2.0.11</span>
                 </div>
             </div>
             <div class="header-status">
@@ -86,28 +86,32 @@
                     
                     <div class="panel-layout-globale">
                         <div class="globale-top-container">
-                            <div class="card card-table">
-                                <h2 class="card-title">Matrice Stato Comandi Globali</h2>
-                                <div class="table-container">
-                                    <table id="global-status-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Comando</th>
-                                                <!-- Colonne popolate dinamicamente in base a config.json -->
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr id="row-enable-inverter">
-                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="EnableInverter">EnableInverter</button></td>
-                                            </tr>
-                                            <tr id="row-home">
-                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Home">Home</button></td>
-                                            </tr>
-                                            <tr id="row-automatico">
-                                                <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Automatico">Automatico</button></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                            <div class="card card-table card-vertical-layout">
+                                <div class="vertical-title-container">
+                                    <h2 class="vertical-title">Comandi Globali</h2>
+                                </div>
+                                <div class="card-content-container">
+                                    <div class="table-container">
+                                        <table id="global-status-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Comando</th>
+                                                    <!-- Colonne popolate dinamicamente in base a config.json -->
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr id="row-enable-inverter">
+                                                    <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="EnableInverter">EnableInverter</button></td>
+                                                </tr>
+                                                <tr id="row-home">
+                                                    <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Home">Home</button></td>
+                                                </tr>
+                                                <tr id="row-automatico">
+                                                    <td class="cmd-cell"><button class="btn-table-cmd" data-cmd="Automatico">Automatico</button></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                             <div class="globale-controls-legend">
@@ -120,26 +124,42 @@
                             </div>
                         </div>
 
-                        <!-- Bottom Side: 2D/3D Sinottico -->
-                        <div class="globale-bottom card card-sinottico">
-                            <div class="sinottico-header">
-                                <h2 class="card-title">Vista Sinottico Impianto</h2>
-                                <div class="view-selector">
-                                    <button id="btn-view-2d" class="btn-view active">Vista 2D (SVG)</button>
-                                    <button id="btn-view-3d" class="btn-view">Vista 3D (ThreeJS)</button>
-                                </div>
+                        <!-- Bottom Side: 2D/3D Sinottico con suddivisione 2/3 e 1/3 -->
+                        <div class="globale-bottom card card-sinottico card-vertical-layout">
+                            <div class="vertical-title-container">
+                                <h2 class="vertical-title">Sinottico Impianto</h2>
                             </div>
                             
-                            <div class="sinottico-viewport">
-                                <!-- Vista 2D SVG -->
-                                <div id="sinottico-2d" class="sinottico-canvas-container active">
-                                    <svg id="svg-layout" viewBox="0 0 1400 750" width="100%" height="100%" preserveAspectRatio="xMinYMid meet">
-                                        <!-- Lo schema SVG verrà disegnato dinamicamente in app.js -->
-                                    </svg>
+                            <div class="sinottico-content-layout">
+                                <div class="sinottico-header">
+                                    <div class="view-selector">
+                                        <button id="btn-view-2d" class="btn-view active">Vista 2D (SVG)</button>
+                                        <button id="btn-view-3d" class="btn-view">Vista 3D (ThreeJS)</button>
+                                    </div>
                                 </div>
-                                <!-- Vista 3D Canvas -->
-                                <div id="sinottico-3d" class="sinottico-canvas-container">
-                                    <div id="three-container"></div>
+                                
+                                <div class="sinottico-row-layout">
+                                    <div class="sinottico-viewport-container">
+                                        <div class="sinottico-viewport">
+                                            <!-- Vista 2D SVG -->
+                                            <div id="sinottico-2d" class="sinottico-canvas-container active">
+                                                <svg id="svg-layout" viewBox="0 0 1400 750" width="100%" height="100%" preserveAspectRatio="xMinYMid meet">
+                                                    <!-- Lo schema SVG verrà disegnato dinamicamente in app.js -->
+                                                </svg>
+                                            </div>
+                                            <!-- Vista 3D Canvas -->
+                                            <div id="sinottico-3d" class="sinottico-canvas-container">
+                                                <div id="three-container"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Frame vuoto 1/3 -->
+                                    <div class="sinottico-empty-frame">
+                                        <div class="empty-frame-inner">
+                                            <span class="empty-frame-placeholder">[ Sezione futura ]</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -259,42 +279,100 @@
 
                             <!-- Bottom Grid -->
                             <div class="device-bottom-grid">
-                                <div class="control-actions-card">
-                                    <h3>Pannello di Comando</h3>
-                                    <div class="btn-control-group">
-                                        <div class="control-row">
-                                            <label>Inverter Driver:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_EnableDrive" data-val="0" id="btn-nav-drive-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_EnableDrive" data-val="-1" id="btn-nav-drive-on">Abilita</button>
+                                <div class="control-actions-wrapper">
+                                    <!-- Frame 1: Comandi Principali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Principali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Asse Home (Azzeramento):</label>
-                                            <button class="btn-ctrl btn-action" data-device="Navetta" data-param="CMD_Home" data-val="-1" id="btn-nav-home">Avvia Home</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Inverter Driver:</label>
+                                                <div class="toggle-switch-container">
+                                                    <label class="cyber-switch">
+                                                        <input type="checkbox" class="cyber-switch-input" data-device="Navetta" data-param="CMD_EnableDrive" id="switch-nav-drive">
+                                                        <span class="cyber-switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-nav-drive">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Asse Home (Azzeramento):</label>
+                                                <button class="btn-ctrl btn-action" data-device="Navetta" data-param="CMD_Home" data-val="-1" id="btn-nav-home">Avvia Home</button>
+                                                <div class="status-indicator-check" id="check-nav-home">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Modalità Operativa:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_Automatico" data-val="0" id="btn-nav-auto-off">Manuale</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_Automatico" data-val="-1" id="btn-nav-auto-on">Automatico</button>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-nav-auto">❌</div>
+                                            </div>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Modalità Operativa:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_Automatico" data-val="0" id="btn-nav-auto-off">Manuale</button>
-                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_Automatico" data-val="-1" id="btn-nav-auto-on">Automatico</button>
+                                    </div>
+                                    
+                                    <!-- Frame 2: Comandi Manuali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Manuali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Posizione Manutenzione:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="0" id="btn-nav-maint-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-nav-maint-on">Abilita</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Posizione Manutenzione:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="0" id="btn-nav-maint-off">Disabilita</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Navetta" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-nav-maint-on">Abilita</button>
+                                                </div>
+                                            </div>
+                                            <!-- Controlli GoTo per Navetta -->
+                                            <div class="control-row goto-row">
+                                                <label>GoTo X (mm):</label>
+                                                <input type="number" id="nav-goto-x-val" class="goto-input" placeholder="Quota X">
+                                                <button class="btn-ctrl btn-action" id="btn-nav-goto-x">Vai a X</button>
+                                            </div>
+                                            <div class="control-row goto-row">
+                                                <label>GoTo Z (mm):</label>
+                                                <input type="number" id="nav-goto-z-val" class="goto-input" placeholder="Quota Z">
+                                                <button class="btn-ctrl btn-action" id="btn-nav-goto-z">Vai a Z</button>
+                                            </div>
+                                            <div class="control-row-extra">
+                                                <button class="btn-ctrl btn-warning" data-device="Navetta" data-param="CMD_Reset" data-val="-1" id="btn-nav-reset">RESET</button>
+                                                <button class="btn-ctrl btn-danger" data-device="Navetta" data-param="CMD_StopAir" data-val="-1" id="btn-nav-stopair">STOP ARIA</button>
+                                            </div>
                                         </div>
-                                        <!-- Controlli GoTo per Navetta -->
-                                        <div class="control-row goto-row">
-                                            <label>GoTo X (mm):</label>
-                                            <input type="number" id="nav-goto-x-val" class="goto-input" placeholder="Quota X (mm)">
-                                            <button class="btn-ctrl btn-action" id="btn-nav-goto-x">Vai a X</button>
+                                    </div>
+
+                                    <!-- Frame 3: Dati Commessa -->
+                                    <div class="control-frame-vertical-layout" id="frame-nav-commessa">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Dati Commessa</h4>
                                         </div>
-                                        <div class="control-row goto-row">
-                                            <label>GoTo Z (mm):</label>
-                                            <input type="number" id="nav-goto-z-val" class="goto-input" placeholder="Quota Z (mm)">
-                                            <button class="btn-ctrl btn-action" id="btn-nav-goto-z">Vai a Z</button>
-                                        </div>
-                                        <div class="control-row-extra">
-                                            <button class="btn-ctrl btn-warning" data-device="Navetta" data-param="CMD_Reset" data-val="-1" id="btn-nav-reset">RESET</button>
-                                            <button class="btn-ctrl btn-danger" data-device="Navetta" data-param="CMD_StopAir" data-val="-1" id="btn-nav-stopair">STOP ARIA</button>
+                                        <div class="frame-content">
+                                            <!-- Se non in lavoro, mostra messaggio -->
+                                            <div id="nav-comm-no-job" class="control-row" style="justify-content: center; width: 100%; font-style: italic; color: var(--text-muted); border-bottom: none; padding: 15px 0;">
+                                                Nessun lavoro in corso
+                                            </div>
+                                            
+                                            <!-- Altrimenti, mostra i dettagli -->
+                                            <div id="nav-comm-details" style="display: none; flex-direction: column; width: 100%;">
+                                                <div class="control-row">
+                                                    <label>ID Commessa:</label>
+                                                    <span id="nav-comm-val-ID" style="color: var(--accent-cyan); font-weight: 800; font-family: 'JetBrains Mono', monospace;">-</span>
+                                                </div>
+                                                <div class="control-row">
+                                                    <label>Dimens. (L x W x H):</label>
+                                                    <span id="nav-comm-val-Dimensioni" style="color: var(--text-primary); font-weight: 600;">-</span>
+                                                </div>
+                                                <div class="control-row">
+                                                    <label>From (X / Y / Z):</label>
+                                                    <span id="nav-comm-val-From" style="color: var(--text-primary); font-weight: 600;">-</span>
+                                                </div>
+                                                <div class="control-row">
+                                                    <label>To (X / Y / Z):</label>
+                                                    <span id="nav-comm-val-To" style="color: var(--text-primary); font-weight: 600;">-</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -303,27 +381,33 @@
                                 <div class="device-graphic-encoders">
                                     <h3>Quote Encoders</h3>
                                     <div class="navetta-encoders-layout">
-                                        <!-- Encoder X (Orizzontale) -->
-                                        <div class="encoder-box horizontal">
-                                            <div class="encoder-header">
-                                                <span>Asse X (Corsa)</span>
-                                                <span class="value" id="nav-val-X_Encoder">0 mm</span>
+                                        <!-- Container per la parte sinistra: X + Y1/Y2 Vista -->
+                                        <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                                            <!-- Encoder X (Orizzontale) -->
+                                            <div class="encoder-box horizontal">
+                                                <div class="encoder-header">
+                                                    <span>Asse X (Corsa)</span>
+                                                    <span class="value" id="nav-val-X_Encoder">0 mm</span>
+                                                </div>
+                                                <div class="linear-track-x">
+                                                    <!-- Zona Carrello (gialla, da 0 a 4500) -->
+                                                    <div class="track-zone-carrello" style="position: absolute; left: 1.46%; width: 16.42%; height: 100%; background-color: rgba(234, 179, 8, 0.35); border-left: 1px solid #eab308; border-right: 1px solid #eab308; pointer-events: none;" title="Zona Carrello (0-4500)">
+                                                        <span style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #eab308; font-weight: 800; white-space: nowrap;">ZONA CARRELLO</span>
+                                                    </div>
+                                                    <div class="linear-bar-fill-x" id="nav-bar-x" style="left: 0%;"></div>
+                                                    <div class="linear-indicator-x" id="nav-ind-x" style="left: 0%;">
+                                                        <div class="indicator-tooltip">NAV</div>
+                                                    </div>
+                                                    <div class="track-labels" style="position: relative;">
+                                                        <span id="nav-lbl-min-x">-500 mm</span>
+                                                        <span id="nav-lbl-zero-x" style="position: absolute; left: 1.81%; transform: translateX(-50%); color: var(--text-muted);">0 mm</span>
+                                                        <span id="nav-lbl-max-x">27000 mm</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="linear-track-x">
-                                                <!-- Zona Carrello (gialla, da 0 a 4500) -->
-                                                <div class="track-zone-carrello" style="position: absolute; left: 1.46%; width: 16.42%; height: 100%; background-color: rgba(234, 179, 8, 0.35); border-left: 1px solid #eab308; border-right: 1px solid #eab308; pointer-events: none;" title="Zona Carrello (0-4500)">
-                                                    <span style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #eab308; font-weight: 800; white-space: nowrap;">ZONA CARRELLO</span>
-                                                </div>
-                                                <div class="linear-bar-fill-x" id="nav-bar-x" style="left: 0%;"></div>
-                                                <div class="linear-indicator-x" id="nav-ind-x" style="left: 0%;">
-                                                    <div class="indicator-tooltip">NAV</div>
-                                                </div>
-                                                <div class="track-labels" style="position: relative;">
-                                                    <span id="nav-lbl-min-x">-500 mm</span>
-                                                    <span id="nav-lbl-zero-x" style="position: absolute; left: 1.81%; transform: translateX(-50%); color: var(--text-muted);">0 mm</span>
-                                                    <span id="nav-lbl-max-x">27000 mm</span>
-                                                </div>
-                                            </div>
+                                            
+                                            <!-- Vista Sezione Orizzontale Assi Y1 e Y2 -->
+                                            <canvas id="navetta-y-canvas" width="960" height="380" style="display: block; width: 100%; height: auto; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(10, 15, 25, 0.4);"></canvas>
                                         </div>
 
                                         <!-- Encoder Z (Verticale) -->
@@ -344,18 +428,12 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="numeric-stats-row">
-                                        <div class="numeric-stat-item">
-                                            <span class="lbl">Encoder Y1:</span>
-                                            <span class="val" id="nav-val-Y1_Encoder">0 mm</span>
-                                        </div>
-                                        <div class="numeric-stat-item">
-                                            <span class="lbl">Encoder Y2:</span>
-                                            <span class="val" id="nav-val-Y2_Encoder">0 mm</span>
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
+                            
+                            <!-- Separatore a fine pagina -->
+                            <div class="page-separator"></div>
                         </div>
                     </div>
                 </section>
@@ -466,41 +544,66 @@
 
                             <!-- Bottom Grid -->
                             <div class="device-bottom-grid">
-                                <div class="control-actions-card">
-                                    <h3>Pannello di Comando</h3>
-                                    <div class="btn-control-group">
-                                        <div class="control-row">
-                                            <label>Inverter Driver:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_EnableDrive" data-val="0" id="btn-carr-drive-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_EnableDrive" data-val="-1" id="btn-carr-drive-on">Abilita</button>
+                                <div class="control-actions-wrapper">
+                                    <!-- Frame 1: Comandi Principali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Principali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Asse Home (Azzeramento):</label>
-                                            <button class="btn-ctrl btn-action" data-device="Carrello" data-param="CMD_Home" data-val="-1" id="btn-carr-home">Avvia Home</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Inverter Driver:</label>
+                                                <div class="toggle-switch-container">
+                                                    <label class="cyber-switch">
+                                                        <input type="checkbox" class="cyber-switch-input" data-device="Carrello" data-param="CMD_EnableDrive" id="switch-carr-drive">
+                                                        <span class="cyber-switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-carr-drive">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Asse Home (Azzeramento):</label>
+                                                <button class="btn-ctrl btn-action" data-device="Carrello" data-param="CMD_Home" data-val="-1" id="btn-carr-home">Avvia Home</button>
+                                                <div class="status-indicator-check" id="check-carr-home">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Modalità Operativa:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_Automatico" data-val="0" id="btn-carr-auto-off">Manuale</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_Automatico" data-val="-1" id="btn-carr-auto-on">Automatico</button>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-carr-auto">❌</div>
+                                            </div>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Modalità Operativa:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_Automatico" data-val="0" id="btn-carr-auto-off">Manuale</button>
-                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_Automatico" data-val="-1" id="btn-carr-auto-on">Automatico</button>
+                                    </div>
+                                    
+                                    <!-- Frame 2: Comandi Manuali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Manuali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Posizione Manutenzione:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="0" id="btn-carr-maint-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-carr-maint-on">Abilita</button>
-                                        </div>
-                                        <!-- Controlli GoTo per Carrello -->
-                                        <div class="control-row goto-row">
-                                            <label>GoTo Y (mm):</label>
-                                            <input type="number" id="carr-goto-y-val" class="goto-input" placeholder="Quota Y (mm)">
-                                            <button class="btn-ctrl btn-action" id="btn-carr-goto-y">Vai a Y</button>
-                                        </div>
-                                        <div class="control-row goto-row">
-                                            <label>GoTo Rotazione (°):</label>
-                                            <input type="number" id="carr-goto-rot-val" class="goto-input" placeholder="Angolo (°)">
-                                            <button class="btn-ctrl btn-action" id="btn-carr-goto-rot">Vai a Rot.</button>
-                                        </div>
-                                        <div class="control-row-extra">
-                                            <button class="btn-ctrl btn-warning" data-device="Carrello" data-param="CMD_Reset" data-val="-1" id="btn-carr-reset">RESET</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Posizione Manutenzione:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="0" id="btn-carr-maint-off">Disabilita</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Carrello" data-param="CMD_MaintenancePosition" data-val="-1" id="btn-carr-maint-on">Abilita</button>
+                                                </div>
+                                            </div>
+                                            <!-- Controlli GoTo per Carrello -->
+                                            <div class="control-row goto-row">
+                                                <label>GoTo Y (mm):</label>
+                                                <input type="number" id="carr-goto-y-val" class="goto-input" placeholder="Quota Y">
+                                                <button class="btn-ctrl btn-action" id="btn-carr-goto-y">Vai a Y</button>
+                                            </div>
+                                            <div class="control-row goto-row">
+                                                <label>GoTo Rotazione (°):</label>
+                                                <input type="number" id="carr-goto-rot-val" class="goto-input" placeholder="Angolo">
+                                                <button class="btn-ctrl btn-action" id="btn-carr-goto-rot">Vai a Rot.</button>
+                                            </div>
+                                            <div class="control-row-extra">
+                                                <button class="btn-ctrl btn-warning" data-device="Carrello" data-param="CMD_Reset" data-val="-1" id="btn-carr-reset">RESET</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -551,6 +654,9 @@
 
 
                             </div>
+                            
+                            <!-- Separatore a fine pagina -->
+                            <div class="page-separator"></div>
                         </div>
                     </div>
                 </section>
@@ -661,26 +767,49 @@
 
                             <!-- Bottom Grid -->
                             <div class="device-bottom-grid">
-                                <div class="control-actions-card">
-                                    <h3>Pannello di Comando</h3>
-                                    <div class="btn-control-group">
-                                        <div class="control-row">
-                                            <label>Inverter Driver:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Caricatore" data-param="CMD_EnableDrive" data-val="0" id="btn-car-drive-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Caricatore" data-param="CMD_EnableDrive" data-val="-1" id="btn-car-drive-on">Abilita</button>
+                                <div class="control-actions-wrapper">
+                                    <!-- Frame 1: Comandi Principali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Principali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Asse Home (Azzeramento):</label>
-                                            <button class="btn-ctrl btn-action" data-device="Caricatore" data-param="CMD_Home" data-val="-1" id="btn-car-home">Avvia Home</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Inverter Driver:</label>
+                                                <div class="toggle-switch-container">
+                                                    <label class="cyber-switch">
+                                                        <input type="checkbox" class="cyber-switch-input" data-device="Caricatore" data-param="CMD_EnableDrive" id="switch-car-drive">
+                                                        <span class="cyber-switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-car-drive">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Asse Home (Azzeramento):</label>
+                                                <button class="btn-ctrl btn-action" data-device="Caricatore" data-param="CMD_Home" data-val="-1" id="btn-car-home">Avvia Home</button>
+                                                <div class="status-indicator-check" id="check-car-home">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Modalità Operativa:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Caricatore" data-param="CMD_Automatico" data-val="0" id="btn-car-auto-off">Manuale</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Caricatore" data-param="CMD_Automatico" data-val="-1" id="btn-car-auto-on">Automatico</button>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-car-auto">❌</div>
+                                            </div>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Modalità Operativa:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Caricatore" data-param="CMD_Automatico" data-val="0" id="btn-car-auto-off">Manuale</button>
-                                            <button class="btn-ctrl btn-on" data-device="Caricatore" data-param="CMD_Automatico" data-val="-1" id="btn-car-auto-on">Automatico</button>
+                                    </div>
+                                    
+                                    <!-- Frame 2: Comandi Manuali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Manuali</h4>
                                         </div>
-                                        <div class="control-row-extra">
-                                            <button class="btn-ctrl btn-warning" data-device="Caricatore" data-param="CMD_Reset" data-val="-1" id="btn-car-reset">RESET</button>
-                                            <button class="btn-ctrl btn-danger" data-device="Caricatore" data-param="CMD_StopAir" data-val="-1" id="btn-car-stopair">STOP ARIA</button>
+                                        <div class="frame-content">
+                                            <div class="control-row-extra">
+                                                <button class="btn-ctrl btn-warning" data-device="Caricatore" data-param="CMD_Reset" data-val="-1" id="btn-car-reset">RESET</button>
+                                                <button class="btn-ctrl btn-danger" data-device="Caricatore" data-param="CMD_StopAir" data-val="-1" id="btn-car-stopair">STOP ARIA</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -734,6 +863,9 @@
 
 
                             </div>
+                            
+                            <!-- Separatore a fine pagina -->
+                            <div class="page-separator"></div>
                         </div>
                     </div>
                 </section>
@@ -833,21 +965,43 @@
 
                             <!-- Bottom Grid -->
                             <div class="device-bottom-grid">
-                                <div class="control-actions-card">
-                                    <h3>Pannello di Comando</h3>
-                                    <div class="btn-control-group">
-                                        <div class="control-row">
-                                            <label>Inverter Driver:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Rulliere" data-param="CMD_EnableDrive" data-val="0" id="btn-rul-drive-off">Disabilita</button>
-                                            <button class="btn-ctrl btn-on" data-device="Rulliere" data-param="CMD_EnableDrive" data-val="-1" id="btn-rul-drive-on">Abilita</button>
+                                <div class="control-actions-wrapper">
+                                    <!-- Frame 1: Comandi Principali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Principali</h4>
                                         </div>
-                                        <div class="control-row">
-                                            <label>Modalità Operativa:</label>
-                                            <button class="btn-ctrl btn-off" data-device="Rulliere" data-param="CMD_Automatico" data-val="0" id="btn-rul-auto-off">Manuale</button>
-                                            <button class="btn-ctrl btn-on" data-device="Rulliere" data-param="CMD_Automatico" data-val="-1" id="btn-rul-auto-on">Automatico</button>
+                                        <div class="frame-content">
+                                            <div class="control-row">
+                                                <label>Inverter Driver:</label>
+                                                <div class="toggle-switch-container">
+                                                    <label class="cyber-switch">
+                                                        <input type="checkbox" class="cyber-switch-input" data-device="Rulliere" data-param="CMD_EnableDrive" id="switch-rul-drive">
+                                                        <span class="cyber-switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-rul-drive">❌</div>
+                                            </div>
+                                            <div class="control-row">
+                                                <label>Modalità Operativa:</label>
+                                                <div class="btn-toggle-pair">
+                                                    <button class="btn-ctrl btn-off" data-device="Rulliere" data-param="CMD_Automatico" data-val="0" id="btn-rul-auto-off">Manuale</button>
+                                                    <button class="btn-ctrl btn-on" data-device="Rulliere" data-param="CMD_Automatico" data-val="-1" id="btn-rul-auto-on">Automatico</button>
+                                                </div>
+                                                <div class="status-indicator-check" id="check-rul-auto">❌</div>
+                                            </div>
                                         </div>
-                                        <div class="control-row-extra">
-                                            <button class="btn-ctrl btn-warning" data-device="Rulliere" data-param="CMD_Reset" data-val="-1" id="btn-rul-reset">RESET</button>
+                                    </div>
+                                    
+                                    <!-- Frame 2: Comandi Manuali -->
+                                    <div class="control-frame-vertical-layout">
+                                        <div class="frame-title-container">
+                                            <h4 class="frame-title">Comandi Manuali</h4>
+                                        </div>
+                                        <div class="frame-content">
+                                            <div class="control-row-extra">
+                                                <button class="btn-ctrl btn-warning" data-device="Rulliere" data-param="CMD_Reset" data-val="-1" id="btn-rul-reset">RESET</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -874,6 +1028,9 @@
 
 
                             </div>
+                            
+                            <!-- Separatore a fine pagina -->
+                            <div class="page-separator"></div>
                         </div>
                     </div>
                 </section>
@@ -959,7 +1116,7 @@
     </div>
     <!-- Tooltip fluttuante personalizzato -->
     <div id="custom-tooltip" class="custom-tooltip-box"></div>
-    <script src="app.js?v=2.0.3"></script>
-    <script src="three_viewer.js?v=2.0.3"></script>
+    <script src="app.js?v=2.0.12"></script>
+    <script src="three_viewer.js?v=2.0.12"></script>
 </body>
 </html>

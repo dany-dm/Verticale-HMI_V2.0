@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navetta Y1 — Vista Laterale 2D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.45);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: hsl(142, 72%, 45%);
+            --accent-red: hsl(346, 77%, 48%);
+            --accent-blue: hsl(217, 91%, 56%);
+            --accent-cyan: hsl(187, 85%, 45%);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Outfit',sans-serif; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 24px 20px;
+        }
+        .page-header { text-align:center; margin-bottom:18px; }
+        .page-header h1 {
+            font-size:20px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .page-header .subtitle { font-size:11px; color:var(--text-muted); letter-spacing:1px; margin-top:3px; }
+
+        .encoder-display {
+            background: rgba(15,23,42,0.9); border:1px solid rgba(0,242,254,0.15);
+            border-radius:10px; padding:12px 36px; margin-bottom:16px; text-align:center;
+            position:relative; box-shadow: 0 0 20px rgba(0,242,254,0.05), inset 0 0 30px rgba(0,0,0,0.3);
+        }
+        .encoder-display::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
+        .encoder-label { font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:4px; }
+        .encoder-value {
+            font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700;
+            color:var(--accent-green); text-shadow:0 0 12px rgba(16,185,129,0.35); letter-spacing:1px;
+        }
+        .encoder-unit { font-size:14px; font-weight:400; color:var(--text-secondary); margin-left:3px; }
+
+        .viewer-container {
+            width:100%; max-width:1140px;
+            background:var(--bg-card); border:1px solid var(--border-color);
+            border-radius:14px; padding:16px; backdrop-filter:blur(12px);
+            box-shadow:0 8px 32px rgba(0,0,0,0.3);
+        }
+        .viewer-canvas-wrap {
+            position:relative; width:100%; overflow:hidden; border-radius:8px;
+            background: linear-gradient(180deg, #080d1a 0%, #0d1525 100%);
+            border:1px solid rgba(255,255,255,0.04);
+        }
+        canvas#navetta-canvas { display:block; width:100%; height:auto; }
+
+        .slider-panel {
+            margin-top:14px; background:rgba(15,23,42,0.7);
+            border:1px solid var(--border-color); border-radius:10px; padding:14px 20px;
+        }
+        .slider-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .slider-label { font-size:11px; font-weight:600; color:var(--accent-cyan); text-transform:uppercase; letter-spacing:1.5px; }
+        .slider-value-badge {
+            font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+            color:var(--accent-green); background:rgba(16,185,129,0.08);
+            border:1px solid rgba(16,185,129,0.2); border-radius:5px; padding:2px 8px;
+        }
+        input[type="range"] {
+            -webkit-appearance:none; appearance:none; width:100%; height:5px;
+            background:linear-gradient(90deg, rgba(0,242,254,0.1), rgba(0,242,254,0.25));
+            border-radius:3px; outline:none; cursor:pointer; border:1px solid rgba(0,242,254,0.15);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+            background:var(--accent-cyan); cursor:pointer;
+            box-shadow:0 0 10px rgba(0,242,254,0.4); border:2px solid rgba(255,255,255,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width:18px; height:18px; border-radius:50%; background:var(--accent-cyan);
+            cursor:pointer; box-shadow:0 0 10px rgba(0,242,254,0.4); border:2px solid rgba(255,255,255,0.3);
+        }
+        .slider-limits { display:flex; justify-content:space-between; margin-top:5px; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+        .footer-info { margin-top:12px; text-align:center; font-size:9px; color:var(--text-muted); letter-spacing:1px; }
+
+        /* Encoder Row & Controls Grid Symmetrical Layout */
+        .encoder-row {
+            display: flex; gap: 16px; margin-bottom: 16px; width: 100%; max-width: 1140px;
+        }
+        .encoder-display.y2-style {
+            border-color: rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.05), inset 0 0 30px rgba(0,0,0,0.3);
+        }
+        .encoder-display.y2-style::before {
+            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 14px;
+            width: 100%;
+        }
+
+        /* Switch/Toggle Styles for Wood Panel */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(148, 163, 184, 0.15);
+            transition: .2s;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: .2s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input:checked + .slider-switch {
+            background-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+        }
+        input:checked + .slider-switch:before {
+            transform: translateX(20px);
+        }
+        #left-wood-panel-checkbox:checked + .slider-switch,
+        #left-rotate-frame-checkbox:checked + .slider-switch {
+            background-color: var(--accent-blue);
+            box-shadow: 0 0 8px rgba(37, 99, 235, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>▲ Navetta — Assi Y1 e Y2</h1>
+        <div class="subtitle">Vista Laterale 2D · Doppia Navetta Speculare con Pannelli Opzionali</div>
+    </div>
+    
+    <div class="encoder-row">
+        <div class="encoder-display y2-style" style="flex: 1; margin-bottom: 0;">
+            <div class="encoder-label">Encoder Asse Y2 (SX)</div>
+            <div class="encoder-value" id="encoder-readout-y2" style="color: var(--accent-blue); text-shadow:0 0 12px rgba(59,130,246,0.35);">0.00<span class="encoder-unit">mm</span></div>
+        </div>
+        <div class="encoder-display" style="flex: 1; margin-bottom: 0;">
+            <div class="encoder-label">Encoder Asse Y1 (DX)</div>
+            <div class="encoder-value" id="encoder-readout-y1">0.00<span class="encoder-unit">mm</span></div>
+        </div>
+    </div>
+
+    <div class="viewer-container">
+        <div class="viewer-canvas-wrap">
+            <canvas id="navetta-canvas" width="1120" height="520"></canvas>
+        </div>
+        
+        <div class="controls-grid">
+            <!-- Pannello Controllo Y2 (Sinistra) -->
+            <div class="slider-panel">
+                <div class="slider-header">
+                    <span class="slider-label" style="color: var(--accent-blue);">🎚️ Simulazione Encoder Y2 (SX)</span>
+                    <span class="slider-value-badge" id="y2-slider-badge" style="color: var(--accent-blue); background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.2);">0.00 mm</span>
+                </div>
+                <input type="range" id="y2-slider" min="0" max="1200" step="0.5" value="0" style="background: linear-gradient(90deg, rgba(59,130,246,0.1), rgba(59,130,246,0.25)); border-color: rgba(59,130,246,0.15);">
+                <div class="slider-limits"><span>0</span><span>300</span><span>600</span><span>900</span><span>1200 mm</span></div>
+                
+                <div class="toggle-container">
+                    <span class="toggle-label">🪵 Pannello Legno Sx</span>
+                    <label class="switch">
+                        <input type="checkbox" id="left-wood-panel-checkbox">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+                <div class="toggle-container" style="margin-top: 8px; padding-top: 8px; border-top: none;">
+                    <span class="toggle-label">🔄 Inclina Telaio Sx (+10° antiorario)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="left-rotate-frame-checkbox">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Pannello Controllo Y1 (Destra) -->
+            <div class="slider-panel">
+                <div class="slider-header">
+                    <span class="slider-label" style="color: var(--accent-cyan);">🎚️ Simulazione Encoder Y1 (DX)</span>
+                    <span class="slider-value-badge" id="y1-slider-badge" style="color: var(--accent-cyan); background: rgba(0,242,254,0.08); border-color: rgba(0,242,254,0.2);">0.00 mm</span>
+                </div>
+                <input type="range" id="y1-slider" min="0" max="1200" step="0.5" value="0" style="background: linear-gradient(90deg, rgba(0,242,254,0.1), rgba(0,242,254,0.25)); border-color: rgba(0,242,254,0.15);">
+                <div class="slider-limits"><span>0</span><span>300</span><span>600</span><span>900</span><span>1200 mm</span></div>
+                
+                <div class="toggle-container">
+                    <span class="toggle-label">🪵 Pannello Legno Dx</span>
+                    <label class="switch">
+                        <input type="checkbox" id="right-wood-panel-checkbox">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+                <div class="toggle-container" style="margin-top: 8px; padding-top: 8px; border-top: none;">
+                    <span class="toggle-label">🔄 Inclina Telaio Dx (+10° orario)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="right-rotate-frame-checkbox">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="footer-info">VERTICALE HMI — Prototipo Vista Sincronizzata Y1 e Y2 · Non collegato al PLC</div>
+
+<script>
+// ============================================================
+//  NAVETTA Y1 — Vista Laterale 2D (geometria corretta)
+// ============================================================
+const canvas = document.getElementById('navetta-canvas');
+const ctx = canvas.getContext('2d');
+
+const W = canvas.width, H = canvas.height;
+
+// --- SCALA E COORDINATE ---
+// Il braccio si estende da 0 a 1200mm orizzontalmente su entrambi i lati.
+// La scala convertita per far entrare tutto simmetricamente nel canvas.
+const SCALE = 0.38; // px/mm
+const ORIGIN_X = W / 2; // centro corpo/colonna in px (560px)
+const ORIGIN_Y = H / 2; // centro verticale
+
+function toS(mm) { return mm * SCALE; }
+function toX(mm) { return ORIGIN_X + mm * SCALE; }
+function toY(mm) { return ORIGIN_Y - mm * SCALE; } // Y su = negativo canvas
+
+// --- GEOMETRIA MECCANICA (mm) ---
+const GEO = {
+    column: { width: 45, profileHeight: 90 }, // profilo alluminio 90x45, visibile 45 dal fianco
+    body:   { width: 150, height: 500 },       // corpo centrale
+    arm:    { length: 1200, height: 350, thickness: 45 }, // braccio-porta
+    frame:  { width: 45, height: 400 },        // telaio ventose
+    cup:    { count: 4, stemLen: 28, cupW: 16, cupH: 22 }, // ventose
+};
+
+// Il cardine del braccio è al bordo destro del corpo
+const HINGE_X_MM = GEO.body.width / 2; // 75mm dal centro
+
+// --- HELPERS DISEGNO ---
+function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w,y, x+w,y+r);
+    ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w,y+h, x+w-r,y+h);
+    ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x,y+h, x,y+h-r);
+    ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x,y, x+r,y);
+    ctx.closePath();
+}
+
+// --- DISEGNO: GRIGLIA DI SFONDO ---
+function drawGrid() {
+    const sp = 40;
+    ctx.strokeStyle = 'rgba(148,163,184,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let x=0; x<W; x+=sp) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y=0; y<H; y+=sp) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(148,163,184,0.06)';
+    for (let x=0; x<W; x+=sp*4) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+}
+
+// --- DISEGNO: CORPO (dietro alla colonna) ---
+function drawBody() {
+    const bw = toS(GEO.body.width);
+    const bh = toS(GEO.body.height);
+    const bx = ORIGIN_X - bw/2;
+    const by = ORIGIN_Y - bh/2;
+
+    // Ombra
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    roundRect(bx+3, by+3, bw, bh, 5); ctx.fill();
+
+    // Corpo
+    const grad = ctx.createLinearGradient(bx, 0, bx+bw, 0);
+    grad.addColorStop(0, '#1e293b'); grad.addColorStop(0.5, '#293548'); grad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = grad;
+    roundRect(bx, by, bw, bh, 5); ctx.fill();
+
+    // Bordo
+    ctx.strokeStyle = 'rgba(148,163,184,0.12)';
+    ctx.lineWidth = 1;
+    roundRect(bx, by, bw, bh, 5); ctx.stroke();
+
+    // Dettagli interni (bulloni/piastre)
+    ctx.fillStyle = 'rgba(100,116,139,0.08)';
+    const plateH = toS(60);
+    for (let i = 0; i < 5; i++) {
+        const py = by + 20 + i * (bh - 40) / 4 - plateH/2;
+        roundRect(bx+6, py, bw-12, plateH, 3); ctx.fill();
+    }
+    // Bulloni
+    ctx.fillStyle = 'rgba(71,85,105,0.2)';
+    const boltOff = [[15,30],[bw-15,30],[15,bh-30],[bw-15,bh-30]];
+    boltOff.forEach(([ox,oy]) => { ctx.beginPath(); ctx.arc(bx+ox, by+oy, 3, 0, Math.PI*2); ctx.fill(); });
+}
+
+// --- DISEGNO: COLONNA (davanti a tutto, taglia il corpo in due) ---
+function drawColumn() {
+    const cw = toS(GEO.column.width);
+    const cx = ORIGIN_X - cw/2;
+    // La colonna va oltre il canvas (tagliata sopra e sotto)
+    const cy = -5;
+    const ch = H + 10;
+
+    // Ombra laterale
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(cx+3, cy, cw, ch);
+
+    // Corpo profilo alluminio (gradiente metallico)
+    const grad = ctx.createLinearGradient(cx, 0, cx+cw, 0);
+    grad.addColorStop(0, '#475569');
+    grad.addColorStop(0.15, '#8494a7');
+    grad.addColorStop(0.3, '#94a3b8');
+    grad.addColorStop(0.5, '#a0aec0');
+    grad.addColorStop(0.7, '#94a3b8');
+    grad.addColorStop(0.85, '#8494a7');
+    grad.addColorStop(1, '#475569');
+    ctx.fillStyle = grad;
+    ctx.fillRect(cx, cy, cw, ch);
+
+    // Scanalatura centrale T-slot (tipica del profilo in alluminio)
+    const slotW = toS(10);
+    const slotX = cx + cw/2 - slotW/2;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(slotX, cy, slotW, ch);
+    // Fondo scanalatura
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(slotX + 2, cy, slotW - 4, ch);
+
+    // Linee bordo profilo
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx+1, cy); ctx.lineTo(cx+1, cy+ch); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.beginPath(); ctx.moveTo(cx+cw-1, cy); ctx.lineTo(cx+cw-1, cy+ch); ctx.stroke();
+
+    // Scanalature laterali (profilo estruso)
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+    ctx.lineWidth = 0.8;
+    [0.2, 0.8].forEach(f => {
+        const lx = cx + cw * f;
+        ctx.beginPath(); ctx.moveTo(lx, cy); ctx.lineTo(lx, cy+ch); ctx.stroke();
+    });
+}
+
+// --- DISEGNO: BRACCIO (porta incernierata) ---
+function drawArm(y1mm, isLeft = false) {
+    if (y1mm < 1) y1mm = 1; // minimo visuale
+
+    const L = GEO.arm.length;  // 1200mm
+    const T = GEO.arm.thickness; // 45mm
+    const theta = Math.asin(Math.min(y1mm / L, 1)); // angolo apertura porta
+    const edgeVisible = T * Math.cos(theta); // spessore bordo visibile
+    const totalProjW = edgeVisible + y1mm; // larghezza proiettata totale
+
+    const hingeX = toX(HINGE_X_MM);
+    const armH = toS(GEO.arm.height); // 350mm → px
+    const armTop = ORIGIN_Y - armH / 2;
+    const armBot = ORIGIN_Y + armH / 2;
+
+    // --- Parte bordo (spessore del braccio, sempre visibile al cardine) ---
+    const edgePx = toS(edgeVisible);
+    if (edgePx > 1) {
+        const edgeGrad = ctx.createLinearGradient(hingeX, 0, hingeX + edgePx, 0);
+        edgeGrad.addColorStop(0, '#1e3a8a'); edgeGrad.addColorStop(1, '#1e40af');
+        ctx.fillStyle = edgeGrad;
+        roundRect(hingeX, armTop, edgePx, armH, 2); ctx.fill();
+    }
+
+    // --- Parte faccia (superficie del pannello, diventa visibile mentre si apre) ---
+    const facePx = toS(y1mm);
+    if (facePx > 1) {
+        const faceGrad = ctx.createLinearGradient(0, armTop, 0, armBot);
+        faceGrad.addColorStop(0, '#60a5fa');
+        faceGrad.addColorStop(0.12, '#3b82f6');
+        faceGrad.addColorStop(0.88, '#2563eb');
+        faceGrad.addColorStop(1, '#1d4ed8');
+        ctx.fillStyle = faceGrad;
+        roundRect(hingeX + edgePx, armTop, facePx, armH, 2); ctx.fill();
+
+        // Dettagli strutturali sul pannello (nervature)
+        ctx.strokeStyle = 'rgba(30,58,138,0.3)';
+        ctx.lineWidth = 0.8;
+        const ribSpacing = toS(80);
+        for (let rx = hingeX + edgePx + ribSpacing; rx < hingeX + edgePx + facePx - 5; rx += ribSpacing) {
+            ctx.beginPath(); ctx.moveTo(rx, armTop + 6); ctx.lineTo(rx, armBot - 6); ctx.stroke();
+        }
+    }
+
+    // Bordo complessivo
+    ctx.strokeStyle = 'rgba(96,165,250,0.4)';
+    ctx.lineWidth = 1.5;
+    const totalPx = toS(totalProjW);
+    roundRect(hingeX, armTop, totalPx, armH, 2); ctx.stroke();
+
+    // Linea di separazione bordo/faccia
+    if (edgePx > 2 && facePx > 2) {
+        ctx.strokeStyle = 'rgba(30,58,138,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hingeX + edgePx, armTop + 2);
+        ctx.lineTo(hingeX + edgePx, armBot - 2);
+        ctx.stroke();
+    }
+
+    // Etichetta "BRACCIO" sul pannello (solo se abbastanza largo)
+    if (facePx > 80) {
+        ctx.save();
+        ctx.font = '10px "Outfit", sans-serif';
+        ctx.fillStyle = 'rgba(191,219,254,0.25)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const tx = hingeX + edgePx + facePx / 2;
+        const ty = ORIGIN_Y;
+        if (isLeft) {
+            ctx.translate(tx, ty);
+            ctx.scale(-1, 1);
+            ctx.fillText('BRACCIO', 0, 0);
+        } else {
+            ctx.fillText('BRACCIO', tx, ty);
+        }
+        ctx.restore();
+    }
+}
+
+// --- DISEGNO: CARDINE (cerniera) ---
+function drawHinge(y1mm, isLeft = false) {
+    const hingeX = toX(HINGE_X_MM);
+    const armH = toS(GEO.arm.height);
+
+    // Due cerniere (sopra e sotto)
+    [ORIGIN_Y - armH/2 + 15, ORIGIN_Y + armH/2 - 15].forEach(hy => {
+        // Perno
+        ctx.beginPath(); ctx.arc(hingeX, hy, 7, 0, Math.PI*2);
+        ctx.fillStyle = '#334155'; ctx.fill();
+        ctx.strokeStyle = 'rgba(148,163,184,0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Centro perno
+        ctx.beginPath(); ctx.arc(hingeX, hy, 2.5, 0, Math.PI*2);
+        ctx.fillStyle = '#64748b'; ctx.fill();
+    });
+
+    // Arco indicatore angolo (solo se aperto)
+    if (y1mm > 20) {
+        const theta = Math.asin(Math.min(y1mm / GEO.arm.length, 1));
+        const arcR = 25;
+        ctx.beginPath();
+        ctx.arc(hingeX, ORIGIN_Y, arcR, -Math.PI/2, -Math.PI/2 + theta, false);
+        ctx.strokeStyle = isLeft ? 'rgba(59,130,246,0.35)' : 'rgba(0,242,254,0.25)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Etichetta angolo
+        const angleDeg = (theta * 180 / Math.PI).toFixed(1);
+        ctx.save();
+        ctx.font = '8px "JetBrains Mono", monospace';
+        ctx.fillStyle = isLeft ? 'rgba(96,165,250,0.5)' : 'rgba(0,242,254,0.35)';
+        
+        const tx = hingeX + arcR + 4;
+        const ty = ORIGIN_Y - arcR + 4;
+        if (isLeft) {
+            ctx.translate(tx, ty);
+            ctx.scale(-1, 1);
+            ctx.textAlign = 'right';
+            ctx.fillText(`${angleDeg}°`, 0, 0);
+        } else {
+            ctx.textAlign = 'left';
+            ctx.fillText(`${angleDeg}°`, tx, ty);
+        }
+        ctx.restore();
+    }
+}
+
+// --- DISEGNO: TELAIO VENTOSE ---
+function drawFrame(y1mm, isLeft = false) {
+    const L = GEO.arm.length;
+    const T = GEO.arm.thickness;
+    const theta = Math.asin(Math.min(y1mm / L, 1));
+    const edgeVisible = T * Math.cos(theta);
+    const totalProjW = edgeVisible + y1mm;
+
+    const hingeX = toX(HINGE_X_MM);
+    const fx = hingeX + toS(totalProjW);
+    const fw = toS(GEO.frame.width);
+    const fh = toS(GEO.frame.height);
+    const fy = ORIGIN_Y - fh / 2;
+
+    // Ombra
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    roundRect(fx+2, fy+2, fw, fh, 3); ctx.fill();
+
+    // Corpo telaio
+    const grad = ctx.createLinearGradient(fx, 0, fx+fw, 0);
+    grad.addColorStop(0, '#334155'); grad.addColorStop(0.5, '#475569'); grad.addColorStop(1, '#334155');
+    ctx.fillStyle = grad;
+    roundRect(fx, fy, fw, fh, 3); ctx.fill();
+
+    // Bordo
+    ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+    ctx.lineWidth = 1;
+    roundRect(fx, fy, fw, fh, 3); ctx.stroke();
+
+    // Traversine interne
+    ctx.strokeStyle = 'rgba(100,116,139,0.15)';
+    ctx.lineWidth = 0.8;
+    const divs = 5;
+    for (let i = 1; i < divs; i++) {
+        const dy = fy + (fh / divs) * i;
+        ctx.beginPath(); ctx.moveTo(fx+3, dy); ctx.lineTo(fx+fw-3, dy); ctx.stroke();
+    }
+
+    // Cardine braccio-telaio (cerniera alla punta del braccio, solo inferiore coincidente col bordo basso del braccio)
+    const jointY2 = ORIGIN_Y + toS(GEO.arm.height)/2;
+    ctx.beginPath(); ctx.arc(fx, jointY2, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#1e293b'; ctx.fill();
+    ctx.strokeStyle = 'rgba(148,163,184,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Etichetta
+    if (fw > 15) {
+        ctx.save();
+        const textX = fx + fw/2;
+        const textY = ORIGIN_Y;
+        ctx.translate(textX, textY);
+        if (isLeft) {
+            ctx.scale(-1, 1);
+        }
+        ctx.rotate(-Math.PI/2);
+        ctx.font = '8px "Outfit", sans-serif';
+        ctx.fillStyle = 'rgba(148,163,184,0.25)';
+        ctx.textAlign = 'center';
+        ctx.fillText('TELAIO', 0, 3);
+        ctx.restore();
+    }
+}
+
+// --- DISEGNO: VENTOSE (sporgono a destra dal telaio) ---
+function drawCups(y1mm) {
+    const L = GEO.arm.length;
+    const T = GEO.arm.thickness;
+    const theta = Math.asin(Math.min(y1mm / L, 1));
+    const edgeVisible = T * Math.cos(theta);
+    const totalProjW = edgeVisible + y1mm;
+
+    const hingeX = toX(HINGE_X_MM);
+    const frameRightX = hingeX + toS(totalProjW) + toS(GEO.frame.width);
+    const fh = GEO.frame.height; // mm
+    const n = GEO.cup.count;
+    const spacing = fh / (n + 1); // mm
+
+    for (let i = 1; i <= n; i++) {
+        const cupCenterY = ORIGIN_Y - toS(fh/2) + toS(spacing * i);
+        const stemEnd = frameRightX + toS(GEO.cup.stemLen);
+        const cw = toS(GEO.cup.cupW);
+        const ch = toS(GEO.cup.cupH);
+
+        // Alone vuoto (glow cyan)
+        const glowGrad = ctx.createRadialGradient(stemEnd + cw/2, cupCenterY, 2, stemEnd + cw/2, cupCenterY, ch);
+        glowGrad.addColorStop(0, 'rgba(0,242,254,0.12)');
+        glowGrad.addColorStop(1, 'transparent');
+        ctx.beginPath(); ctx.arc(stemEnd + cw/2, cupCenterY, ch, 0, Math.PI*2);
+        ctx.fillStyle = glowGrad; ctx.fill();
+
+        // Stelo
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(frameRightX, cupCenterY); ctx.lineTo(stemEnd, cupCenterY); ctx.stroke();
+
+        // Corpo ventosa (profilo laterale: trapezoidale, più larga a destra)
+        ctx.beginPath();
+        ctx.moveTo(stemEnd, cupCenterY - ch * 0.3);
+        ctx.lineTo(stemEnd + cw, cupCenterY - ch * 0.5);
+        ctx.lineTo(stemEnd + cw, cupCenterY + ch * 0.5);
+        ctx.lineTo(stemEnd, cupCenterY + ch * 0.3);
+        ctx.closePath();
+        ctx.fillStyle = '#2d3748';
+        ctx.fill();
+        ctx.strokeStyle = '#4a5568';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Labbro della ventosa (bordo a destra, la parte che tocca il pezzo)
+        ctx.beginPath();
+        ctx.moveTo(stemEnd + cw, cupCenterY - ch * 0.5);
+        ctx.lineTo(stemEnd + cw + 3, cupCenterY - ch * 0.55);
+        ctx.lineTo(stemEnd + cw + 3, cupCenterY + ch * 0.55);
+        ctx.lineTo(stemEnd + cw, cupCenterY + ch * 0.5);
+        ctx.closePath();
+        ctx.fillStyle = '#4a5568';
+        ctx.fill();
+
+        // Soffietto interno (linee)
+        ctx.strokeStyle = 'rgba(100,116,139,0.3)';
+        ctx.lineWidth = 0.6;
+        for (let s = 0.2; s < 0.9; s += 0.2) {
+            const sx = stemEnd + cw * s;
+            const hf = 0.3 + (0.5 - 0.3) * s; // altezza proporzionale
+            ctx.beginPath();
+            ctx.moveTo(sx, cupCenterY - ch * hf);
+            ctx.lineTo(sx, cupCenterY + ch * hf);
+            ctx.stroke();
+        }
+
+        // Punto indicatore vuoto
+        ctx.beginPath(); ctx.arc(stemEnd + cw * 0.4, cupCenterY, 1.5, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(0,242,254,0.5)'; ctx.fill();
+    }
+}
+
+// --- DISEGNO: PANNELLO IN LEGNO ---
+function drawWoodPanel(y1mm, isLeft = false) {
+    const checkbox = isLeft ? leftWoodPanelCheckbox : rightWoodPanelCheckbox;
+    if (!checkbox.checked) return;
+
+    const L = GEO.arm.length;
+    const T = GEO.arm.thickness;
+    const theta = Math.asin(Math.min(y1mm / L, 1));
+    const edgeVisible = T * Math.cos(theta);
+    const totalProjW = edgeVisible + y1mm;
+
+    const hingeX = toX(HINGE_X_MM);
+    const frameRightX = hingeX + toS(totalProjW) + toS(GEO.frame.width);
+    const stemEnd = frameRightX + toS(GEO.cup.stemLen);
+    const cw = toS(GEO.cup.cupW);
+    const cupRightX = stemEnd + cw + 3; // Labbro compreso
+
+    const pw = toS(20);  // spessore 20mm
+    const ph = toS(400); // larghezza 400mm
+    const px = cupRightX;
+    const py = ORIGIN_Y - ph / 2;
+
+    // Ombra del pannello
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    roundRect(px + 2, py + 2, pw, ph, 2);
+    ctx.fill();
+
+    // Corpo del pannello (legno chiaro)
+    const woodGrad = ctx.createLinearGradient(px, py, px + pw, py);
+    woodGrad.addColorStop(0, '#e5c07b');
+    woodGrad.addColorStop(0.3, '#ebd09f');
+    woodGrad.addColorStop(0.7, '#e5c07b');
+    woodGrad.addColorStop(1, '#cca359');
+    ctx.fillStyle = woodGrad;
+    roundRect(px, py, pw, ph, 2);
+    ctx.fill();
+
+    // Venature del legno (wood grain lines)
+    ctx.strokeStyle = 'rgba(139, 90, 43, 0.15)';
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+        ctx.beginPath();
+        ctx.moveTo(px + pw * f, py + 2);
+        for (let currY = py + 6; currY < py + ph - 2; currY += 12) {
+            const wobble = Math.sin(currY * 0.04) * 0.9;
+            ctx.lineTo(px + pw * f + wobble, currY);
+        }
+        ctx.lineTo(px + pw * f, py + ph - 2);
+        ctx.stroke();
+    });
+
+    // Bordo del pannello
+    ctx.strokeStyle = '#cda160';
+    ctx.lineWidth = 1;
+    roundRect(px, py, pw, ph, 2);
+    ctx.stroke();
+}
+
+// --- DISEGNO: INDICATORE DI POSIZIONE Y1 / Y2 ---
+function drawPositionIndicator(mm, isLeft = false) {
+    if (mm < 0) return;
+    
+    // Determina la direzione e il punto di partenza
+    const hingeX = isLeft ? (ORIGIN_X - toS(HINGE_X_MM)) : (ORIGIN_X + toS(HINGE_X_MM));
+    const tipX = isLeft ? (hingeX - toS(mm)) : (hingeX + toS(mm));
+
+    // Linea verticale tratteggiata (posizione punta braccio)
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = isLeft ? 'rgba(59,130,246,0.2)' : 'rgba(16,185,129,0.2)'; // blu a sx, verde a dx
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(tipX, 15); ctx.lineTo(tipX, H - 50); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Freccia dimensionale in basso
+    const dimY = H - 38;
+    const startX = hingeX;
+
+    ctx.strokeStyle = isLeft ? 'rgba(59,130,246,0.3)' : 'rgba(0,242,254,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(startX, dimY); ctx.lineTo(tipX, dimY); ctx.stroke();
+
+    // Punte frecce
+    const arrSz = 5;
+    // Hinge-side
+    ctx.beginPath(); 
+    ctx.moveTo(startX, dimY); 
+    ctx.lineTo(startX + (isLeft ? arrSz : -arrSz), dimY - arrSz); 
+    ctx.moveTo(startX, dimY); 
+    ctx.lineTo(startX + (isLeft ? arrSz : -arrSz), dimY + arrSz); 
+    ctx.stroke();
+    // Tip-side
+    ctx.beginPath(); 
+    ctx.moveTo(tipX, dimY); 
+    ctx.lineTo(tipX + (isLeft ? -arrSz : arrSz), dimY - arrSz); 
+    ctx.moveTo(tipX, dimY); 
+    ctx.lineTo(tipX + (isLeft ? -arrSz : arrSz), dimY + arrSz); 
+    ctx.stroke();
+
+    // Etichetta quota
+    if (toS(mm) > 50) {
+        ctx.font = '11px "JetBrains Mono", monospace';
+        ctx.fillStyle = isLeft ? 'rgba(96,165,250,0.7)' : 'rgba(0,242,254,0.6)';
+        ctx.textAlign = 'center';
+        const label = isLeft ? `Y2 = ${mm.toFixed(1)} mm` : `Y1 = ${mm.toFixed(1)} mm`;
+        ctx.fillText(label, (startX + tipX) / 2, dimY - 8);
+    }
+
+    // Triangolino indicatore sotto il telaio
+    const triY = ORIGIN_Y + toS(GEO.frame.height) / 2 + 18;
+    ctx.beginPath();
+    ctx.moveTo(tipX, triY - 8);
+    ctx.lineTo(tipX - 5, triY);
+    ctx.lineTo(tipX + 5, triY);
+    ctx.closePath();
+    ctx.fillStyle = isLeft ? 'rgba(59,130,246,0.7)' : 'rgba(16,185,129,0.7)';
+    ctx.fill();
+}
+
+// --- DISEGNO: RIGHELLO / SCALA DI RIFERIMENTO ---
+function drawRuler() {
+    const rightHingeX = ORIGIN_X + toS(HINGE_X_MM);
+    const leftHingeX = ORIGIN_X - toS(HINGE_X_MM);
+    const rulerY = H - 18;
+
+    ctx.font = '8px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    // Disegna la scala per la destra
+    for (let mm = 0; mm <= 1200; mm += 100) {
+        const rx = rightHingeX + toS(mm);
+        if (rx > W - 10) break;
+        const isMajor = mm % 300 === 0;
+        const tickH = isMajor ? 8 : 4;
+        ctx.strokeStyle = isMajor ? 'rgba(148,163,184,0.2)' : 'rgba(148,163,184,0.1)';
+        ctx.lineWidth = isMajor ? 1 : 0.5;
+        ctx.beginPath(); ctx.moveTo(rx, rulerY); ctx.lineTo(rx, rulerY - tickH); ctx.stroke();
+
+        if (isMajor) {
+            ctx.fillStyle = 'rgba(148,163,184,0.3)';
+            ctx.fillText(`${mm}`, rx, rulerY + 2);
+        }
+    }
+
+    // Disegna la scala per la sinistra
+    for (let mm = 100; mm <= 1200; mm += 100) {
+        const lx = leftHingeX - toS(mm);
+        if (lx < 10) break;
+        const isMajor = mm % 300 === 0;
+        const tickH = isMajor ? 8 : 4;
+        ctx.strokeStyle = isMajor ? 'rgba(148,163,184,0.2)' : 'rgba(148,163,184,0.1)';
+        ctx.lineWidth = isMajor ? 1 : 0.5;
+        ctx.beginPath(); ctx.moveTo(lx, rulerY); ctx.lineTo(lx, rulerY - tickH); ctx.stroke();
+
+        if (isMajor) {
+            ctx.fillStyle = 'rgba(148,163,184,0.3)';
+            ctx.fillText(`${mm}`, lx, rulerY + 2);
+        }
+    }
+}
+
+// --- DISEGNO: FRECCIA DIREZIONE Y1+ / Y2+ ---
+function drawDirectionArrow() {
+    const y = H - 55;
+    ctx.fillStyle = 'rgba(148,163,184,0.15)';
+    ctx.font = '9px "Outfit", sans-serif';
+    
+    // Y1 + a destra
+    ctx.textAlign = 'left';
+    ctx.fillText('→ Y1 +', ORIGIN_X + toS(HINGE_X_MM) + 5, y);
+
+    // Y2 + a sinistra
+    ctx.textAlign = 'right';
+    ctx.fillText('← Y2 +', ORIGIN_X - toS(HINGE_X_MM) - 5, y);
+}
+
+// ============================================================
+//  RENDER PRINCIPALE
+// ============================================================
+function render(y1mm, y2mm) {
+    ctx.clearRect(0, 0, W, H);
+
+    drawGrid();
+    drawDirectionArrow();
+    drawRuler();
+
+    // 1. Corpo centrale (dietro)
+    drawBody();
+
+    // 2. Disegno Lato Destro (Y1)
+    {
+        const L = GEO.arm.length;
+        const T = GEO.arm.thickness;
+        const theta = Math.asin(Math.min(y1mm / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + y1mm;
+        const hingeX = toX(HINGE_X_MM);
+        const pivotX = hingeX + toS(totalProjW);
+        const pivotY = ORIGIN_Y + toS(GEO.arm.height) / 2;
+        const angle = rightRotateFrameCheckbox.checked ? (10 * Math.PI / 180) : 0;
+
+        ctx.save();
+        drawArm(y1mm, false);
+
+        if (angle !== 0) {
+            ctx.translate(pivotX, pivotY);
+            ctx.rotate(angle);
+            ctx.translate(-pivotX, -pivotY);
+        }
+
+        drawFrame(y1mm, false);
+        drawCups(y1mm);
+        drawWoodPanel(y1mm, false);
+        ctx.restore();
+        
+        drawHinge(y1mm, false);
+    }
+
+    // 3. Disegno Lato Sinistro (Y2)
+    {
+        const L = GEO.arm.length;
+        const T = GEO.arm.thickness;
+        const theta = Math.asin(Math.min(y2mm / L, 1));
+        const edgeVisible = T * Math.cos(theta);
+        const totalProjW = edgeVisible + y2mm;
+        const hingeX = toX(HINGE_X_MM);
+        const pivotX = hingeX + toS(totalProjW);
+        const pivotY = ORIGIN_Y + toS(GEO.arm.height) / 2;
+        const angle = leftRotateFrameCheckbox.checked ? (10 * Math.PI / 180) : 0;
+
+        ctx.save();
+        // Applica specchiatura orizzontale centrata su ORIGIN_X
+        ctx.translate(ORIGIN_X, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-ORIGIN_X, 0);
+
+        drawArm(y2mm, true);
+
+        if (angle !== 0) {
+            ctx.translate(pivotX, pivotY);
+            ctx.rotate(angle);
+            ctx.translate(-pivotX, -pivotY);
+        }
+
+        drawFrame(y2mm, true);
+        drawCups(y2mm);
+        drawWoodPanel(y2mm, true);
+        ctx.restore();
+        
+        // Disegno cerniera principale a sinistra (specchiata)
+        ctx.save();
+        ctx.translate(ORIGIN_X, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-ORIGIN_X, 0);
+        drawHinge(y2mm, true);
+        ctx.restore();
+    }
+
+    // 4. Colonna centrale (in front of arms and bodies)
+    drawColumn();
+
+    // 5. Indicatori di quota/posizione
+    drawPositionIndicator(y1mm, false);
+    drawPositionIndicator(y2mm, true);
+}
+
+// --- EVENTI ---
+let currentY1 = 0;
+let currentY2 = 0;
+
+const rightWoodPanelCheckbox = document.getElementById('right-wood-panel-checkbox');
+const leftWoodPanelCheckbox = document.getElementById('left-wood-panel-checkbox');
+const rightRotateFrameCheckbox = document.getElementById('right-rotate-frame-checkbox');
+const leftRotateFrameCheckbox = document.getElementById('left-rotate-frame-checkbox');
+
+const y1Slider = document.getElementById('y1-slider');
+const y2Slider = document.getElementById('y2-slider');
+const y1SliderBadge = document.getElementById('y1-slider-badge');
+const y2SliderBadge = document.getElementById('y2-slider-badge');
+const encoderReadoutY1 = document.getElementById('encoder-readout-y1');
+const encoderReadoutY2 = document.getElementById('encoder-readout-y2');
+
+function updateFromSliders() {
+    currentY1 = parseFloat(y1Slider.value);
+    currentY2 = parseFloat(y2Slider.value);
+    
+    encoderReadoutY1.innerHTML = `${currentY1.toFixed(2)}<span class="encoder-unit">mm</span>`;
+    encoderReadoutY2.innerHTML = `${currentY2.toFixed(2)}<span class="encoder-unit">mm</span>`;
+    
+    y1SliderBadge.textContent = `${currentY1.toFixed(2)} mm`;
+    y2SliderBadge.textContent = `${currentY2.toFixed(2)} mm`;
+    
+    render(currentY1, currentY2);
+}
+
+y1Slider.addEventListener('input', updateFromSliders);
+y2Slider.addEventListener('input', updateFromSliders);
+
+rightWoodPanelCheckbox.addEventListener('change', updateFromSliders);
+leftWoodPanelCheckbox.addEventListener('change', updateFromSliders);
+rightRotateFrameCheckbox.addEventListener('change', updateFromSliders);
+leftRotateFrameCheckbox.addEventListener('change', updateFromSliders);
+
+// Render iniziale
+updateFromSliders();
+</script>
+</body>
+</html>

@@ -144,31 +144,6 @@ class HMIHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json_response({"success": False, "error": f"Errore parsing configurazione: {e}"})
             return
 
-        # 2. Intercetta connessione/disconnessione template speciale
-        if parameter == "__template__":
-            # Per Navetta_4 gestiamo il template specifico
-            if device == "Navetta_4":
-                target = "Navetta_4:tpl_1781456080355"
-                is_connect = (value == "connect")
-                self.server.datastore.set_template_active("Navetta_4", "tpl_1781456080355", is_connect)
-            else:
-                target = device
-
-            if value == "connect":
-                cmd = f"connect {target}"
-            else:
-                cmd = f"disconnect {target}"
-                
-            self.server.syslog.log(f"Ricevuto comando template da HMI Web: {cmd}", severity=5)
-            risposta = self.server.client.invia_comando(cmd)
-            
-            if "connesso" in risposta.lower() or "disconnesso" in risposta.lower() or "successo" in risposta.lower() or "ok" in risposta.lower():
-                self.server.datastore.add_log("HMI Web", f"Inviato comando: {cmd} - Esito: {risposta.strip()}", level="INFO")
-                self.send_json_response({"success": True, "result": risposta.strip()})
-            else:
-                self.server.datastore.add_log("HMI Web", f"Fallito comando: {cmd} - Risposta: {risposta.strip()}", level="WARNING")
-                self.send_json_response({"success": False, "error": risposta.strip()})
-            return
 
         # 3. Comandi standard di scrittura variabili PLC
         cmd = f"write {device} {parameter} {value}"
