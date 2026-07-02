@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrello — Vista Laterale 2D</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.45);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: hsl(142, 72%, 45%);
+            --accent-red: hsl(346, 77%, 48%);
+            --accent-blue: hsl(217, 91%, 56%);
+            --accent-cyan: hsl(187, 85%, 45%);
+            --accent-orange: hsl(32, 95%, 44%);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Outfit',sans-serif; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 24px 20px;
+        }
+        .page-header { text-align:center; margin-bottom:18px; }
+        .page-header h1 {
+            font-size:20px; font-weight:700; letter-spacing:2px; text-transform:uppercase;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-orange));
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .page-header .subtitle { font-size:11px; color:var(--text-muted); letter-spacing:1px; margin-top:3px; }
+
+        .encoder-display {
+            background: rgba(15,23,42,0.9); border:1px solid rgba(0,242,254,0.15);
+            border-radius:10px; padding:12px 36px; margin-bottom:16px; text-align:center;
+            position:relative; box-shadow: 0 0 20px rgba(0,242,254,0.05), inset 0 0 30px rgba(0,0,0,0.3);
+            width: 100%; max-width: 500px;
+        }
+        .encoder-display::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+        }
+        .encoder-label { font-size:10px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:4px; }
+        .encoder-value {
+            font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700;
+            color: var(--accent-green); text-shadow:0 0 12px rgba(16,185,129,0.35); letter-spacing:1px;
+        }
+        .encoder-unit { font-size:14px; font-weight:400; color:var(--text-secondary); margin-left:3px; }
+
+        .viewer-container {
+            width:100%; max-width:1140px;
+            background:var(--bg-card); border:1px solid var(--border-color);
+            border-radius:14px; padding:16px; backdrop-filter:blur(12px);
+            box-shadow:0 8px 32px rgba(0,0,0,0.3);
+        }
+        .viewer-canvas-wrap {
+            position:relative; width:100%; overflow:hidden; border-radius:8px;
+            background: linear-gradient(180deg, #080d1a 0%, #0d1525 100%);
+            border:1px solid rgba(255,255,255,0.04);
+        }
+        canvas#carrello-canvas { display:block; width:100%; height:auto; }
+
+        .slider-panel {
+            margin-top:14px; background:rgba(15,23,42,0.7);
+            border:1px solid var(--border-color); border-radius:10px; padding:14px 20px;
+            width: 100%;
+        }
+        .slider-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+        .slider-label { font-size:11px; font-weight:600; color:var(--accent-cyan); text-transform:uppercase; letter-spacing:1.5px; }
+        .slider-value-badge {
+            font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;
+            color:var(--accent-green); background:rgba(16,185,129,0.08);
+            border:1px solid rgba(16,185,129,0.2); border-radius:5px; padding:2px 8px;
+        }
+        input[type="range"] {
+            -webkit-appearance:none; appearance:none; width:100%; height:5px;
+            background:linear-gradient(90deg, rgba(0,242,254,0.1), rgba(0,242,254,0.25));
+            border-radius:3px; outline:none; cursor:pointer; border:1px solid rgba(0,242,254,0.15);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+            background:var(--accent-cyan); cursor:pointer;
+            box-shadow:0 0 10px rgba(0,242,254,0.4); border:2px solid rgba(255,255,255,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width:18px; height:18px; border-radius:50%; background:var(--accent-cyan);
+            cursor:pointer; box-shadow:0 0 10px rgba(0,242,254,0.4); border:2px solid rgba(255,255,255,0.3);
+        }
+        .slider-limits { display:flex; justify-content:space-between; margin-top:5px; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+        .footer-info { margin-top:12px; text-align:center; font-size:9px; color:var(--text-muted); letter-spacing:1px; }
+
+        /* Switch/Toggle Styles for Wood Panel */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(148, 163, 184, 0.15);
+            transition: .2s;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: .2s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input:checked + .slider-switch {
+            background-color: var(--accent-orange);
+            box-shadow: 0 0 8px rgba(249, 115, 22, 0.2);
+        }
+        input:checked + .slider-switch:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>▲ Carrello — Asse Rotazione</h1>
+        <div class="subtitle">Vista Laterale 2D · Banco Rotante con Posizione Angolare</div>
+    </div>
+    
+    <div class="encoder-display">
+        <div class="encoder-label">Encoder Asse Rotazione (carrello_Rotazione_Encoder)</div>
+        <div class="encoder-value" id="encoder-readout-rotazione">0.00<span class="encoder-unit">°</span></div>
+    </div>
+
+    <div class="viewer-container">
+        <div class="viewer-canvas-wrap">
+            <canvas id="carrello-canvas" width="1120" height="700"></canvas>
+        </div>
+        
+        <div class="slider-panel">
+            <div class="slider-header">
+                <span class="slider-label">🎚️ Simulazione Angolo Rotazione</span>
+                <span class="slider-value-badge" id="rotazione-slider-badge">0.00°</span>
+            </div>
+            <input type="range" id="rotazione-slider" min="-80" max="80" step="0.5" value="0">
+            <div class="slider-limits"><span>-80°</span><span>-40°</span><span>0°</span><span>40°</span><span>80°</span></div>
+            
+            <div class="toggle-container">
+                <span class="toggle-label">🪵 Mostra Pannello Legno sopra cinghia (800x25mm)</span>
+                <label class="switch">
+                    <input type="checkbox" id="wood-panel-checkbox" checked>
+                    <span class="slider-switch"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="footer-info">VERTICALE HMI — Prototipo Vista Carrello Rotante · Non collegato al PLC</div>
+
+    <script>
+        // ============================================================
+        //  CARRELLO — Vista Laterale 2D (Asse Rotazione)
+        // ============================================================
+        const canvas = document.getElementById('carrello-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+
+        // --- SCALA E COORDINATE ---
+        const SCALE = 0.40; // px/mm
+        const ORIGIN_X = W / 2; // centro orizzontale in px (560px)
+        const GROUND_Y = H - 35; // linea del terreno in px (665px)
+
+        function toS(mm) { return mm * SCALE; }
+        function toX(mm) { return ORIGIN_X + mm * SCALE; }
+        function toY(mm) { return GROUND_Y - mm * SCALE; } // Y verso l'alto (meccanica)
+
+        // --- GEOMETRIA MECCANICA (mm) ---
+        const GEO = {
+            rail:       { length: 1500, height: 40 },
+            wheel:      { diameter: 150, radius: 75, count: 4 },
+            baseBeam:   { length: 1100, height: 90 },
+            column:     { width: 250, height: 700 },
+            cradle:     { diameter: 400, radius: 200, cutOffset: 100 }, // Y_center = column_top - 50, cut a 100mm da centro
+            bench:      { length: 1200, height: 45 },
+            pulley:     { diameter: 80, radius: 40 },
+            belt:       { thickness: 3 },
+            endProfile: { size: 45 },
+            stop:       { width: 10, height: 75, extension: 30 }
+        };
+
+        // Calcolo Y meccaniche fisse
+        const RAIL_TOP_Y = GEO.rail.height; // 40
+        const WHEEL_CENTER_Y = RAIL_TOP_Y + GEO.wheel.radius; // 40 + 75 = 115
+        const BASE_BOT_Y = WHEEL_CENTER_Y; // 115 (centro ruota allineato al lato inferiore del traverso)
+        const BASE_TOP_Y = BASE_BOT_Y + GEO.baseBeam.height; // 115 + 90 = 205
+        const COLUMN_BOT_Y = BASE_TOP_Y; // 205
+        const COLUMN_TOP_Y = COLUMN_BOT_Y + GEO.column.height; // 205 + 700 = 905
+        
+        // Centro di rotazione (50mm in basso dalla fine della colonna)
+        const ROT_CENTER_Y = COLUMN_TOP_Y - 50; // 905 - 50 = 855
+
+        // Helpers disegno
+        function roundRect(x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w,y, x+w,y+r);
+            ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w,y+h, x+w-r,y+h);
+            ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x,y+h, x,y+h-r);
+            ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x,y, x+r,y);
+            ctx.closePath();
+        }
+
+        // --- DISEGNO: GRIGLIA DI SFONDO ---
+        function drawGrid() {
+            const sp = 40;
+            ctx.strokeStyle = 'rgba(148,163,184,0.03)';
+            ctx.lineWidth = 0.5;
+            for (let x=0; x<W; x+=sp) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+            for (let y=0; y<H; y+=sp) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+            ctx.strokeStyle = 'rgba(148,163,184,0.06)';
+            for (let x=0; x<W; x+=sp*4) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+        }
+
+        // --- DISEGNO: BINARIO (RAIL) ---
+        function drawRail() {
+            const rx = toX(-GEO.rail.length / 2);
+            const ry = toY(GEO.rail.height);
+            const rw = toS(GEO.rail.length);
+            const rh = toS(GEO.rail.height);
+
+            // Ombra
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(rx, ry + rh - 4, rw, 4);
+
+            // Corpo Binario
+            const grad = ctx.createLinearGradient(0, ry, 0, ry + rh);
+            grad.addColorStop(0, '#334155');
+            grad.addColorStop(0.3, '#475569');
+            grad.addColorStop(0.7, '#1e293b');
+            grad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(rx, ry, rw, rh);
+
+            // Linea superiore di scorrimento (metallo lucido)
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(rx, ry + 1);
+            ctx.lineTo(rx + rw, ry + 1);
+            ctx.stroke();
+
+            // Bulloni di ancoraggio a terra (equidistanti)
+            ctx.fillStyle = 'rgba(71,85,105,0.4)';
+            for (let i = -700; i <= 700; i += 140) {
+                ctx.beginPath();
+                ctx.arc(toX(i), ry + rh - 8, 3, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        // --- DISEGNO: RUOTE (WHEELS) ---
+        function drawWheels() {
+            // Posizioni delle 4 ruote equidistanti
+            const spacing = GEO.baseBeam.length / 3; // 1100 / 3 = 366.67
+            const wheelXPositions = [
+                -GEO.baseBeam.length / 2, // -550
+                -GEO.baseBeam.length / 2 + spacing, // -183.33
+                -GEO.baseBeam.length / 2 + spacing * 2, // 183.33
+                GEO.baseBeam.length / 2 // 550
+            ];
+
+            wheelXPositions.forEach(wx => {
+                const cx = toX(wx);
+                const cy = toY(WHEEL_CENTER_Y);
+                const r = toS(GEO.wheel.radius);
+
+                // Ombra ruota
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.arc(cx + 2, cy + 2, r, 0, Math.PI*2);
+                ctx.fill();
+
+                // Battistrada esterno (gomma scura)
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Cerchione interno (metallo)
+                const innerR = r * 0.7;
+                const rimGrad = ctx.createRadialGradient(cx - 2, cy - 2, 2, cx, cy, innerR);
+                rimGrad.addColorStop(0, '#e2e8f0');
+                rimGrad.addColorStop(0.5, '#94a3b8');
+                rimGrad.addColorStop(1, '#475569');
+                ctx.fillStyle = rimGrad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, innerR, 0, Math.PI*2);
+                ctx.fill();
+
+                // Centro perno/bullone
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * 0.2, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            });
+        }
+
+        // --- DISEGNO: TRAVERSO DI BASE ---
+        function drawBaseBeam() {
+            const bx = toX(-GEO.baseBeam.length / 2);
+            const by = toY(BASE_TOP_Y);
+            const bw = toS(GEO.baseBeam.length);
+            const bh = toS(GEO.baseBeam.height);
+
+            // Ombra
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            roundRect(bx + 3, by + 3, bw, bh, 4);
+            ctx.fill();
+
+            // Profilato alluminio di base
+            const grad = ctx.createLinearGradient(0, by, 0, by + bh);
+            grad.addColorStop(0, '#64748b');
+            grad.addColorStop(0.2, '#94a3b8');
+            grad.addColorStop(0.5, '#cbd5e1');
+            grad.addColorStop(0.8, '#94a3b8');
+            grad.addColorStop(1, '#475569');
+            ctx.fillStyle = grad;
+            roundRect(bx, by, bw, bh, 4);
+            ctx.fill();
+
+            // Linee scanalatura T-slot (profilo estruso)
+            ctx.strokeStyle = 'rgba(15,23,42,0.15)';
+            ctx.lineWidth = 2;
+            [0.25, 0.5, 0.75].forEach(f => {
+                const sy = by + bh * f;
+                ctx.beginPath();
+                ctx.moveTo(bx + 4, sy);
+                ctx.lineTo(bx + bw - 4, sy);
+                ctx.stroke();
+                // Fondo scanalatura
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                ctx.beginPath();
+                ctx.moveTo(bx + 4, sy + 1.5);
+                ctx.lineTo(bx + bw - 4, sy + 1.5);
+                ctx.stroke();
+                ctx.strokeStyle = 'rgba(15,23,42,0.15)';
+            });
+
+            // Bulloni angolari e di unione
+            ctx.fillStyle = '#334155';
+            for (let i = -520; i <= 520; i += 260) {
+                ctx.beginPath();
+                ctx.arc(toX(i), by + bh/2, 4, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        // --- DISEGNO: COLONNA ---
+        function drawColumn() {
+            const cx = toX(-GEO.column.width / 2);
+            const cy = toY(COLUMN_TOP_Y);
+            const cw = toS(GEO.column.width);
+            const ch = toS(GEO.column.height);
+
+            // Ombra
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(cx + 4, cy, cw, ch);
+
+            // Corpo colonna alluminio
+            const grad = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+            grad.addColorStop(0, '#475569');
+            grad.addColorStop(0.15, '#8494a7');
+            grad.addColorStop(0.3, '#94a3b8');
+            grad.addColorStop(0.5, '#e2e8f0');
+            grad.addColorStop(0.7, '#94a3b8');
+            grad.addColorStop(0.85, '#8494a7');
+            grad.addColorStop(1, '#475569');
+            ctx.fillStyle = grad;
+            ctx.fillRect(cx, cy, cw, ch);
+
+            // Scanalature verticali T-Slot
+            ctx.fillStyle = 'rgba(15,23,42,0.18)';
+            const numSlots = 3;
+            for (let i = 1; i <= numSlots; i++) {
+                const sx = cx + (cw / (numSlots + 1)) * i - toS(5); // scanalatura 10mm
+                ctx.fillRect(sx, cy, toS(10), ch);
+                // Riflesso interno scanalatura
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.fillRect(sx + toS(8), cy, toS(2), ch);
+                ctx.fillStyle = 'rgba(15,23,42,0.18)';
+            }
+
+            // Bordo scuro
+            ctx.strokeStyle = 'rgba(15,23,42,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cx, cy, cw, ch);
+        }
+
+        // --- DISEGNO: PROTRACTOR (GONiOMETRO SFONDO) ---
+        function drawProtractor() {
+            const cx = toX(0);
+            const cy = toY(ROT_CENTER_Y);
+            const r = toS(GEO.cradle.radius + 35); // poco esterno alla mezzaluna
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 4]);
+
+            // Arco scala
+            const startAng = 1.5 * Math.PI - (80 * Math.PI / 180);
+            const endAng = 1.5 * Math.PI + (80 * Math.PI / 180);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, startAng, endAng, false);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Ticks e Label ogni 10 gradi
+            for (let deg = -80; deg <= 80; deg += 10) {
+                // Nel canvas, 0 è a destra, pi/2 in basso, pi a sinistra, 1.5*pi in alto.
+                // 0 gradi meccanici è rivolto verso l'alto (1.5*pi).
+                // Rotazione in senso orario per gradi positivi: 1.5*pi + deg*rad
+                const rad = 1.5 * Math.PI + (deg * Math.PI / 180);
+                const isMajor = deg % 20 === 0;
+                const tickLen = isMajor ? toS(12) : toS(6);
+
+                const x1 = cx + (r - tickLen) * Math.cos(rad);
+                const y1 = cy + (r - tickLen) * Math.sin(rad);
+                const x2 = cx + r * Math.cos(rad);
+                const y2 = cy + r * Math.sin(rad);
+
+                ctx.strokeStyle = isMajor ? 'rgba(0, 242, 254, 0.3)' : 'rgba(148, 163, 184, 0.15)';
+                ctx.lineWidth = isMajor ? 1.5 : 0.8;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                if (isMajor) {
+                    ctx.font = '8px "JetBrains Mono", monospace';
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const lx = cx + (r + toS(12)) * Math.cos(rad);
+                    const ly = cy + (r + toS(12)) * Math.sin(rad);
+                    ctx.fillText(`${deg}°`, lx, ly);
+                }
+            }
+            ctx.restore();
+        }
+
+        // --- HELPERS CINGHIA (BELT PATH) ---
+        function drawBeltPath(rLocal) {
+            // Riferimenti in coordinate locali della tavola rotante
+            const leftCenterX = toS(-600);
+            const rightCenterX = toS(600);
+            const centerY = toS(-122.5); // asse banco rispetto a centro rotazione
+            const r = toS(rLocal);
+
+            ctx.beginPath();
+            // Arco sinistro (counter-clockwise per andare da sopra a sotto)
+            ctx.arc(leftCenterX, centerY, r, -Math.PI/2, Math.PI/2, true);
+            // Linea verso destra (lato inferiore)
+            ctx.lineTo(rightCenterX, centerY + r);
+            // Arco destro (counter-clockwise per andare da sotto a sopra)
+            ctx.arc(rightCenterX, centerY, r, Math.PI/2, -Math.PI/2, true);
+            // Chiude la cinghia sul lato superiore
+            ctx.closePath();
+        }
+
+        // --- DISEGNO: TELAIO E PEZZI ROTANTI (solidali) ---
+        function drawRotatingAssembly(angleDeg) {
+            const angleRad = angleDeg * Math.PI / 180;
+            const cx = toX(0);
+            const cy = toY(ROT_CENTER_Y);
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angleRad);
+
+            // ==========================================
+            // 1. Semicerchio (Cradle)
+            // ==========================================
+            // Taglio a 100mm dal centro verso l'alto (Y_local = -100)
+            // Raggio = 200mm.
+            // Angoli di intersezione con Y = -100: -Math.PI/6 (destra) e -5*Math.PI/6 (sinistra)
+            const cradleR = toS(GEO.cradle.radius);
+            
+            // Ombra semicerchio
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.arc(3, 3, cradleR, -Math.PI / 6, -5 * Math.PI / 6, false);
+            ctx.lineTo(toS(-173.2) + 3, toS(-100) + 3);
+            ctx.lineTo(toS(173.2) + 3, toS(-100) + 3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Gradiente mezzaluna (acciaio tornito)
+            const cradleGrad = ctx.createRadialGradient(-30, 30, 20, 0, 0, cradleR);
+            cradleGrad.addColorStop(0, '#e2e8f0');
+            cradleGrad.addColorStop(0.6, '#64748b');
+            cradleGrad.addColorStop(1, '#334155');
+            ctx.fillStyle = cradleGrad;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, cradleR, -Math.PI / 6, -5 * Math.PI / 6, false); // arco inferiore
+            ctx.lineTo(toS(-173.2), toS(-100)); // linea orizzontale superiore
+            ctx.lineTo(toS(173.2), toS(-100));
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Barra di simulazione asse rotativo ("una barra per simulare questo asse rotativo")
+            // Disegniamo una robusta barra d'acciaio che collega il centro di rotazione con la base del semicerchio
+            const barW = toS(36);
+            const barH = toS(185);
+            ctx.fillStyle = 'rgba(15,23,42,0.3)';
+            ctx.fillRect(-barW/2 + 2, 2, barW, barH); // ombra
+
+            const barGrad = ctx.createLinearGradient(-barW/2, 0, barW/2, 0);
+            barGrad.addColorStop(0, '#94a3b8');
+            barGrad.addColorStop(0.3, '#cbd5e1');
+            barGrad.addColorStop(0.7, '#94a3b8');
+            barGrad.addColorStop(1, '#475569');
+            ctx.fillStyle = barGrad;
+            ctx.fillRect(-barW/2, 0, barW, barH);
+            
+            // Dettagli bulloni sulla barra
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(0, toS(45), 4, 0, Math.PI*2);
+            ctx.arc(0, toS(135), 4, 0, Math.PI*2);
+            ctx.fill();
+
+            // Perno centrale (albero di rotazione)
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(0, 0, toS(22), 0, Math.PI*2);
+            ctx.fill();
+            const pivotGrad = ctx.createRadialGradient(-2, -2, 2, 0, 0, toS(22));
+            pivotGrad.addColorStop(0, '#cbd5e1');
+            pivotGrad.addColorStop(0.6, '#475569');
+            pivotGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = pivotGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, toS(20), 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // ==========================================
+            // 2. Banco (Bench)
+            // ==========================================
+            const bx = toS(-GEO.bench.length / 2); // -600
+            const by = toS(-145); // Y_local top del banco
+            const bw = toS(GEO.bench.length); // 1200
+            const bh = toS(GEO.bench.height); // 45
+
+            // Ombra banco
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(bx + 2, by + 2, bw, bh);
+
+            // Traverso Banco (alluminio)
+            const benchGrad = ctx.createLinearGradient(0, by, 0, by + bh);
+            benchGrad.addColorStop(0, '#94a3b8');
+            benchGrad.addColorStop(0.3, '#e2e8f0');
+            benchGrad.addColorStop(0.7, '#94a3b8');
+            benchGrad.addColorStop(1, '#475569');
+            ctx.fillStyle = benchGrad;
+            ctx.fillRect(bx, by, bw, bh);
+
+            ctx.strokeStyle = 'rgba(15,23,42,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            // Scanalatura T-slot longitudinale del banco
+            ctx.fillStyle = 'rgba(15,23,42,0.15)';
+            ctx.fillRect(bx + 4, by + bh * 0.4, bw - 8, bh * 0.2);
+
+            // ==========================================
+            // 3. Pulegge (Pulleys)
+            // ==========================================
+            const pulleyR = toS(GEO.pulley.radius);
+            [-600, 600].forEach(pxLocal => {
+                const pcx = toS(pxLocal);
+                const pcy = toS(-122.5); // centro verticale banco
+
+                // Ombra puleggia
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.beginPath();
+                ctx.arc(pcx + 2, pcy + 2, pulleyR, 0, Math.PI*2);
+                ctx.fill();
+
+                // Corpo puleggia (grigia scura con bordo argentato)
+                ctx.fillStyle = '#334155';
+                ctx.beginPath();
+                ctx.arc(pcx, pcy, pulleyR, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Raggi della puleggia
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.lineWidth = 1;
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(pcx, pcy);
+                    ctx.lineTo(pcx + pulleyR * Math.cos(a), pcy + pulleyR * Math.sin(a));
+                    ctx.stroke();
+                }
+
+                // Centro flangia
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(pcx, pcy, pulleyR * 0.3, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // ==========================================
+            // 4. Cinghia (Belt)
+            // ==========================================
+            // Cinghia bianca all'interno (spessore totale ~6px in canvas)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 5;
+            drawBeltPath(40);
+            ctx.stroke();
+
+            // Fascia rossa all'esterno (spessore ~2px)
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 1.8;
+            drawBeltPath(42.5);
+            ctx.stroke();
+
+            // ==========================================
+            // 4b. Pannello Legno Sopra Cinghia (Optional)
+            // ==========================================
+            if (woodPanelCheckbox.checked) {
+                const pW = toS(800);
+                const pH = toS(25);
+                const pX = toS(-400);
+                const pY = toS(-190.0); // appoggiato sopra la cinghia (cinghia a -165)
+
+                // Ombra
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                roundRect(pX + 2, pY + 2, pW, pH, 2);
+                ctx.fill();
+
+                // Legno chiaro
+                const woodGrad = ctx.createLinearGradient(pX, pY, pX + pW, pY);
+                woodGrad.addColorStop(0, '#e5c07b');
+                woodGrad.addColorStop(0.3, '#ebd09f');
+                woodGrad.addColorStop(0.7, '#e5c07b');
+                woodGrad.addColorStop(1, '#cca359');
+                ctx.fillStyle = woodGrad;
+                roundRect(pX, pY, pW, pH, 2);
+                ctx.fill();
+
+                // Venature
+                ctx.strokeStyle = 'rgba(139, 90, 43, 0.15)';
+                ctx.lineWidth = 1;
+                const numVeins = 3;
+                for (let i = 1; i <= numVeins; i++) {
+                    const vy = pY + (pH / (numVeins + 1)) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(pX + 4, vy);
+                    for (let currX = pX + 10; currX < pX + pW - 4; currX += 30) {
+                        const wobble = Math.sin(currX * 0.03) * 1.2;
+                        ctx.lineTo(currX, vy + wobble);
+                    }
+                    ctx.lineTo(pX + pW - 4, vy);
+                    ctx.stroke();
+                }
+
+                // Bordo profilato legno
+                ctx.strokeStyle = '#cda160';
+                ctx.lineWidth = 1;
+                roundRect(pX, pY, pW, pH, 2);
+                ctx.stroke();
+            }
+
+            // ==========================================
+            // 5. Profili di Estremità (Square Profiles)
+            // ==========================================
+            // Quadrati 45x45mm
+            // Lato superiore allineato alla parte superiore della cinghia (Y_local = -162.5)
+            // Lato esterno tangente alla curva della cinghia (X_local = ±642.5)
+            const sqSize = toS(GEO.endProfile.size);
+            const sqTop = toS(-162.5);
+
+            // Destra
+            const sqRightOuter = toS(642.5);
+            const sqRightLeft = sqRightOuter - sqSize;
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(sqRightLeft + 2, sqTop + 2, sqSize, sqSize); // ombra
+
+            const profileGradR = ctx.createLinearGradient(sqRightLeft, sqTop, sqRightLeft + sqSize, sqTop + sqSize);
+            profileGradR.addColorStop(0, '#cbd5e1');
+            profileGradR.addColorStop(0.5, '#94a3b8');
+            profileGradR.addColorStop(1, '#475569');
+            ctx.fillStyle = profileGradR;
+            ctx.fillRect(sqRightLeft, sqTop, sqSize, sqSize);
+            ctx.strokeStyle = 'rgba(15,23,42,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sqRightLeft, sqTop, sqSize, sqSize);
+
+            // Sinistra
+            const sqLeftOuter = toS(-642.5);
+            const sqLeftRight = sqLeftOuter + sqSize;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(sqLeftOuter + 2, sqTop + 2, sqSize, sqSize); // ombra
+
+            const profileGradL = ctx.createLinearGradient(sqLeftOuter, sqTop, sqLeftOuter + sqSize, sqTop + sqSize);
+            profileGradL.addColorStop(0, '#cbd5e1');
+            profileGradL.addColorStop(0.5, '#94a3b8');
+            profileGradL.addColorStop(1, '#475569');
+            ctx.fillStyle = profileGradL;
+            ctx.fillRect(sqLeftOuter, sqTop, sqSize, sqSize);
+            ctx.strokeStyle = 'rgba(15,23,42,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(sqLeftOuter, sqTop, sqSize, sqSize);
+
+            // ==========================================
+            // 6. Battute per Allineamento (Alignment Stops)
+            // ==========================================
+            // Rettangolo a fianco del profilo: largo 10mm, sporge in alto di 30mm rispetto al quadrato.
+            // Va dal fondo del quadrato (Y_local = -117.5) fino a 30mm sopra il quadrato (Y_local = -192.5).
+            // Totale altezza: 75mm. Larghezza: 10mm.
+            // Posizionati adiacenti sul lato esterno.
+            const stopW = toS(GEO.stop.width);
+            const stopH = toS(GEO.stop.height);
+            const stopTop = toS(-192.5);
+
+            // Stop Destro (adiacente al lato destro del profilo destro: da X = 642.5 a 652.5)
+            const stopRightX = sqRightOuter;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(stopRightX + 2, stopTop + 2, stopW, stopH); // ombra
+
+            const stopGradR = ctx.createLinearGradient(stopRightX, stopTop, stopRightX + stopW, stopTop + stopH);
+            stopGradR.addColorStop(0, '#1e293b');
+            stopGradR.addColorStop(0.4, '#3b4b60');
+            stopGradR.addColorStop(0.8, '#1e293b');
+            ctx.fillStyle = stopGradR;
+            ctx.fillRect(stopRightX, stopTop, stopW, stopH);
+            ctx.strokeStyle = '#ef4444'; // battuta colorata di rosso/arancio lucido sul bordo interno
+            ctx.lineWidth = 1;
+            ctx.strokeRect(stopRightX, stopTop, stopW, stopH);
+
+            // Stop Sinistro (adiacente al lato sinistro del profilo sinistro: da X = -652.5 a -642.5)
+            const stopLeftX = sqLeftOuter - stopW;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(stopLeftX + 2, stopTop + 2, stopW, stopH); // ombra
+
+            const stopGradL = ctx.createLinearGradient(stopLeftX, stopTop, stopLeftX + stopW, stopTop + stopH);
+            stopGradL.addColorStop(0, '#1e293b');
+            stopGradL.addColorStop(0.4, '#3b4b60');
+            stopGradL.addColorStop(0.8, '#1e293b');
+            ctx.fillStyle = stopGradL;
+            ctx.fillRect(stopLeftX, stopTop, stopW, stopH);
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(stopLeftX, stopTop, stopW, stopH);
+
+            ctx.restore();
+        }
+
+        // --- DISEGNO: DETTAGLI DI ROTAZIONE / ASSI ---
+        function drawOverlayInfo(angleDeg) {
+            const cx = toX(0);
+            const cy = toY(ROT_CENTER_Y);
+
+            // Disegna asse di riferimento verticale fisso (tratteggiato)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(249, 115, 22, 0.12)';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - toS(250));
+            ctx.lineTo(cx, cy + toS(210));
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ============================================================
+        //  RENDER PRINCIPALE
+        // ============================================================
+        function render(angleDeg) {
+            ctx.clearRect(0, 0, W, H);
+
+            // 1. Griglia di sfondo
+            drawGrid();
+
+            // 2. Goniometro/Scala angolare fisso
+            drawProtractor();
+
+            // 3. Binario fisso in basso
+            drawRail();
+
+            // 4. Ruote del carrello fisso
+            drawWheels();
+
+            // 5. Traverso di base in alluminio fisso
+            drawBaseBeam();
+
+            // 6. Colonna centrale fissa
+            drawColumn();
+
+            // 7. Gruppo rotante (semicerchio, banco, pulegge, cinghia, profili e battute)
+            drawRotatingAssembly(angleDeg);
+
+            // 8. Assi di riferimento (senza le quote visive centrali vecchie)
+            drawOverlayInfo(angleDeg);
+        }
+
+        // --- GESTIONE DEGLI EVENTI ---
+        const rotazioneSlider = document.getElementById('rotazione-slider');
+        const rotazioneSliderBadge = document.getElementById('rotazione-slider-badge');
+        const encoderReadoutRotazione = document.getElementById('encoder-readout-rotazione');
+        const woodPanelCheckbox = document.getElementById('wood-panel-checkbox');
+
+        function updateFromSlider() {
+            const val = parseFloat(rotazioneSlider.value);
+            
+            // Aggiorna indicatori testuali nell'interfaccia
+            const formattedVal = `${val > 0 ? '+' : ''}${val.toFixed(2)}`;
+            encoderReadoutRotazione.innerHTML = `${formattedVal}<span class="encoder-unit">°</span>`;
+            rotazioneSliderBadge.textContent = `${formattedVal}°`;
+            
+            // Esegui il ridisegno del canvas
+            render(val);
+        }
+
+        rotazioneSlider.addEventListener('input', updateFromSlider);
+        woodPanelCheckbox.addEventListener('change', updateFromSlider);
+
+        // Render Iniziale a 0 gradi
+        updateFromSlider();
+    </script>
+</body>
+</html>

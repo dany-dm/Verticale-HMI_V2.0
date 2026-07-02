@@ -1736,3 +1736,131 @@ input[type="number"] {
     user-select: text !important;
 }
 
+/* Stili Coda Commesse */
+.job-card-wrapper {
+    position: relative;
+    z-index: 1;
+}
+.job-card-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+}
+.job-card {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    position: relative;
+}
+.job-card-wrapper:hover .job-card {
+    transform: translateY(-8px);
+    z-index: 100;
+    animation: flashHover 1s infinite ease-in-out;
+}
+.step-dot {
+    transition: all 0.2s ease;
+}
+.step-dot:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+}
+.coda-commesse-list::-webkit-scrollbar {
+    width: 6px;
+}
+.coda-commesse-list::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.2);
+    border-radius: 4px;
+}
+.coda-commesse-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 242, 254, 0.3);
+    border-radius: 4px;
+}
+.coda-commesse-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 242, 254, 0.5);
+}
+
+@keyframes flashHover {
+    0% {
+        box-shadow: 0 0 5px rgba(0, 242, 254, 0.4);
+        border-color: rgba(0, 242, 254, 0.5) !important;
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.8);
+        border-color: rgba(0, 242, 254, 1) !important;
+        filter: brightness(1.15);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(0, 242, 254, 0.4);
+        border-color: rgba(0, 242, 254, 0.5) !important;
+        filter: brightness(1);
+    }
+}
+
+/* Stili Finestra Dialogo Modale Commesse */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+.modal-card {
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    width: 500px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+.modal-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-close:hover {
+    color: var(--accent-red) !important;
+}
+.modal-form-grid input:focus {
+    outline: none;
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.3);
+}
+.modal-footer button {
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.modal-footer button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+}
+.modal-footer button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+

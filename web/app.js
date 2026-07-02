@@ -27,6 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Config form submit
     document.getElementById("form-config")?.addEventListener("submit", salvaConfigurazione);
 
+    // Gestione visualizzazione dinamica pannello legno carrello
+    document.getElementById("carr-wood-panel-checkbox")?.addEventListener("change", () => {
+        const rotVal = (currentStates.Carrello && currentStates.Carrello.Rotazione_Encoder) || 0;
+        renderCarrelloRotazione(rotVal);
+    });
+
     // Avvia polling periodico per la console log (ogni 2 secondi)
     setInterval(caricaLogConsole, 2000);
 });
@@ -203,6 +209,8 @@ function aggiornaInterfaccia() {
     aggiornaSchedaCarrello();
     aggiornaSchedaCaricatore();
     aggiornaSchedaRulliere();
+    aggiornaSchedaCommesse();
+    aggiornaCodaCommesse();
     aggiornaSinottico2D();
     aggiornaSinottico3D();
 }
@@ -565,6 +573,54 @@ function aggiornaSchedaNavette() {
     }
 }
 
+function aggiornaDatiCommessaMacchina(idPrefisso, statoMacchina, statoRulliere) {
+    const idxLavoro = statoMacchina.IndexTabellaLavoro || 0;
+    const inLavoro = (statoMacchina.Stato_Picked ? true : false) && idxLavoro >= 1 && idxLavoro <= 6;
+    
+    const noJobEl = document.getElementById(`${idPrefisso}-comm-no-job`);
+    const detailsEl = document.getElementById(`${idPrefisso}-comm-details`);
+    
+    if (noJobEl && detailsEl) {
+        if (inLavoro) {
+            noJobEl.style.display = "none";
+            detailsEl.style.display = "flex";
+            
+            const idPad = idxLavoro.toString().padStart(2, '0');
+            
+            const valID = document.getElementById(`${idPrefisso}-comm-val-ID`);
+            const valDim = document.getElementById(`${idPrefisso}-comm-val-Dimensioni`);
+            const valFrom = document.getElementById(`${idPrefisso}-comm-val-From`);
+            const valTo = document.getElementById(`${idPrefisso}-comm-val-To`);
+            
+            if (valID) valID.innerText = statoRulliere[`Tabella${idPad}_ID`] !== undefined ? statoRulliere[`Tabella${idPad}_ID`] : "-";
+            
+            if (valDim) {
+                const len = statoRulliere[`Tabella${idPad}_Lunghezza`] !== undefined ? statoRulliere[`Tabella${idPad}_Lunghezza`] : "-";
+                const wid = statoRulliere[`Tabella${idPad}_Larghezza`] !== undefined ? statoRulliere[`Tabella${idPad}_Larghezza`] : "-";
+                const thk = statoRulliere[`Tabella${idPad}_Spessore`] !== undefined ? statoRulliere[`Tabella${idPad}_Spessore`] : "-";
+                valDim.innerText = `${len} x ${wid} x ${thk} mm`;
+            }
+            
+            if (valFrom) {
+                const fx = statoRulliere[`Tabella${idPad}_From_X`] !== undefined ? statoRulliere[`Tabella${idPad}_From_X`] : "-";
+                const fy = statoRulliere[`Tabella${idPad}_From_Y`] !== undefined ? statoRulliere[`Tabella${idPad}_From_Y`] : "-";
+                const fz = statoRulliere[`Tabella${idPad}_From_Z`] !== undefined ? statoRulliere[`Tabella${idPad}_From_Z`] : "-";
+                valFrom.innerText = `${fx} / ${fy} / ${fz} mm`;
+            }
+            
+            if (valTo) {
+                const tx = statoRulliere[`Tabella${idPad}_To_X`] !== undefined ? statoRulliere[`Tabella${idPad}_To_X`] : "-";
+                const ty = statoRulliere[`Tabella${idPad}_To_Y`] !== undefined ? statoRulliere[`Tabella${idPad}_To_Y`] : "-";
+                const tz = statoRulliere[`Tabella${idPad}_ToZ`] !== undefined ? statoRulliere[`Tabella${idPad}_ToZ`] : "-";
+                valTo.innerText = `${tx} / ${ty} / ${tz} mm`;
+            }
+        } else {
+            noJobEl.style.display = "flex";
+            detailsEl.style.display = "none";
+        }
+    }
+}
+
 // 3. Scheda Carrello
 function aggiornaSchedaCarrello() {
     const nomeMacchina = "Carrello";
@@ -641,6 +697,7 @@ function aggiornaSchedaCarrello() {
     const rotVal = stato.Rotazione_Encoder || 0;
     document.getElementById("carr-val-Y_Encoder").innerText = `${yVal} mm`;
     document.getElementById("carr-val-Rotazione_Encoder").innerText = `${rotVal.toFixed(1)}°`;
+    renderCarrelloRotazione(rotVal);
     
     // Aggiorna gli input non editabili negli azzeramenti
     const carrYh = document.getElementById("carr-val-Y_Encoder-h");
@@ -699,7 +756,10 @@ function aggiornaSchedaCarrello() {
             marker.innerText = `N${i}`;
             markersContainer.appendChild(marker);
         }
-    }
+     }
+     
+     // Aggiorna Dati Commessa
+     aggiornaDatiCommessaMacchina("carr", stato, currentStates.Rulliere || {});
 }
 
 // 4. Scheda Caricatore
@@ -807,6 +867,9 @@ function aggiornaSchedaCaricatore() {
     if (needle) {
         needle.setAttribute("transform", `rotate(${rotVal} 50 50)`);
     }
+    
+    // Aggiorna Dati Commessa
+    aggiornaDatiCommessaMacchina("car", stato, currentStates.Rulliere || {});
 }
 
 // 5. Scheda Rulliere
@@ -885,9 +948,13 @@ function aggiornaSchedaRulliere() {
     const r1Light = document.getElementById("light-r1");
     const r2Light = document.getElementById("light-r2");
     
+    const hasR2Panel = (stato.Stato_R2Vuota === false || stato.Stato_R2Vuota === 0);
     updateBeltLight(biesseLight, stato.Stato_PannelloSuBiesse, "Pannello Su Biesse");
     updateBeltLight(r1Light, stato.Stato_PannelloSuR1, "Pannello Su R1");
-    updateBeltLight(r2Light, stato.Stato_PannelloSuR2, "Pannello Su R2");
+    updateBeltLight(r2Light, hasR2Panel, "Pannello Su R2");
+    
+    // Aggiorna Dati Commessa
+    aggiornaDatiCommessaMacchina("rul", stato, stato);
 }
 
 function updateBeltLight(el, active, text) {
@@ -899,6 +966,577 @@ function updateBeltLight(el, active, text) {
         el.innerText = "LIBERO";
         el.className = "belt-status-light";
     }
+}
+
+function getOrderedJobIndices(firstValue) {
+    let start = parseInt(firstValue) || 1;
+    if (start < 1 || start > 6) start = 1;
+    let indices = [];
+    for (let i = 0; i < 6; i++) {
+        let idx = ((start - 1 + i) % 6) + 1;
+        indices.push(idx);
+    }
+    return indices;
+}
+
+function getMachineStepHTML(label, isWorking, isDone) {
+    let bg = "rgba(71, 85, 105, 0.4)"; // idle - Slate gray
+    let fg = "var(--text-muted)";
+    let border = "rgba(255,255,255,0.05)";
+    let title = "In attesa";
+
+    if (isDone) {
+        bg = "rgba(16, 185, 129, 0.2)"; // Done - Green
+        fg = "var(--accent-green)";
+        border = "var(--accent-green)";
+        title = "Completato";
+    } else if (isWorking) {
+        bg = "rgba(59, 130, 246, 0.2)"; // Working - Blue
+        fg = "var(--accent-blue)";
+        border = "var(--accent-blue)";
+        title = "In corso";
+    }
+
+    return `<span class="step-dot" title="${label}: ${title}" style="display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: ${bg}; color: ${fg}; border: 1px solid ${border}; cursor: default; min-width: 20px; text-align: center;">${label}</span>`;
+}
+
+let isEditingCommessa = false;
+let selectedCommessaSlot = null;
+let tempCommessaData = {};
+
+function getJobColoring(isNew, workingFlags, doneFlags) {
+    if (!isNew) {
+        return {
+            bg: "rgba(71, 85, 105, 0.15)", // Grigio
+            border: "rgba(255, 255, 255, 0.05)",
+            borderColor: "rgba(148, 163, 184, 0.3)"
+        };
+    }
+    
+    // Controlla se c'è almeno un flag working attivo senza il relativo done
+    let isWorking = false;
+    for (let i = 0; i < workingFlags.length; i++) {
+        if (workingFlags[i] && !doneFlags[i]) {
+            isWorking = true;
+            break;
+        }
+    }
+    
+    if (isWorking) {
+        return {
+            bg: "rgba(16, 185, 129, 0.12)", // Verde
+            border: "1px solid rgba(16, 185, 129, 0.4)",
+            borderColor: "#10b981"
+        };
+    } else {
+        return {
+            bg: "rgba(59, 130, 246, 0.12)", // Blu
+            border: "1px solid rgba(59, 130, 246, 0.4)",
+            borderColor: "#3b82f6"
+        };
+    }
+}
+
+function aggiornaSchedaCommesse() {
+    const nomeMacchina = "Rulliere";
+    const stato = currentStates[nomeMacchina] || {};
+    const comunicazione_ok = stato.__comunicazione_ok__;
+
+    const overlay = document.getElementById("commesse-offline-overlay");
+    if (comunicazione_ok) {
+        overlay?.classList.remove("active");
+    } else {
+        overlay?.classList.add("active");
+        const tbody = document.getElementById("jobs-table-body");
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="color: var(--text-muted); padding: 30px;">HMI Offline - Nessuna comunicazione con il PLC.</td>
+                </tr>
+            `;
+        }
+        return;
+    }
+
+    const firstVal = stato.First || 1;
+    const firstInfoEl = document.getElementById("commesse-first-info");
+    if (firstInfoEl) firstInfoEl.innerText = `First (Indice partenza): Tabella0${firstVal}`;
+
+    // Aggiorna i campi del popup in tempo reale se è aperto ma NON in modalità modifica
+    if (selectedCommessaSlot !== null && !isEditingCommessa) {
+        const modalEl = document.getElementById("commessa-modal");
+        if (modalEl && modalEl.style.display === "flex") {
+            const idPad = selectedCommessaSlot.toString().padStart(2, '0');
+            
+            document.getElementById("mod-job-id").value = stato[`Tabella${idPad}_ID`] || 0;
+            document.getElementById("mod-job-len").value = stato[`Tabella${idPad}_Lunghezza`] || 0;
+            document.getElementById("mod-job-wid").value = stato[`Tabella${idPad}_Larghezza`] || 0;
+            document.getElementById("mod-job-thk").value = stato[`Tabella${idPad}_Spessore`] || 0;
+            document.getElementById("mod-job-from-x").value = stato[`Tabella${idPad}_From_X`] || 0;
+            document.getElementById("mod-job-from-y").value = stato[`Tabella${idPad}_From_Y`] || 0;
+            document.getElementById("mod-job-from-z").value = stato[`Tabella${idPad}_From_Z`] || 0;
+            document.getElementById("mod-job-to-x").value = stato[`Tabella${idPad}_To_X`] || 0;
+            document.getElementById("mod-job-to-y").value = stato[`Tabella${idPad}_To_Y`] || 0;
+            document.getElementById("mod-job-to-z").value = stato[`Tabella${idPad}_ToZ`] || 0;
+            document.getElementById("mod-job-new").checked = !!stato[`Tabella${idPad}_NewDatas`];
+            
+            // Checkbox degli stati macchina
+            document.getElementById("mod-job-work-sp").checked = !!stato[`Tabella${idPad}_WorkingStampante`];
+            document.getElementById("mod-job-done-sp").checked = !!stato[`Tabella${idPad}_DoneStampante`];
+            document.getElementById("mod-job-work-r1").checked = !!stato[`Tabella${idPad}_WorkingR1`];
+            document.getElementById("mod-job-done-r1").checked = !!stato[`Tabella${idPad}_DoneR1`];
+            document.getElementById("mod-job-work-r2").checked = !!stato[`Tabella${idPad}_WorkingR2`];
+            document.getElementById("mod-job-done-r2").checked = !!stato[`Tabella${idPad}_DoneR2`];
+            document.getElementById("mod-job-work-n1").checked = !!stato[`Tabella${idPad}_Working_Navette`];
+            document.getElementById("mod-job-done-n1").checked = !!stato[`Tabella${idPad}_Done_Navette`];
+            document.getElementById("mod-job-work-n2").checked = !!stato[`Tabella${idPad}_Working_Navetta_2`];
+            document.getElementById("mod-job-done-n2").checked = !!stato[`Tabella${idPad}_Done_Navetta_2`];
+            document.getElementById("mod-job-work-cr").checked = !!stato[`Tabella${idPad}_Working_Carrello`];
+            document.getElementById("mod-job-done-cr").checked = !!stato[`Tabella${idPad}_Done_Carrello`];
+
+            // Ricalcola le macchine coinvolte in tempo reale
+            let involved = [];
+            if (stato[`Tabella${idPad}_WorkingR1`] || stato[`Tabella${idPad}_DoneR1`]) involved.push("Rulliera 1 (R1)");
+            if (stato[`Tabella${idPad}_WorkingR2`] || stato[`Tabella${idPad}_DoneR2`]) involved.push("Rulliera 2 (R2)");
+            if (stato[`Tabella${idPad}_Working_Navette`] || stato[`Tabella${idPad}_Done_Navette`]) involved.push("Navetta 1 (N1)");
+            if (stato[`Tabella${idPad}_Working_Navetta_2`] || stato[`Tabella${idPad}_Done_Navetta_2`]) involved.push("Navetta 2 (N2)");
+            if (stato[`Tabella${idPad}_Working_Carrello`] || stato[`Tabella${idPad}_Done_Carrello`]) involved.push("Carrello (CR)");
+            if (stato[`Tabella${idPad}_WorkingStampante`] || stato[`Tabella${idPad}_DoneStampante`]) involved.push("Stampante (SP)");
+            document.getElementById("modal-macchine-list").innerText = involved.length > 0 ? involved.join(", ") : "Nessuna (in attesa)";
+        }
+    }
+
+    const orderedIndices = getOrderedJobIndices(firstVal);
+    const tbody = document.getElementById("jobs-table-body");
+    if (!tbody) return;
+
+    let html = "";
+    orderedIndices.forEach(idx => {
+        const idPad = idx.toString().padStart(2, '0');
+        const jobId = stato[`Tabella${idPad}_ID`];
+        
+        if (jobId === undefined) return;
+        
+        if (!jobId || jobId === 0) {
+            html += `
+                <tr style="opacity: 0.5; cursor: pointer;" onclick="openCommessaModal(${idx})">
+                    <td><strong>#${idx}</strong></td>
+                    <td colspan="6" style="color: var(--text-muted); text-align: center; font-style: italic;">[ Slot vuoto - Clicca per caricare ]</td>
+                </tr>
+            `;
+            return;
+        }
+
+        const len = stato[`Tabella${idPad}_Lunghezza`] || 0;
+        const wid = stato[`Tabella${idPad}_Larghezza`] || 0;
+        const thk = stato[`Tabella${idPad}_Spessore`] || 0;
+        const fromX = stato[`Tabella${idPad}_From_X`] || 0;
+        const fromY = stato[`Tabella${idPad}_From_Y`] || 0;
+        const fromZ = stato[`Tabella${idPad}_From_Z`] || 0;
+        const toX = stato[`Tabella${idPad}_To_X`] || 0;
+        const toY = stato[`Tabella${idPad}_To_Y`] || 0;
+        const toZ = stato[`Tabella${idPad}_ToZ`] || 0;
+        
+        const isNew = !!stato[`Tabella${idPad}_NewDatas`];
+        
+        // Machine bits directly read as booleans
+        const workR1 = !!stato[`Tabella${idPad}_WorkingR1`];
+        const doneR1 = !!stato[`Tabella${idPad}_DoneR1`];
+        const workR2 = !!stato[`Tabella${idPad}_WorkingR2`];
+        const doneR2 = !!stato[`Tabella${idPad}_DoneR2`];
+        const workNav1 = !!stato[`Tabella${idPad}_Working_Navette`];
+        const doneNav1 = !!stato[`Tabella${idPad}_Done_Navette`];
+        const workNav2 = !!stato[`Tabella${idPad}_Working_Navetta_2`];
+        const doneNav2 = !!stato[`Tabella${idPad}_Done_Navetta_2`];
+        const workCarr = !!stato[`Tabella${idPad}_Working_Carrello`];
+        const doneCarr = !!stato[`Tabella${idPad}_Done_Carrello`];
+        const workPrint = !!stato[`Tabella${idPad}_WorkingStampante`];
+        const donePrint = !!stato[`Tabella${idPad}_DoneStampante`];
+
+        const steps = [
+            getMachineStepHTML("Rulliera1", workR1, doneR1),
+            getMachineStepHTML("Rulliera2", workR2, doneR2),
+            getMachineStepHTML("Navetta Ciclo 1", workNav1, doneNav1),
+            getMachineStepHTML("Navetta Ciclo 2", workNav2, doneNav2),
+            getMachineStepHTML("Carrello", workCarr, doneCarr),
+            getMachineStepHTML("Stampante", workPrint, donePrint)
+        ].join(" ");
+
+        // Checkbox status logic (eseguito / in lavorazione)
+        const statusCol = isNew 
+            ? `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-orange); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-orange); background: rgba(245, 158, 11, 0.1); border-radius: 3px; font-size: 10px; font-weight: 900;"></span> in lavorazione</div>` 
+            : `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-green); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-green); background: rgba(16, 185, 129, 0.1); border-radius: 3px; color: var(--accent-green); font-size: 10px; font-weight: 900;">✓</span> eseguito</div>`;
+
+        // Background coloring based on execution flags
+        const workingFlags = [workR1, workR2, workNav1, workNav2, workCarr, workPrint];
+        const doneFlags = [doneR1, doneR2, doneNav1, doneNav2, doneCarr, donePrint];
+        const coloring = getJobColoring(isNew, workingFlags, doneFlags);
+
+        // Highlight if this is the active First job
+        const isFirst = (idx === firstVal);
+        const firstIndicator = isFirst ? "border-left: 5px solid var(--accent-cyan);" : `border-left: 5px solid ${coloring.borderColor};`;
+        const rowStyle = `background-color: ${coloring.bg}; ${firstIndicator} cursor: pointer; transition: background-color 0.2s;`;
+
+        html += `
+            <tr style="${rowStyle}" onclick="openCommessaModal(${idx})">
+                <td><strong>#${idx} ${isFirst ? '🔥' : ''}</strong></td>
+                <td><span style="font-weight: 700; color: #fff;">${jobId}</span></td>
+                <td>${len} x ${wid} x ${thk}</td>
+                <td><strong style="color: var(--accent-cyan);">${fromX}</strong>, ${fromY}, ${fromZ}</td>
+                <td><strong style="color: var(--accent-orange);">${toX}</strong>, ${toY}, ${toZ}</td>
+                <td>${statusCol}</td>
+                <td>
+                    <div style="display: flex; gap: 4px; justify-content: center;">
+                        ${steps}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+function aggiornaCodaCommesse() {
+    const nomeMacchina = "Rulliere";
+    const stato = currentStates[nomeMacchina] || {};
+    const comunicazione_ok = stato.__comunicazione_ok__;
+
+    const listEl = document.getElementById("coda-commesse-list");
+    const firstIndexEl = document.getElementById("coda-first-index");
+    if (!listEl) return;
+
+    if (!comunicazione_ok) {
+        if (firstIndexEl) firstIndexEl.innerText = "First: -";
+        listEl.innerHTML = `
+            <div style="color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px;">
+                HMI Offline
+            </div>
+        `;
+        return;
+    }
+
+    const firstVal = stato.First || 1;
+    if (firstIndexEl) firstIndexEl.innerText = `First: Slot #${firstVal}`;
+
+    const orderedIndices = getOrderedJobIndices(firstVal);
+    let html = "";
+    let activeJobsCount = 0;
+
+    orderedIndices.forEach(idx => {
+        const idPad = idx.toString().padStart(2, '0');
+        const jobId = stato[`Tabella${idPad}_ID`];
+        
+        if (!jobId || jobId === 0) return; // Skip empty slots in queue view
+        
+        activeJobsCount++;
+        
+        const len = stato[`Tabella${idPad}_Lunghezza`] || 0;
+        const wid = stato[`Tabella${idPad}_Larghezza`] || 0;
+        const thk = stato[`Tabella${idPad}_Spessore`] || 0;
+        const fromX = stato[`Tabella${idPad}_From_X`] || 0;
+        const fromY = stato[`Tabella${idPad}_From_Y`] || 0;
+        const fromZ = stato[`Tabella${idPad}_From_Z`] || 0;
+        const toX = stato[`Tabella${idPad}_To_X`] || 0;
+        const toY = stato[`Tabella${idPad}_To_Y`] || 0;
+        const toZ = stato[`Tabella${idPad}_ToZ`] || 0;
+        
+        const isNew = !!stato[`Tabella${idPad}_NewDatas`];
+        
+        // Machine bits
+        const workR1 = !!stato[`Tabella${idPad}_WorkingR1`];
+        const doneR1 = !!stato[`Tabella${idPad}_DoneR1`];
+        const workR2 = !!stato[`Tabella${idPad}_WorkingR2`];
+        const doneR2 = !!stato[`Tabella${idPad}_DoneR2`];
+        const workNav1 = !!stato[`Tabella${idPad}_Working_Navette`];
+        const doneNav1 = !!stato[`Tabella${idPad}_Done_Navette`];
+        const workNav2 = !!stato[`Tabella${idPad}_Working_Navetta_2`];
+        const doneNav2 = !!stato[`Tabella${idPad}_Done_Navetta_2`];
+        const workCarr = !!stato[`Tabella${idPad}_Working_Carrello`];
+        const doneCarr = !!stato[`Tabella${idPad}_Done_Carrello`];
+        const workPrint = !!stato[`Tabella${idPad}_WorkingStampante`];
+        const donePrint = !!stato[`Tabella${idPad}_DoneStampante`];
+
+        // Background coloring based on execution flags
+        const workingFlags = [workR1, workR2, workNav1, workNav2, workCarr, workPrint];
+        const doneFlags = [doneR1, doneR2, doneNav1, doneNav2, doneCarr, donePrint];
+        const coloring = getJobColoring(isNew, workingFlags, doneFlags);
+
+        const stepBadges = [
+            getMachineStepHTML("Rulliera1", workR1, doneR1),
+            getMachineStepHTML("Rulliera2", workR2, doneR2),
+            getMachineStepHTML("Navetta Ciclo 1", workNav1, doneNav1),
+            getMachineStepHTML("Navetta Ciclo 2", workNav2, doneNav2),
+            getMachineStepHTML("Carrello", workCarr, doneCarr)
+        ].join(" ");
+
+        const isFirst = (idx === firstVal);
+        const firstBorder = isFirst ? "border-left: 5px solid var(--accent-cyan) !important;" : `border-left: 5px solid ${coloring.borderColor} !important;`;
+        const cardStyle = `background: ${coloring.bg}; border: ${coloring.border}; ${firstBorder} cursor: pointer; margin-bottom: 2px;`;
+
+        html += `
+            <div class="job-card-wrapper" style="margin-bottom: 4px;">
+                <div class="job-card" onclick="openCommessaModal(${idx})" style="border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; ${cardStyle}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; line-height: 1.2;">
+                        <span style="font-weight: 700; color: #fff; font-size: 11px;">Slot: #${idx} ${isFirst ? '👉 ' : ''}ID: ${jobId} (${len}x${wid}x${thk})</span>
+                        <span style="font-size: 9px; font-weight: 600; color: ${isNew ? 'var(--accent-orange)' : 'var(--accent-green)'};">${isNew ? 'IN CORSO' : 'ESEGUITA'}</span>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.2;">
+                        From: X:${fromX}, Y:${fromY}, Z:${fromZ}
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; line-height: 1.2;">
+                        <span>To: X:${toX}, Y:${toY}, Z:${toZ}</span>
+                        <div style="display: flex; gap: 2px;">
+                            ${stepBadges}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    if (activeJobsCount === 0) {
+        listEl.innerHTML = `
+            <div style="color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px;">
+                Nessuna commessa attiva in coda
+            </div>
+        `;
+    } else {
+        listEl.innerHTML = html;
+    }
+}
+
+// --- POPUP DI MODIFICA COMMESSA ---
+function openCommessaModal(idx) {
+    selectedCommessaSlot = idx;
+    isEditingCommessa = false; // default view mode
+    
+    // Controlla se tutte le macchine sono in manuale
+    const rullAuto = !!currentStates.Rulliere?.Stato_Automatico;
+    const carrAuto = !!currentStates.Carrello?.Stato_Automatico;
+    const caricAuto = !!currentStates.Caricatore?.Stato_Automatico;
+    
+    let anyNavAuto = false;
+    for (let i = 1; i <= 4; i++) {
+        if (currentStates[`Navetta_${i}`]?.Stato_Automatico) {
+            anyNavAuto = true;
+        }
+    }
+    
+    const allManual = !rullAuto && !carrAuto && !caricAuto && !anyNavAuto;
+    
+    // Riempi dati commessa
+    const idPad = idx.toString().padStart(2, '0');
+    const rulState = currentStates.Rulliere || {};
+    
+    document.getElementById("modal-title").innerText = `Dettagli Commessa Slot #${idPad}`;
+    document.getElementById("modal-warning-box").style.display = allManual ? "none" : "block";
+    document.getElementById("btn-modal-edit").disabled = !allManual;
+    
+    // Riempi i campi
+    document.getElementById("mod-job-id").value = rulState[`Tabella${idPad}_ID`] || 0;
+    document.getElementById("mod-job-len").value = rulState[`Tabella${idPad}_Lunghezza`] || 0;
+    document.getElementById("mod-job-wid").value = rulState[`Tabella${idPad}_Larghezza`] || 0;
+    document.getElementById("mod-job-thk").value = rulState[`Tabella${idPad}_Spessore`] || 0;
+    document.getElementById("mod-job-from-x").value = rulState[`Tabella${idPad}_From_X`] || 0;
+    document.getElementById("mod-job-from-y").value = rulState[`Tabella${idPad}_From_Y`] || 0;
+    document.getElementById("mod-job-from-z").value = rulState[`Tabella${idPad}_From_Z`] || 0;
+    document.getElementById("mod-job-to-x").value = rulState[`Tabella${idPad}_To_X`] || 0;
+    document.getElementById("mod-job-to-y").value = rulState[`Tabella${idPad}_To_Y`] || 0;
+    document.getElementById("mod-job-to-z").value = rulState[`Tabella${idPad}_ToZ`] || 0;
+    document.getElementById("mod-job-new").checked = !!rulState[`Tabella${idPad}_NewDatas`];
+    
+    // Checkbox degli stati macchina
+    document.getElementById("mod-job-work-sp").checked = !!rulState[`Tabella${idPad}_WorkingStampante`];
+    document.getElementById("mod-job-done-sp").checked = !!rulState[`Tabella${idPad}_DoneStampante`];
+    document.getElementById("mod-job-work-r1").checked = !!rulState[`Tabella${idPad}_WorkingR1`];
+    document.getElementById("mod-job-done-r1").checked = !!rulState[`Tabella${idPad}_DoneR1`];
+    document.getElementById("mod-job-work-r2").checked = !!rulState[`Tabella${idPad}_WorkingR2`];
+    document.getElementById("mod-job-done-r2").checked = !!rulState[`Tabella${idPad}_DoneR2`];
+    document.getElementById("mod-job-work-n1").checked = !!rulState[`Tabella${idPad}_Working_Navette`];
+    document.getElementById("mod-job-done-n1").checked = !!rulState[`Tabella${idPad}_Done_Navette`];
+    document.getElementById("mod-job-work-n2").checked = !!rulState[`Tabella${idPad}_Working_Navetta_2`];
+    document.getElementById("mod-job-done-n2").checked = !!rulState[`Tabella${idPad}_Done_Navetta_2`];
+    document.getElementById("mod-job-work-cr").checked = !!rulState[`Tabella${idPad}_Working_Carrello`];
+    document.getElementById("mod-job-done-cr").checked = !!rulState[`Tabella${idPad}_Done_Carrello`];
+    
+    // Macchine coinvolte
+    let involved = [];
+    if (rulState[`Tabella${idPad}_WorkingR1`] || rulState[`Tabella${idPad}_DoneR1`]) involved.push("Rulliera1");
+    if (rulState[`Tabella${idPad}_WorkingR2`] || rulState[`Tabella${idPad}_DoneR2`]) involved.push("Rulliera2");
+    if (rulState[`Tabella${idPad}_Working_Navette`] || rulState[`Tabella${idPad}_Done_Navette`]) involved.push("Navetta Ciclo 1");
+    if (rulState[`Tabella${idPad}_Working_Navetta_2`] || rulState[`Tabella${idPad}_Done_Navetta_2`]) involved.push("Navetta Ciclo 2");
+    if (rulState[`Tabella${idPad}_Working_Carrello`] || rulState[`Tabella${idPad}_Done_Carrello`]) involved.push("Carrello");
+    if (rulState[`Tabella${idPad}_WorkingStampante`] || rulState[`Tabella${idPad}_DoneStampante`]) involved.push("Stampante");
+    document.getElementById("modal-macchine-list").innerText = involved.length > 0 ? involved.join(", ") : "Nessuna (in attesa)";
+    
+    // Salva per il ripristino
+    tempCommessaData = {
+        id: rulState[`Tabella${idPad}_ID`] || 0,
+        len: rulState[`Tabella${idPad}_Lunghezza`] || 0,
+        wid: rulState[`Tabella${idPad}_Larghezza`] || 0,
+        thk: rulState[`Tabella${idPad}_Spessore`] || 0,
+        fromX: rulState[`Tabella${idPad}_From_X`] || 0,
+        fromY: rulState[`Tabella${idPad}_From_Y`] || 0,
+        fromZ: rulState[`Tabella${idPad}_From_Z`] || 0,
+        toX: rulState[`Tabella${idPad}_To_X`] || 0,
+        toY: rulState[`Tabella${idPad}_To_Y`] || 0,
+        toZ: rulState[`Tabella${idPad}_ToZ`] || 0,
+        isNew: !!rulState[`Tabella${idPad}_NewDatas`],
+        workSp: !!rulState[`Tabella${idPad}_WorkingStampante`],
+        doneSp: !!rulState[`Tabella${idPad}_DoneStampante`],
+        workR1: !!rulState[`Tabella${idPad}_WorkingR1`],
+        doneR1: !!rulState[`Tabella${idPad}_DoneR1`],
+        workR2: !!rulState[`Tabella${idPad}_WorkingR2`],
+        doneR2: !!rulState[`Tabella${idPad}_DoneR2`],
+        workN1: !!rulState[`Tabella${idPad}_Working_Navette`],
+        doneN1: !!rulState[`Tabella${idPad}_Done_Navette`],
+        workN2: !!rulState[`Tabella${idPad}_Working_Navetta_2`],
+        doneN2: !!rulState[`Tabella${idPad}_Done_Navetta_2`],
+        workCr: !!rulState[`Tabella${idPad}_Working_Carrello`],
+        doneCr: !!rulState[`Tabella${idPad}_Done_Carrello`]
+    };
+    
+    // Disabilita gli input per sicurezza
+    document.querySelectorAll("#modal-edit-form input").forEach(input => input.setAttribute("disabled", "true"));
+    
+    // Mostra il modal
+    document.getElementById("commessa-modal").style.display = "flex";
+    
+    // Mostra i bottoni di visualizzazione
+    document.getElementById("modal-footer-view").style.display = "block";
+    document.getElementById("modal-footer-edit").style.display = "none";
+}
+
+function closeCommessaModal() {
+    isEditingCommessa = false;
+    selectedCommessaSlot = null;
+    document.getElementById("commessa-modal").style.display = "none";
+    document.querySelectorAll("#modal-edit-form input").forEach(input => input.setAttribute("disabled", "true"));
+}
+
+function enableCommessaEdit() {
+    isEditingCommessa = true;
+    
+    // Rende editabili i campi
+    document.querySelectorAll("#modal-edit-form input").forEach(input => input.removeAttribute("disabled"));
+    
+    // Mostra i bottoni di modifica
+    document.getElementById("modal-footer-view").style.display = "none";
+    document.getElementById("modal-footer-edit").style.display = "block";
+}
+
+function resetCommessaEdit() {
+    // Ripristina form coi valori caricati all'apertura
+    document.getElementById("mod-job-id").value = tempCommessaData.id;
+    document.getElementById("mod-job-len").value = tempCommessaData.len;
+    document.getElementById("mod-job-wid").value = tempCommessaData.wid;
+    document.getElementById("mod-job-thk").value = tempCommessaData.thk;
+    document.getElementById("mod-job-from-x").value = tempCommessaData.fromX;
+    document.getElementById("mod-job-from-y").value = tempCommessaData.fromY;
+    document.getElementById("mod-job-from-z").value = tempCommessaData.fromZ;
+    document.getElementById("mod-job-to-x").value = tempCommessaData.toX;
+    document.getElementById("mod-job-to-y").value = tempCommessaData.toY;
+    document.getElementById("mod-job-to-z").value = tempCommessaData.toZ;
+    document.getElementById("mod-job-new").checked = tempCommessaData.isNew;
+    
+    document.getElementById("mod-job-work-sp").checked = tempCommessaData.workSp;
+    document.getElementById("mod-job-done-sp").checked = tempCommessaData.doneSp;
+    document.getElementById("mod-job-work-r1").checked = tempCommessaData.workR1;
+    document.getElementById("mod-job-done-r1").checked = tempCommessaData.doneR1;
+    document.getElementById("mod-job-work-r2").checked = tempCommessaData.workR2;
+    document.getElementById("mod-job-done-r2").checked = tempCommessaData.doneR2;
+    document.getElementById("mod-job-work-n1").checked = tempCommessaData.workN1;
+    document.getElementById("mod-job-done-n1").checked = tempCommessaData.doneN1;
+    document.getElementById("mod-job-work-n2").checked = tempCommessaData.workN2;
+    document.getElementById("mod-job-done-n2").checked = tempCommessaData.doneN2;
+    document.getElementById("mod-job-work-cr").checked = tempCommessaData.workCr;
+    document.getElementById("mod-job-done-cr").checked = tempCommessaData.doneCr;
+}
+
+function cancelCommessaEdit() {
+    resetCommessaEdit();
+    closeCommessaModal();
+}
+
+function saveCommessaEdit() {
+    if (selectedCommessaSlot === null) return;
+    
+    const id = parseInt(document.getElementById("mod-job-id").value) || 0;
+    const len = parseInt(document.getElementById("mod-job-len").value) || 0;
+    const wid = parseInt(document.getElementById("mod-job-wid").value) || 0;
+    const thk = parseInt(document.getElementById("mod-job-thk").value) || 0;
+    const fromX = parseInt(document.getElementById("mod-job-from-x").value) || 0;
+    const fromY = parseInt(document.getElementById("mod-job-from-y").value) || 0;
+    const fromZ = parseInt(document.getElementById("mod-job-from-z").value) || 0;
+    const toX = parseInt(document.getElementById("mod-job-to-x").value) || 0;
+    const toY = parseInt(document.getElementById("mod-job-to-y").value) || 0;
+    const toZ = parseInt(document.getElementById("mod-job-to-z").value) || 0;
+    const isNew = document.getElementById("mod-job-new").checked ? 1 : 0;
+    
+    const workSp = document.getElementById("mod-job-work-sp").checked ? 1 : 0;
+    const doneSp = document.getElementById("mod-job-done-sp").checked ? 1 : 0;
+    const workR1 = document.getElementById("mod-job-work-r1").checked ? 1 : 0;
+    const doneR1 = document.getElementById("mod-job-done-r1").checked ? 1 : 0;
+    const workR2 = document.getElementById("mod-job-work-r2").checked ? 1 : 0;
+    const doneR2 = document.getElementById("mod-job-done-r2").checked ? 1 : 0;
+    const workN1 = document.getElementById("mod-job-work-n1").checked ? 1 : 0;
+    const doneN1 = document.getElementById("mod-job-done-n1").checked ? 1 : 0;
+    const workN2 = document.getElementById("mod-job-work-n2").checked ? 1 : 0;
+    const doneN2 = document.getElementById("mod-job-done-n2").checked ? 1 : 0;
+    const workCr = document.getElementById("mod-job-work-cr").checked ? 1 : 0;
+    const doneCr = document.getElementById("mod-job-done-cr").checked ? 1 : 0;
+    
+    const idPad = selectedCommessaSlot.toString().padStart(2, '0');
+    
+    const fields = [
+        { name: `Tabella${idPad}_ID`, val: id },
+        { name: `Tabella${idPad}_Lunghezza`, val: len },
+        { name: `Tabella${idPad}_Larghezza`, val: wid },
+        { name: `Tabella${idPad}_Spessore`, val: thk },
+        { name: `Tabella${idPad}_From_X`, val: fromX },
+        { name: `Tabella${idPad}_From_Y`, val: fromY },
+        { name: `Tabella${idPad}_From_Z`, val: fromZ },
+        { name: `Tabella${idPad}_To_X`, val: toX },
+        { name: `Tabella${idPad}_To_Y`, val: toY },
+        { name: `Tabella${idPad}_ToZ`, val: toZ },
+        { name: `Tabella${idPad}_NewDatas`, val: isNew },
+        
+        { name: `Tabella${idPad}_WorkingStampante`, val: workSp },
+        { name: `Tabella${idPad}_DoneStampante`, val: doneSp },
+        { name: `Tabella${idPad}_WorkingR1`, val: workR1 },
+        { name: `Tabella${idPad}_DoneR1`, val: doneR1 },
+        { name: `Tabella${idPad}_WorkingR2`, val: workR2 },
+        { name: `Tabella${idPad}_DoneR2`, val: doneR2 },
+        { name: `Tabella${idPad}_Working_Navette`, val: workN1 },
+        { name: `Tabella${idPad}_Done_Navette`, val: doneN1 },
+        { name: `Tabella${idPad}_Working_Navetta_2`, val: workN2 },
+        { name: `Tabella${idPad}_Done_Navetta_2`, val: doneN2 },
+        { name: `Tabella${idPad}_Working_Carrello`, val: workCr },
+        { name: `Tabella${idPad}_Done_Carrello`, val: doneCr }
+    ];
+    
+    // Invia in sequenza per sicurezza
+    let p = Promise.resolve();
+    fields.forEach(f => {
+        p = p.then(() => {
+            return fetch(`/api/write?device=Rulliere&parameter=${f.name}&value=${f.val}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (!res.success) {
+                        console.error(`Errore parametro ${f.name}:`, res.error);
+                    }
+                });
+        });
+    });
+    
+    p.then(() => {
+        console.log("Scrittura commessa completata sul PLC!");
+        closeCommessaModal();
+    }).catch(err => {
+        console.error("Errore salvataggio commessa:", err);
+        alert("Errore durante la scrittura sul PLC.");
+    });
 }
 
 // Helpers pulsanti toggle
@@ -1089,6 +1727,7 @@ function invalidaDatiCarrello() {
 
     document.getElementById("carr-val-Y_Encoder").innerText = "-";
     document.getElementById("carr-val-Rotazione_Encoder").innerText = "-";
+    renderCarrelloRotazione(0);
 
     const carrYh = document.getElementById("carr-val-Y_Encoder-h");
     const carrRoth = document.getElementById("carr-val-Rotazione_Encoder-h");
@@ -2010,18 +2649,30 @@ function aggiornaSinottico2D() {
     const carrOnline = carrState.__comunicazione_ok__;
     const carrReady = carrOnline && isMachineReady("Carrello", carrState);
     
+    let carrColor = "#ef4444";
+    let carrFill = "rgba(239, 68, 68, 0.2)";
+    if (carrReady) {
+        if (carrState.Stato_Picked) {
+            carrColor = "#3b82f6"; // Blu (in lavoro/attivo)
+            carrFill = "rgba(59, 130, 246, 0.2)";
+        } else {
+            carrColor = "#10b981"; // Verde (pronto ma in attesa)
+            carrFill = "rgba(16, 185, 129, 0.2)";
+        }
+    }
+    
     const carrRect = document.getElementById("carr-rect");
     if (carrRect) {
-        carrRect.setAttribute("stroke", carrReady ? "#3b82f6" : "#ef4444");
-        carrRect.setAttribute("fill", carrReady ? "rgba(59, 130, 246, 0.2)" : "rgba(239, 68, 68, 0.2)");
+        carrRect.setAttribute("stroke", carrColor);
+        carrRect.setAttribute("fill", carrFill);
     }
     const carrCenterDot = document.getElementById("carr-center-dot");
     if (carrCenterDot) {
-        carrCenterDot.setAttribute("fill", carrReady ? "#3b82f6" : "#ef4444");
+        carrCenterDot.setAttribute("fill", carrColor);
     }
     const carrLabelText = document.getElementById("carr-text-label");
     if (carrLabelText) {
-        carrLabelText.setAttribute("fill", carrReady ? "#3b82f6" : "#ef4444");
+        carrLabelText.setAttribute("fill", carrColor);
     }
     const carrWarning = document.getElementById("carr-warning");
     if (carrWarning) {
@@ -2045,14 +2696,13 @@ function aggiornaSinottico2D() {
             navGroup.setAttribute("id", `sin-nav-${i}`);
             navGroup.setAttribute("style", "cursor: pointer;");
             navGroup.innerHTML = `
-                <!-- Navetta (larghezza 400mm -> 15px, altezza 4500mm -> 110px) -->
-                <rect id="nav-rect-${i}" x="-7.5" y="0" width="15" height="110" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2" rx="2" />
-                <rect x="-5" y="5" width="10" height="20" fill="#e2e8f0" rx="1" opacity="0.8" />
-                <text x="0" y="-8" font-size="10" font-weight="900" fill="#3b82f6" text-anchor="middle" id="nav-text-label-${i}">N${i}</text>
+                <!-- Navetta (larghezza 400mm -> 15px, altezza 3000mm -> 70px) -->
+                <rect id="nav-rect-${i}" x="-7.5" y="0" width="15" height="70" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2" rx="2" />
+                <text x="0" y="-8" font-size="10" font-weight="900" fill="#10b981" text-anchor="middle" id="nav-text-label-${i}">N${i}</text>
                 <!-- Warning Overlay -->
                 <g id="nav-warning-${i}" style="display: none;">
-                    <rect x="-12" y="43" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
-                    <text x="0" y="62" font-size="18" text-anchor="middle">⚠️</text>
+                    <rect x="-12" y="23" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
+                    <text x="0" y="42" font-size="18" text-anchor="middle">⚠️</text>
                 </g>
             `;
             navGroup.addEventListener("dblclick", () => {
@@ -2071,15 +2721,15 @@ function aggiornaSinottico2D() {
         const navRect = document.getElementById(`nav-rect-${i}`);
         const navLabel = document.getElementById(`nav-text-label-${i}`);
         
-        let strokeColor = "#3b82f6"; // Blu default (pronto)
-        let fillColor = "rgba(59, 130, 246, 0.2)";
+        let strokeColor = "#10b981"; // Verde default (pronto ma in attesa)
+        let fillColor = "rgba(16, 185, 129, 0.2)";
         
         if (!navReady) {
             strokeColor = "#ef4444"; // Rosso allarme / offline
             fillColor = "rgba(239, 68, 68, 0.2)";
         } else if (navState.Stato_Picked) {
-            strokeColor = "#10b981"; // Verde smeraldo (in lavoro)
-            fillColor = "rgba(16, 185, 129, 0.2)";
+            strokeColor = "#3b82f6"; // Blu (in lavoro/attivo)
+            fillColor = "rgba(59, 130, 246, 0.2)";
         }
         
         if (navRect) {
@@ -2093,6 +2743,8 @@ function aggiornaSinottico2D() {
 
     // 3. RULLIERE E CINGHIE
     let rullGroup = document.getElementById("sin-rulliere-col");
+    const rullShiftX = 1000 * scaleX;
+    
     if (!rullGroup) {
         rullGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
         rullGroup.setAttribute("id", "sin-rulliere-col");
@@ -2100,51 +2752,51 @@ function aggiornaSinottico2D() {
         
         let r1Rollers = "";
         for (let y = 42; y < 177; y += 15) {
-            r1Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
+            r1Rollers += `<line x1="${1125 + rullShiftX}" y1="${y}" x2="${1185 + rullShiftX}" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
         }
         
         let r2Rollers = "";
         for (let y = 200; y < 315; y += 15) {
-            r2Rollers += `<line x1="1125" y1="${y}" x2="1185" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
+            r2Rollers += `<line x1="${1125 + rullShiftX}" y1="${y}" x2="${1185 + rullShiftX}" y2="${y}" stroke="#94a3b8" stroke-width="2.5" />`;
         }
         
         const panelW = (800 * scaleX).toFixed(1);
         const panelH = (4200 * scaleY).toFixed(1);
-        const panelX = (1120 + 100 * scaleX).toFixed(1);
+        const panelX = (1120 + rullShiftX + 100 * scaleX).toFixed(1);
         const panel1Y = (107 - (4200 * scaleY) / 2).toFixed(1);
         const panel2Y = (255 - (4200 * scaleY) / 2).toFixed(1);
-        const panelBiesseX = (1155 - (800 * scaleX) / 2).toFixed(1);
+        const panelBiesseX = (1155 + rullShiftX - (800 * scaleX) / 2).toFixed(1);
         
         rullGroup.innerHTML = `
             <!-- Biesse Carico (Molto compatto verticalmente, adiacente al bordo del canvas Y=0) -->
-            <rect id="rul-biesse-rect" x="1120" y="0" width="70" height="10" fill="rgba(59, 130, 246, 0.2)" rx="2" stroke="#3b82f6" stroke-width="2" />
+            <rect id="rul-biesse-rect" x="${1120 + rullShiftX}" y="0" width="70" height="10" fill="rgba(59, 130, 246, 0.2)" rx="2" stroke="#3b82f6" stroke-width="2" />
             <!-- Pannello di legno Biesse (altezza 10px, larghezza 800mm = panelW) allineato al centro -->
             <rect id="rul-wood-panel-biesse" x="${panelBiesseX}" y="0" width="${panelW}" height="10" fill="url(#woodGrad)" rx="1" stroke="#78350f" stroke-width="1.5" />
 
             <!-- Rulliera 1 (R1) sposta ulteriormente di 400mm più in alto (Y=32, height=150) -->
-            <rect id="rul-r1-rect" x="1120" y="32" width="70" height="150" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
+            <rect id="rul-r1-rect" x="${1120 + rullShiftX}" y="32" width="70" height="150" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
             ${r1Rollers}
-            <text x="1155" y="107" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 107)" id="rul-r1-label">RULLIERA 1 (R1)</text>
+            <text x="${1155 + rullShiftX}" y="107" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 ${1155 + rullShiftX} 107)" id="rul-r1-label">RULLIERA 1 (R1)</text>
             
             <!-- Pannello di legno R1 (4200x800mm) sovrapposto, allineato al centro di R1 a 100mm dal bordo sx verso dx -->
             <rect id="rul-wood-panel-r1" x="${panelX}" y="${panel1Y}" width="${panelW}" height="${panelH}" fill="url(#woodGrad)" rx="3" stroke="#78350f" stroke-width="1.5" />
 
             <!-- Rulliera 2 (R2) - Rotata 45 gradi con centro il centro del lato inferiore, adiacente a R1 spostata in basso di 400mm (starts at Y=190, pivot at Y=320) -->
-            <g id="rul-r2-group" transform="rotate(45 1155 320)">
-                <rect id="rul-r2-rect" x="1120" y="190" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
+            <g id="rul-r2-group" transform="rotate(45 ${1155 + rullShiftX} 320)">
+                <rect id="rul-r2-rect" x="${1120 + rullShiftX}" y="190" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
                 ${r2Rollers}
-                <text x="1155" y="255" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 1155 255)" id="rul-r2-label">RULLIERA 2 (R2)</text>
+                <text x="${1155 + rullShiftX}" y="255" font-size="10" font-weight="700" fill="#3b82f6" text-anchor="middle" transform="rotate(-90 ${1155 + rullShiftX} 255)" id="rul-r2-label">RULLIERA 2 (R2)</text>
                 <!-- Pannello di legno R2 (4200x800mm) sovrapposto, allineato al centro di R2 a 100mm dal bordo sx verso dx, ruota con R2 -->
                 <rect id="rul-wood-panel-r2" x="${panelX}" y="${panel2Y}" width="${panelW}" height="${panelH}" fill="url(#woodGrad)" rx="3" stroke="#78350f" stroke-width="1.5" />
             </g>
             
             <!-- Macchina troncatrice a destra di R2 quando ruotata a 90 gradi (alta come la larghezza di R2=70, lunga 1500mm = 30px) -->
-            <rect id="rul-r2-out-rect" x="1285" y="285" width="30" height="70" fill="rgba(0, 242, 254, 0.15)" rx="3" stroke="var(--accent-cyan)" stroke-width="2" />
+            <rect id="rul-r2-out-rect" x="${1285 + 2400 * scaleX}" y="285" width="30" height="70" fill="rgba(59, 130, 246, 0.2)" rx="3" stroke="#3b82f6" stroke-width="2" />
             
             <!-- Warning Overlay -->
             <g id="rul-warning" style="display: none;">
-                <rect x="1143" y="333" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
-                <text x="1155" y="352" font-size="18" text-anchor="middle">⚠️</text>
+                <rect x="${1143 + rullShiftX}" y="333" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
+                <text x="${1155 + rullShiftX}" y="352" font-size="18" text-anchor="middle">⚠️</text>
             </g>
         `;
         rullGroup.addEventListener("dblclick", () => {
@@ -2166,12 +2818,23 @@ function aggiornaSinottico2D() {
     const r1Label = document.getElementById("rul-r1-label");
     const r2Label = document.getElementById("rul-r2-label");
     
-    const colorVal = rulReady ? "#3b82f6" : "#ef4444";
-    const fillVal = rulReady ? "rgba(59, 130, 246, 0.2)" : "rgba(239, 68, 68, 0.2)";
+    let colorVal = "#ef4444";
+    let fillVal = "rgba(239, 68, 68, 0.2)";
+    if (rulReady) {
+        if (rulState.Stato_Picked) {
+            colorVal = "#3b82f6"; // Blu (in lavoro/attivo)
+            fillVal = "rgba(59, 130, 246, 0.2)";
+        } else {
+            colorVal = "#10b981"; // Verde (pronto ma in attesa)
+            fillVal = "rgba(16, 185, 129, 0.2)";
+        }
+    }
     
     if (r1Rect) { r1Rect.setAttribute("stroke", colorVal); r1Rect.setAttribute("fill", fillVal); }
     if (r2Rect) { r2Rect.setAttribute("stroke", colorVal); r2Rect.setAttribute("fill", fillVal); }
     if (biesseRect) { biesseRect.setAttribute("stroke", colorVal); biesseRect.setAttribute("fill", fillVal); }
+    const r2OutRect = document.getElementById("rul-r2-out-rect");
+    if (r2OutRect) { r2OutRect.setAttribute("stroke", colorVal); r2OutRect.setAttribute("fill", fillVal); }
     
     if (r1Label) r1Label.setAttribute("fill", colorVal);
     if (r2Label) r2Label.setAttribute("fill", colorVal);
@@ -2180,10 +2843,23 @@ function aggiornaSinottico2D() {
         rulWarning.style.display = rulReady ? "none" : "block";
     }
 
-    // Toggle visibilità pannelli in legno basati sui registri PLC
-    const hasPanelBiesse = !!rulState.Stato_PannelloSuBiesse;
-    const hasPanelR1 = !!rulState.Stato_PannelloSuR1;
-    const hasPanelR2 = !!rulState.Stato_PannelloSuR2;
+    // Sincronizzazione rotazione R2 basata sui registri PLC
+    const r2Group = document.getElementById("rul-r2-group");
+    if (r2Group) {
+        let angle = 45; // default / transizione
+        if (rulState.Stato_R2InPos90) {
+            angle = 90;
+        } else if (rulState.Stato_R2InPos0) {
+            angle = 0;
+        }
+        r2Group.setAttribute("transform", `rotate(${angle} ${1155 + rullShiftX} 320)`);
+    }
+
+    // Toggle visibilità pannelli in legno basati sui registri PLC (con controllo connessione)
+    const hasPanelBiesse = rullOnline && !!rulState.Stato_PannelloSuBiesse;
+    const hasPanelR1 = rullOnline && !!rulState.Stato_PannelloSuR1;
+    // R2 usa il registro negato Stato_R2Vuota
+    const hasPanelR2 = rullOnline && (rulState.Stato_R2Vuota === false || rulState.Stato_R2Vuota === 0);
 
     const pBiesse = document.getElementById("rul-wood-panel-biesse");
     const pR1 = document.getElementById("rul-wood-panel-r1");
@@ -2194,7 +2870,7 @@ function aggiornaSinottico2D() {
     if (pR2) pR2.style.display = hasPanelR2 ? "block" : "none";
 
     // 4. CARICATORE A VENTOSE
-    const armLen = (120 - 700 * scaleY).toFixed(1);
+    const armLen = (120 - 1700 * scaleY).toFixed(1);
     let carGroup = document.getElementById("sin-caricatore");
     if (!carGroup) {
         carGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -2210,10 +2886,14 @@ function aggiornaSinottico2D() {
                 <g id="sin-caricatore-telaio" transform="rotate(-135 ${armLen} 0)">
                     <!-- Telaio ventose (lungo 80px) centrato su X=${armLen} -->
                     <rect x="${armLen - 40}" y="-12" width="80" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
-                    <!-- I 4 punti/ventose distanziati lungo la larghezza del telaio centrati su ${armLen} -->
+                    <!-- I 8 punti/ventose distanziati lungo la larghezza del telaio centrati su ${armLen} -->
                     <circle cx="${armLen - 30}" cy="-6" r="3" fill="blue" />
+                    <circle cx="${armLen - 10}" cy="-6" r="3" fill="blue" />
+                    <circle cx="${armLen + 10}" cy="-6" r="3" fill="blue" />
                     <circle cx="${armLen + 30}" cy="-6" r="3" fill="blue" />
                     <circle cx="${armLen - 30}" cy="6" r="3" fill="blue" />
+                    <circle cx="${armLen - 10}" cy="6" r="3" fill="blue" />
+                    <circle cx="${armLen + 10}" cy="6" r="3" fill="blue" />
                     <circle cx="${armLen + 30}" cy="6" r="3" fill="blue" />
                 </g>
             </g>
@@ -2229,8 +2909,8 @@ function aggiornaSinottico2D() {
         });
         svg.appendChild(carGroup);
     }
-    // Spostato 200mm a sx e 1340mm in alto (840 + 500) rispetto al riferimento
-    carGroup.setAttribute("transform", `translate(1092.6, ${215 - (840 + 500) * scaleY})`);
+    // Spostato 500mm a sx (1000-500) e 1340mm in alto (840 + 500) rispetto al riferimento
+    carGroup.setAttribute("transform", `translate(${1092.6 + 500 * scaleX}, ${215 - (840 + 500 + 1000) * scaleY})`);
     
     // Ruota il braccio in base all'encoder (base angle 225 - caricatoreRot)
     const arm = document.getElementById("sin-caricatore-braccio");
@@ -2249,8 +2929,17 @@ function aggiornaSinottico2D() {
     const carLabel = document.getElementById("sin-caricatore-label");
     const caricatoreWarning = document.getElementById("sin-caricatore-warning");
     
-    const carColorVal = carReady ? "#3b82f6" : "#ef4444";
-    const carFillVal = carReady ? "rgba(59, 130, 246, 0.2)" : "rgba(239, 68, 68, 0.2)";
+    let carColorVal = "#ef4444";
+    let carFillVal = "rgba(239, 68, 68, 0.2)";
+    if (carReady) {
+        if (carState.Stato_Picked) {
+            carColorVal = "#3b82f6"; // Blu (in lavoro/attivo)
+            carFillVal = "rgba(59, 130, 246, 0.2)";
+        } else {
+            carColorVal = "#10b981"; // Verde (pronto ma in attesa)
+            carFillVal = "rgba(16, 185, 129, 0.2)";
+        }
+    }
     
     if (carBase) { carBase.setAttribute("stroke", carColorVal); carBase.setAttribute("fill", carFillVal); }
     if (carArmLine) { carArmLine.setAttribute("stroke", carColorVal); }
@@ -2262,29 +2951,7 @@ function aggiornaSinottico2D() {
     }
 }
 
-// Animazione temporanea per R2 (da 0 a 90)
-let sinAnimTime = 0;
-function animateSinottico() {
-    sinAnimTime += 0.02;
-    
-    // Rulliera R2: ruota da 0 a 90 gradi rispetto a pivot (orario)
-    const r2Group = document.getElementById("rul-r2-group");
-    if (r2Group) {
-        const angle = ((Math.sin(sinAnimTime) + 1) / 2) * 90;
-        r2Group.setAttribute("transform", `rotate(${angle} 1155 320)`);
-    }
-    
-    requestAnimationFrame(animateSinottico);
-}
-
-// Avvio automatico dell'animazione
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(animateSinottico, 1000);
-    });
-} else {
-    setTimeout(animateSinottico, 1000);
-}
+// Rimossa animazione simulata R2 in favore del controllo dinamico via PLC (Stato_R2InPos90 / Stato_R2InPos0)
 
 // --- CONSOLE LOG UPDATER ---
 function caricaLogConsole() {
@@ -2921,4 +3588,349 @@ function renderNavettaYCanvas(y1Val, y2Val, stato) {
     // 6. HUD TESTUALE QUOTE ENCODER IN ALTO STILE BOX HMI (Scritte più grandi)
     drawEncoderHUD(15, 12, 260, 44, 'Encoder Asse Y2 (SX)', `${y2Val.toFixed(1)} mm`, '#60a5fa');
     drawEncoderHUD(W - 275, 12, 260, 44, 'Encoder Asse Y1 (DX)', `${y1Val.toFixed(1)} mm`, '#34d399');
+}
+
+// ============================================================
+//  CARRELLO — Vista Laterale 2D (Asse Rotazione)
+// ============================================================
+function renderCarrelloRotazione(rotVal) {
+    const canvas = document.getElementById("carrello-rot-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const SCALE = 0.23; // px/mm per far entrare la quota rotazione in 480x400
+    const ORIGIN_X = W / 2; // 240px
+    const GROUND_Y = H - 15; // 385px
+
+    function toS(mm) { return mm * SCALE; }
+    function toX(mm) { return ORIGIN_X + mm * SCALE; }
+    function toY(mm) { return GROUND_Y - mm * SCALE; }
+
+    const GEO = {
+        rail:       { length: 1500, height: 40 },
+        wheel:      { diameter: 150, radius: 75, count: 4 },
+        baseBeam:   { length: 1100, height: 90 },
+        column:     { width: 250, height: 700 },
+        cradle:     { diameter: 400, radius: 200 },
+        bench:      { length: 1200, height: 45 },
+        pulley:     { diameter: 80, radius: 40 },
+        belt:       { thickness: 3 },
+        endProfile: { size: 45 },
+        stop:       { width: 10, height: 75, extension: 30 }
+    };
+
+    const RAIL_TOP_Y = GEO.rail.height;
+    const WHEEL_CENTER_Y = RAIL_TOP_Y + GEO.wheel.radius;
+    const BASE_BOT_Y = WHEEL_CENTER_Y;
+    const BASE_TOP_Y = BASE_BOT_Y + GEO.baseBeam.height;
+    const COLUMN_BOT_Y = BASE_TOP_Y;
+    const COLUMN_TOP_Y = COLUMN_BOT_Y + GEO.column.height;
+    const ROT_CENTER_Y = COLUMN_TOP_Y - 50;
+
+    function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w,y, x+w,y+r);
+        ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w,y+h, x+w-r,y+h);
+        ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x,y+h, x,y+h-r);
+        ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x,y, x+r,y);
+        ctx.closePath();
+    }
+
+    // Helper per disegnare i box di quota simili a quelli della Navetta
+    function drawEncoderHUD(x, y, w, h, label, valStr, activeColor) {
+        ctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
+        roundRect(x, y, w, h, 8);
+        ctx.fill();
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        ctx.font = '600 12px "Outfit", sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x + 14, y + h/2);
+        
+        ctx.font = '800 16px "Outfit", sans-serif';
+        ctx.fillStyle = activeColor;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(valStr, x + w - 14, y + h/2);
+    }
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 1. Griglia di sfondo
+    const sp = 30;
+    ctx.strokeStyle = 'rgba(148,163,184,0.02)';
+    ctx.lineWidth = 0.5;
+    for (let x=0; x<W; x+=sp) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y=0; y<H; y+=sp) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // 3. Binario fisso
+    const rx = toX(-GEO.rail.length / 2);
+    const ry = toY(GEO.rail.height);
+    const rw = toS(GEO.rail.length);
+    const rh = toS(GEO.rail.height);
+    const railGrad = ctx.createLinearGradient(0, ry, 0, ry + rh);
+    railGrad.addColorStop(0, '#334155');
+    railGrad.addColorStop(0.3, '#475569');
+    railGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = railGrad;
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx + rw, ry); ctx.stroke();
+
+    // 4. Ruote del carrello fisso
+    const wSpacing = GEO.baseBeam.length / 3;
+    const wheelXPositions = [
+        -GEO.baseBeam.length / 2,
+        -GEO.baseBeam.length / 2 + wSpacing,
+        -GEO.baseBeam.length / 2 + wSpacing * 2,
+        GEO.baseBeam.length / 2
+    ];
+    wheelXPositions.forEach(wx => {
+        const wcx = toX(wx);
+        const wcy = toY(WHEEL_CENTER_Y);
+        const wr = toS(GEO.wheel.radius);
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath(); ctx.arc(wcx, wcy, wr, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const innerR = wr * 0.7;
+        const rimGrad = ctx.createRadialGradient(wcx - 1, wcy - 1, 1, wcx, wcy, innerR);
+        rimGrad.addColorStop(0, '#cbd5e1'); rimGrad.addColorStop(1, '#475569');
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath(); ctx.arc(wcx, wcy, innerR, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(wcx, wcy, wr * 0.2, 0, Math.PI*2); ctx.fill();
+    });
+
+    // 5. Traverso di base
+    const bx = toX(-GEO.baseBeam.length / 2);
+    const by = toY(BASE_TOP_Y);
+    const bw = toS(GEO.baseBeam.length);
+    const bh = toS(GEO.baseBeam.height);
+    const baseGrad = ctx.createLinearGradient(0, by, 0, by + bh);
+    baseGrad.addColorStop(0, '#64748b'); baseGrad.addColorStop(0.5, '#cbd5e1'); baseGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = baseGrad;
+    roundRect(bx, by, bw, bh, 3);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(15,23,42,0.15)';
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+        const sy = by + bh * f;
+        ctx.beginPath(); ctx.moveTo(bx + 2, sy); ctx.lineTo(bx + bw - 2, sy); ctx.stroke();
+    });
+
+    // 6. Colonna centrale fissa
+    const colx = toX(-GEO.column.width / 2);
+    const coly = toY(COLUMN_TOP_Y);
+    const colw = toS(GEO.column.width);
+    const colh = toS(GEO.column.height);
+    const colGrad = ctx.createLinearGradient(colx, 0, colx + colw, 0);
+    colGrad.addColorStop(0, '#475569'); colGrad.addColorStop(0.5, '#cbd5e1'); colGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = colGrad;
+    ctx.fillRect(colx, coly, colw, colh);
+    ctx.fillStyle = 'rgba(15,23,42,0.18)';
+    [0.25, 0.5, 0.75].forEach(f => {
+        const sx = colx + colw * f - toS(4);
+        ctx.fillRect(sx, coly, toS(8), colh);
+    });
+
+    // 7. Gruppo rotante (Culla, barra, banco, pulegge, cinghia, profili e battute)
+    const angleRad = rotVal * Math.PI / 180;
+    const rotCenterX = toX(0);
+    const rotCenterY = toY(ROT_CENTER_Y);
+
+    ctx.save();
+    ctx.translate(rotCenterX, rotCenterY);
+    ctx.rotate(angleRad);
+
+    // Culla (Semicerchio)
+    const cradleR = toS(GEO.cradle.radius);
+    const cradleGrad = ctx.createRadialGradient(-10, 10, 10, 0, 0, cradleR);
+    cradleGrad.addColorStop(0, '#cbd5e1'); cradleGrad.addColorStop(1, '#334155');
+    ctx.fillStyle = cradleGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, cradleR, -Math.PI / 6, -5 * Math.PI / 6, false);
+    ctx.lineTo(toS(-173.2), toS(-100));
+    ctx.lineTo(toS(173.2), toS(-100));
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.stroke();
+
+    // Barra asse rotativo
+    const barW = toS(36);
+    const barH = toS(185);
+    const barGrad = ctx.createLinearGradient(-barW/2, 0, barW/2, 0);
+    barGrad.addColorStop(0, '#94a3b8'); barGrad.addColorStop(0.5, '#cbd5e1'); barGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(-barW/2, 0, barW, barH);
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.arc(0, toS(45), 2.5, 0, Math.PI*2); ctx.arc(0, toS(135), 2.5, 0, Math.PI*2); ctx.fill();
+
+    // Albero centrale
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.arc(0, 0, toS(18), 0, Math.PI*2); ctx.fill();
+    const pivotGrad = ctx.createRadialGradient(-1, -1, 1, 0, 0, toS(18));
+    pivotGrad.addColorStop(0, '#cbd5e1'); pivotGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = pivotGrad;
+    ctx.beginPath(); ctx.arc(0, 0, toS(16), 0, Math.PI*2); ctx.fill();
+
+    // Banco
+    const benchX = toS(-GEO.bench.length / 2);
+    const benchY = toS(-145);
+    const benchW = toS(GEO.bench.length);
+    const benchH = toS(GEO.bench.height);
+    const benchGrad = ctx.createLinearGradient(0, benchY, 0, benchY + benchH);
+    benchGrad.addColorStop(0, '#94a3b8'); benchGrad.addColorStop(0.5, '#cbd5e1'); benchGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = benchGrad;
+    ctx.fillRect(benchX, benchY, benchW, benchH);
+    ctx.fillStyle = 'rgba(15,23,42,0.15)';
+    ctx.fillRect(benchX + 3, benchY + benchH * 0.4, benchW - 6, benchH * 0.2);
+
+    // Pulleys (Pulegge)
+    const pR = toS(GEO.pulley.radius);
+    [-600, 600].forEach(px => {
+        const pcxLocal = toS(px);
+        const pcyLocal = toS(-122.5);
+        ctx.fillStyle = '#334155';
+        ctx.beginPath(); ctx.arc(pcxLocal, pcyLocal, pR, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+            ctx.beginPath(); ctx.moveTo(pcxLocal, pcyLocal); ctx.lineTo(pcxLocal + pR * Math.cos(a), pcyLocal + pR * Math.sin(a)); ctx.stroke();
+        }
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(pcxLocal, pcyLocal, pR * 0.3, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Cinghia (Belt)
+    function drawLocalBelt(rLocal) {
+        const lx = toS(-600);
+        const rx = toS(600);
+        const ly = toS(-122.5);
+        const r = toS(rLocal);
+        ctx.beginPath();
+        ctx.arc(lx, ly, r, -Math.PI/2, Math.PI/2, true);
+        ctx.lineTo(rx, ly + r);
+        ctx.arc(rx, ly, r, Math.PI/2, -Math.PI/2, true);
+        ctx.closePath();
+    }
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    drawLocalBelt(40);
+    ctx.stroke();
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.2;
+    drawLocalBelt(42.5);
+    ctx.stroke();
+
+    // Pannello Legno Sopra Cinghia (Se il checkbox è attivo) - Spessore 40mm, posizionato sopra la cinghia rossa
+    const woodPanelCheckbox = document.getElementById("carr-wood-panel-checkbox");
+    if (!woodPanelCheckbox || woodPanelCheckbox.checked) {
+        const pW = toS(800);
+        const pH = toS(40);
+        const pX = toS(-400);
+        const pY = toS(-206.0); // appoggiato sulla sommità della cinghia rossa (-166.0 mm)
+
+        const woodGrad = ctx.createLinearGradient(pX, pY, pX + pW, pY);
+        woodGrad.addColorStop(0, '#e5c07b');
+        woodGrad.addColorStop(0.5, '#ebd09f');
+        woodGrad.addColorStop(1, '#cca359');
+        ctx.fillStyle = woodGrad;
+        roundRect(pX, pY, pW, pH, 3);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(139, 90, 43, 0.12)';
+        ctx.lineWidth = 0.8;
+        [0.2, 0.4, 0.6, 0.8].forEach(fy => {
+            const gy = pY + pH * fy;
+            ctx.beginPath();
+            ctx.moveTo(pX + 3, gy);
+            for (let cxLocal = pX + 10; cxLocal < pX + pW - 3; cxLocal += 20) {
+                ctx.lineTo(cxLocal, gy + Math.sin(cxLocal * 0.03) * 1.0);
+            }
+            ctx.lineTo(pX + pW - 3, gy);
+            ctx.stroke();
+        });
+
+        ctx.strokeStyle = '#cda160';
+        ctx.lineWidth = 0.8;
+        roundRect(pX, pY, pW, pH, 3);
+        ctx.stroke();
+    }
+
+    // Profili di estremità
+    const sSize = toS(GEO.endProfile.size);
+    const sTop = toS(-162.5);
+    // Destra
+    const sRightOuter = toS(642.5);
+    const sRightLeft = sRightOuter - sSize;
+    const profileGradR = ctx.createLinearGradient(sRightLeft, sTop, sRightLeft + sSize, sTop + sSize);
+    profileGradR.addColorStop(0, '#cbd5e1'); profileGradR.addColorStop(1, '#475569');
+    ctx.fillStyle = profileGradR;
+    ctx.fillRect(sRightLeft, sTop, sSize, sSize);
+    ctx.strokeStyle = 'rgba(15,23,42,0.15)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(sRightLeft, sTop, sSize, sSize);
+    // Sinistra
+    const sLeftOuter = toS(-642.5);
+    const sLeftRight = sLeftOuter + sSize;
+    const profileGradL = ctx.createLinearGradient(sLeftOuter, sTop, sLeftOuter + sSize, sTop + sSize);
+    profileGradL.addColorStop(0, '#cbd5e1'); profileGradL.addColorStop(1, '#475569');
+    ctx.fillStyle = profileGradL;
+    ctx.fillRect(sLeftOuter, sTop, sSize, sSize);
+    ctx.strokeRect(sLeftOuter, sTop, sSize, sSize);
+
+    // Battute d'allineamento
+    const stopW = toS(GEO.stop.width);
+    const stopH = toS(GEO.stop.height);
+    const stopTop = toS(-192.5);
+    // Destra
+    const stopRightX = sRightOuter;
+    const stopGradR = ctx.createLinearGradient(stopRightX, stopTop, stopRightX + stopW, stopTop + stopH);
+    stopGradR.addColorStop(0, '#1e293b'); stopGradR.addColorStop(1, '#3b4b60');
+    ctx.fillStyle = stopGradR;
+    ctx.fillRect(stopRightX, stopTop, stopW, stopH);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(stopRightX, stopTop, stopW, stopH);
+    // Sinistra
+    const stopLeftX = sLeftOuter - stopW;
+    const stopGradL = ctx.createLinearGradient(stopLeftX, stopTop, stopLeftX + stopW, stopTop + stopH);
+    stopGradL.addColorStop(0, '#1e293b'); stopGradL.addColorStop(1, '#3b4b60');
+    ctx.fillStyle = stopGradL;
+    ctx.fillRect(stopLeftX, stopTop, stopW, stopH);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(stopLeftX, stopTop, stopW, stopH);
+
+    ctx.restore();
+
+    // 8. Mezzeria verticale tratteggiata
+    ctx.save();
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.12)';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(rotCenterX, rotCenterY - toS(250));
+    ctx.lineTo(rotCenterX, rotCenterY + toS(210));
+    ctx.stroke();
+    ctx.restore();
+
+    // 9. Visualizzazione Quota Encoder HMI (copiata dallo stile delle Navette)
+    drawEncoderHUD(15, 12, W - 30, 44, 'Encoder Asse Rotazione', `${rotVal.toFixed(1)}°`, '#34d399');
 }
