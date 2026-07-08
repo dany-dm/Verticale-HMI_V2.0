@@ -31,10 +31,32 @@ plc_state = {
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0,
-        "Y1_PannelloPreso": 0,
-        "Y2_PannelloPreso": 0,
-        "Y1_bascula": 0,
-        "Y2_bascula": 0,
+        "Stato_Y1_PannelloPreso": 0,
+        "Stato_Y2_PannelloPreso": 0,
+        "Stato_Y1_bascula": 0,
+        "Stato_Y2_bascula": 0,
+        "X_destinazione": 5000.0,
+        "X_Ricalcolata": 5000.0,
+        "Z_destinazione": 800.0,
+        "Z_Speed": 1500,
+        "Z_accelerazione": 2000,
+        "Z_Decelerazione": 2000,
+        "Stato_Memoria_Op1": 0,
+        "Stato_Memoria_Op3": 0,
+        "Stato_Op1": 1,
+        "Stato_Op2": 0,
+        "Stato_Op3": 0,
+        "Stato_Op4": 0,
+        "Stato_Caso5_PrimaParte": 0,
+        "Stato_Y1_Prendi": 0,
+        "Stato_Y1_avanti": 0,
+        "Stato_Y1_indietro": 1,
+        "Stato_Y1_venturi": 0,
+        "Stato_Y2_Prendi": 0,
+        "Stato_Y2_avanti": 0,
+        "Stato_Y2_indietro": 1,
+        "Stato_Y2_venturi": 0,
+        "Stato_Y_soffia": 0,
         "comanda_ID": 1024,
         "comanda_Lunghezza": 2400,
         "comanda_Larghezza": 1200,
@@ -71,10 +93,32 @@ plc_state = {
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0,
-        "Y1_PannelloPreso": 0,
-        "Y2_PannelloPreso": 0,
-        "Y1_bascula": 0,
-        "Y2_bascula": 0,
+        "Stato_Y1_PannelloPreso": 0,
+        "Stato_Y2_PannelloPreso": 0,
+        "Stato_Y1_bascula": 0,
+        "Stato_Y2_bascula": 0,
+        "X_destinazione": 12000.0,
+        "X_Ricalcolata": 12000.0,
+        "Z_destinazione": 200.0,
+        "Z_Speed": 1200,
+        "Z_accelerazione": 1800,
+        "Z_Decelerazione": 1800,
+        "Stato_Memoria_Op1": 0,
+        "Stato_Memoria_Op3": 0,
+        "Stato_Op1": 0,
+        "Stato_Op2": 0,
+        "Stato_Op3": 0,
+        "Stato_Op4": 0,
+        "Stato_Caso5_PrimaParte": 0,
+        "Stato_Y1_Prendi": 0,
+        "Stato_Y1_avanti": 0,
+        "Stato_Y1_indietro": 1,
+        "Stato_Y1_venturi": 0,
+        "Stato_Y2_Prendi": 0,
+        "Stato_Y2_avanti": 0,
+        "Stato_Y2_indietro": 1,
+        "Stato_Y2_venturi": 0,
+        "Stato_Y_soffia": 0,
         "comanda_ID": 0,
         "comanda_Lunghezza": 0,
         "comanda_Larghezza": 0,
@@ -111,10 +155,32 @@ plc_state = {
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0,
-        "Y1_PannelloPreso": 0,
-        "Y2_PannelloPreso": 0,
-        "Y1_bascula": 0,
-        "Y2_bascula": 0,
+        "Stato_Y1_PannelloPreso": 0,
+        "Stato_Y2_PannelloPreso": 0,
+        "Stato_Y1_bascula": 0,
+        "Stato_Y2_bascula": 0,
+        "X_destinazione": 18000.0,
+        "X_Ricalcolata": 18000.0,
+        "Z_destinazione": 1500.0,
+        "Z_Speed": 1800,
+        "Z_accelerazione": 2200,
+        "Z_Decelerazione": 2200,
+        "Stato_Memoria_Op1": 0,
+        "Stato_Memoria_Op3": 0,
+        "Stato_Op1": 0,
+        "Stato_Op2": 0,
+        "Stato_Op3": 1,
+        "Stato_Op4": 0,
+        "Stato_Caso5_PrimaParte": 0,
+        "Stato_Y1_Prendi": 0,
+        "Stato_Y1_avanti": 0,
+        "Stato_Y1_indietro": 1,
+        "Stato_Y1_venturi": 0,
+        "Stato_Y2_Prendi": 0,
+        "Stato_Y2_avanti": 0,
+        "Stato_Y2_indietro": 1,
+        "Stato_Y2_venturi": 0,
+        "Stato_Y_soffia": 0,
         "comanda_ID": 2048,
         "comanda_Lunghezza": 3000,
         "comanda_Larghezza": 1300,
@@ -151,10 +217,32 @@ plc_state = {
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
         "CMD_MaintenancePosition": 0,
-        "Y1_PannelloPreso": 0,
-        "Y2_PannelloPreso": 0,
-        "Y1_bascula": 0,
-        "Y2_bascula": 0,
+        "Stato_Y1_PannelloPreso": 0,
+        "Stato_Y2_PannelloPreso": 0,
+        "Stato_Y1_bascula": 0,
+        "Stato_Y2_bascula": 0,
+        "X_destinazione": 25000.0,
+        "X_Ricalcolata": 25000.0,
+        "Z_destinazione": 3000.0,
+        "Z_Speed": 2000,
+        "Z_accelerazione": 2500,
+        "Z_Decelerazione": 2500,
+        "Stato_Memoria_Op1": 0,
+        "Stato_Memoria_Op3": 0,
+        "Stato_Op1": 0,
+        "Stato_Op2": 0,
+        "Stato_Op3": 0,
+        "Stato_Op4": 0,
+        "Stato_Caso5_PrimaParte": 0,
+        "Stato_Y1_Prendi": 0,
+        "Stato_Y1_avanti": 0,
+        "Stato_Y1_indietro": 1,
+        "Stato_Y1_venturi": 0,
+        "Stato_Y2_Prendi": 0,
+        "Stato_Y2_avanti": 0,
+        "Stato_Y2_indietro": 1,
+        "Stato_Y2_venturi": 0,
+        "Stato_Y_soffia": 0,
         "comanda_ID": 0,
         "comanda_Lunghezza": 0,
         "comanda_Larghezza": 0,
@@ -165,7 +253,6 @@ plc_state = {
         "comanda_To_X": 0,
         "comanda_To_Y": 0,
         "comanda_ToZ": 0
-        # Solo campi ciclici
     },
     "Carrello": {
         "Stato_ComunicazioneRulliere": 1,
@@ -187,7 +274,17 @@ plc_state = {
         "Stato_MaintenancePosition": 0,
         "CMD_EnableDrive": 0,
         "CMD_Automatico": 0,
-        "CMD_MaintenancePosition": 0
+        "CMD_MaintenancePosition": 0,
+        "carrello_comanda_ID": 4001,
+        "carrello_comanda_Lunghezza": 2100,
+        "carrello_comanda_Larghezza": 900,
+        "carrello_comanda_Spessore": 20,
+        "carrello_comanda_From_X": 10400,
+        "carrello_comanda_From_Y": 103,
+        "carrello_comanda_From_Z": 10,
+        "carrello_comanda_To_X": 10400,
+        "carrello_comanda_To_Y": 106,
+        "carrello_comanda_ToZ": 200
     },
     "Caricatore": {
         "Stato_ComunicazioneRulliere": 1,
@@ -207,7 +304,17 @@ plc_state = {
         "Stato_EnableDrive": 1,
         "Stato_Automatico": 0,
         "CMD_EnableDrive": 0,
-        "CMD_Automatico": 0
+        "CMD_Automatico": 0,
+        "caricatore_comanda_ID": 3001,
+        "caricatore_comanda_Lunghezza": 2000,
+        "caricatore_comanda_Larghezza": 800,
+        "caricatore_comanda_Spessore": 19,
+        "caricatore_comanda_From_X": 100,
+        "caricatore_comanda_From_Y": 200,
+        "caricatore_comanda_From_Z": 0,
+        "caricatore_comanda_To_X": 500,
+        "caricatore_comanda_To_Y": 600,
+        "caricatore_comanda_ToZ": 100
     },
     "Rulliere": {
         "Stato_PannelloSuBiesse": 0,
@@ -217,6 +324,16 @@ plc_state = {
         "Stato_R2InPos0": 1,
         "Stato_R2Vuota": 1,
         "First": 1,
+        "rulliere_comanda_ID": 5001,
+        "rulliere_comanda_Lunghezza": 2200,
+        "rulliere_comanda_Larghezza": 1000,
+        "rulliere_comanda_Spessore": 21,
+        "rulliere_comanda_From_X": 700,
+        "rulliere_comanda_From_Y": 800,
+        "rulliere_comanda_From_Z": 20,
+        "rulliere_comanda_To_X": 1500,
+        "rulliere_comanda_To_Y": 1600,
+        "rulliere_comanda_ToZ": 300,
         
         # Tabella01
         "Tabella01_ID": 1001,
@@ -242,6 +359,8 @@ plc_state = {
         "Tabella01_Done_Carrello": 0,
         "Tabella01_WorkingR1": 0,
         "Tabella01_DoneR1": 0,
+        "Tabella01_Working_Caricatore": 0,
+        "Tabella01_Done_Caricatore": 0,
 
         # Tabella02
         "Tabella02_ID": 1002,
@@ -267,6 +386,8 @@ plc_state = {
         "Tabella02_Done_Carrello": 0,
         "Tabella02_WorkingR1": 1,
         "Tabella02_DoneR1": 0,
+        "Tabella02_Working_Caricatore": 0,
+        "Tabella02_Done_Caricatore": 0,
 
         # Tabella03
         "Tabella03_ID": 1003,
@@ -292,6 +413,8 @@ plc_state = {
         "Tabella03_Done_Carrello": 0,
         "Tabella03_WorkingR1": 0,
         "Tabella03_DoneR1": 0,
+        "Tabella03_Working_Caricatore": 0,
+        "Tabella03_Done_Caricatore": 0,
 
         # Tabella04
         "Tabella04_ID": 0,
@@ -317,6 +440,8 @@ plc_state = {
         "Tabella04_Done_Carrello": 0,
         "Tabella04_WorkingR1": 0,
         "Tabella04_DoneR1": 0,
+        "Tabella04_Working_Caricatore": 0,
+        "Tabella04_Done_Caricatore": 0,
 
         # Tabella05
         "Tabella05_ID": 0,
@@ -342,6 +467,8 @@ plc_state = {
         "Tabella05_Done_Carrello": 0,
         "Tabella05_WorkingR1": 0,
         "Tabella05_DoneR1": 0,
+        "Tabella05_Working_Caricatore": 0,
+        "Tabella05_Done_Caricatore": 0,
 
         # Tabella06
         "Tabella06_ID": 0,
@@ -367,6 +494,8 @@ plc_state = {
         "Tabella06_Done_Carrello": 0,
         "Tabella06_WorkingR1": 0,
         "Tabella06_DoneR1": 0,
+        "Tabella06_Working_Caricatore": 0,
+        "Tabella06_Done_Caricatore": 0,
         
         "Stato_Pick": 0,
         "Stato_Picked": 0,
@@ -449,86 +578,151 @@ def client_handler(sock):
                 if not line:
                     continue
                 
-                parti = line.split()
-                cmd = parti[0].lower()
+                comandi = line.split(";")
+                risposte_lista = []
                 
-                if cmd == "read_all":
-                    macchina = parti[1]
-                    if macchina in plc_state:
-                        res = []
-                        # Se è Navetta_4, restituisce solo i campi del template attivo
-                        for k, v in plc_state[macchina].items():
-                            # Restituisce tutto lo stato ciclico
-                            res.append(f"{macchina}.{k} = {v}")
-                        sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
-                    else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
-                        
-                elif cmd == "read_template":
-                    macchina = parti[1]
-                    tpl = parti[2]
-                    if macchina in plc_state:
-                        res = []
-                        for k, v in plc_state[macchina].items():
-                            res.append(f"{macchina}.{k} = {v}")
-                        sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
-                    else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
-                        
-                elif cmd == "write":
-                    macchina = parti[1]
-                    parametro = parti[2]
-                    valore = parti[3]
+                for sing_cmd_str in comandi:
+                    sing_cmd_str = sing_cmd_str.strip()
+                    if not sing_cmd_str:
+                        continue
                     
-                    if macchina in plc_state:
-                        # Parsing valore
-                        if valore.lower() in ["1", "true", "-1"]:
-                            val_parsed = 1
-                        elif valore.lower() in ["0", "false"]:
-                            val_parsed = 0
+                    parti = sing_cmd_str.split()
+                    if not parti:
+                        continue
+                    cmd = parti[0].lower()
+                    
+                    if cmd == "read_all":
+                        macchina = parti[1]
+                        if macchina in plc_state:
+                            res = []
+                            for k, v in plc_state[macchina].items():
+                                res.append(f"{macchina}.{k} = {v}")
+                            risposte_lista.append("\n".join(res))
                         else:
-                            try:
-                                val_parsed = float(valore) if "." in valore else int(valore)
-                            except ValueError:
-                                val_parsed = valore
-                                
-                        # Aggiorna lo stato
-                        plc_state[macchina][parametro] = val_parsed
-                        
-                        # Aggiorna i relativi stati fittizi Modbus
-                        if parametro == "CMD_EnableDrive":
-                            plc_state[macchina]["Stato_EnableDrive"] = val_parsed
-                        elif parametro == "CMD_Automatico":
-                            plc_state[macchina]["Stato_Automatico"] = val_parsed
-                        elif parametro == "CMD_MaintenancePosition":
-                            plc_state[macchina]["Stato_MaintenancePosition"] = val_parsed
-                        elif parametro == "CMD_Home":
-                            plc_state[macchina]["Home_OK"] = 1
+                            risposte_lista.append(f"{macchina}: disconnected or not found")
                             
-                        sock.sendall(f"{macchina}.{parametro} scritto: {valore}\n\x03".encode("utf-8"))
+                    elif cmd == "read_template":
+                        macchina = parti[1]
+                        tpl = parti[2]
+                        if macchina in plc_state:
+                            res = []
+                            for k, v in plc_state[macchina].items():
+                                res.append(f"{macchina}.{k} = {v}")
+                            risposte_lista.append("\n".join(res))
+                        else:
+                            risposte_lista.append(f"{macchina}: disconnected or not found")
+                            
+                    elif cmd == "write":
+                        macchina = parti[1]
+                        parametro = parti[2]
+                        valore = parti[3]
+                        
+                        if macchina in plc_state:
+                            if valore.lower() in ["1", "true", "-1"]:
+                                val_parsed = 1
+                            elif valore.lower() in ["0", "false"]:
+                                val_parsed = 0
+                            else:
+                                try:
+                                    val_parsed = float(valore) if "." in valore else int(valore)
+                                except ValueError:
+                                    val_parsed = valore
+                                    
+                            plc_state[macchina][parametro] = val_parsed
+                            
+                            if parametro == "CMD_EnableDrive":
+                                plc_state[macchina]["Stato_EnableDrive"] = val_parsed
+                            elif parametro == "CMD_Automatico":
+                                plc_state[macchina]["Stato_Automatico"] = val_parsed
+                            elif parametro == "CMD_MaintenancePosition":
+                                plc_state[macchina]["Stato_MaintenancePosition"] = val_parsed
+                            elif parametro == "CMD_Home":
+                                plc_state[macchina]["Home_OK"] = 1
+                            elif parametro == "cmd_Caso5primaParte":
+                                plc_state[macchina]["Stato_Caso5_PrimaParte"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y1_Prendi":
+                                plc_state[macchina]["Stato_Y1_Prendi"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y1_avanti":
+                                if val_parsed in [-513, 65023, 32767]:
+                                    plc_state[macchina]["Stato_Y1_avanti"] = 0
+                                else:
+                                    plc_state[macchina]["Stato_Y1_avanti"] = 1
+                                    plc_state[macchina]["Stato_Y1_indietro"] = 0
+                            elif parametro == "cmd_Y1_indietro":
+                                if val_parsed in [-513, 65023, 32767]:
+                                    plc_state[macchina]["Stato_Y1_indietro"] = 0
+                                else:
+                                    plc_state[macchina]["Stato_Y1_avanti"] = 0
+                                    plc_state[macchina]["Stato_Y1_indietro"] = 1
+                            elif parametro == "cmd_Y1_venturi":
+                                plc_state[macchina]["Stato_Y1_venturi"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y1_bascula":
+                                plc_state[macchina]["Stato_Y1_bascula"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y2_Prendi":
+                                plc_state[macchina]["Stato_Y2_Prendi"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y2_avanti":
+                                if val_parsed in [-513, 65023, 32767]:
+                                    plc_state[macchina]["Stato_Y2_avanti"] = 0
+                                else:
+                                    plc_state[macchina]["Stato_Y2_avanti"] = 1
+                                    plc_state[macchina]["Stato_Y2_indietro"] = 0
+                            elif parametro == "cmd_Y2_indietro":
+                                if val_parsed in [-513, 65023, 32767]:
+                                    plc_state[macchina]["Stato_Y2_indietro"] = 0
+                                else:
+                                    plc_state[macchina]["Stato_Y2_avanti"] = 0
+                                    plc_state[macchina]["Stato_Y2_indietro"] = 1
+                            elif parametro == "cmd_Y2_venturi":
+                                plc_state[macchina]["Stato_Y2_venturi"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y2_bascula":
+                                plc_state[macchina]["Stato_Y2_bascula"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Y_soffia":
+                                plc_state[macchina]["Stato_Y_soffia"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Memoria_Op1":
+                                plc_state[macchina]["Stato_Memoria_Op1"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Memoria_Op2" or parametro == "cmd_Memoria_Op3":
+                                plc_state[macchina]["Stato_Memoria_Op3"] = 0 if val_parsed in [-513, 65023, 32767] else 1
+                            elif parametro == "cmd_Pannello_Preso":
+                                if val_parsed in [-513, 65023, 32767]:
+                                    plc_state[macchina]["Stato_Y1_PannelloPreso"] = 0
+                                    plc_state[macchina]["Stato_Y2_PannelloPreso"] = 0
+                                else:
+                                    plc_state[macchina]["Stato_Y1_PannelloPreso"] = 1
+                                    plc_state[macchina]["Stato_Y2_PannelloPreso"] = 1
+                            elif parametro == "cmd_Operazioni_1-2-3-4":
+                                val_int = int(val_parsed)
+                                plc_state[macchina]["Stato_Op1"] = 1 if val_int == 768 else 0
+                                plc_state[macchina]["Stato_Op2"] = 1 if val_int == 1280 else 0
+                                plc_state[macchina]["Stato_Op3"] = 1 if val_int == 2304 else 0
+                                plc_state[macchina]["Stato_Op4"] = 1 if val_int == 4352 else 0
+                                
+                            risposte_lista.append(f"{macchina}.{parametro} scritto: {valore}")
+                        else:
+                            risposte_lista.append(f"{macchina}: disconnected or not found")
+                            
+                    elif cmd == "connect":
+                        target = parti[1]
+                        risposte_lista.append(f"{target} connesso.")
+                            
+                    elif cmd == "disconnect":
+                        target = parti[1]
+                        risposte_lista.append(f"{target} disconnesso.")
+                            
+                    elif cmd == "status":
+                        res = [
+                            "web_port: 8080",
+                            "socket_port: 9000",
+                            "modbus_port: 502"
+                        ]
+                        for m in plc_state.keys():
+                            res.append(f"{m}: connected")
+                        risposte_lista.append("\n".join(res))
+                        
                     else:
-                        sock.sendall(f"{macchina}: disconnected or not found\n\x03".encode("utf-8"))
-                        
-                elif cmd == "connect":
-                    target = parti[1]
-                    sock.sendall(f"{target} connesso.\n\x03".encode("utf-8"))
-                        
-                elif cmd == "disconnect":
-                    target = parti[1]
-                    sock.sendall(f"{target} disconnesso.\n\x03".encode("utf-8"))
-                        
-                elif cmd == "status":
-                    res = [
-                        "web_port: 8080",
-                        "socket_port: 9000",
-                        "modbus_port: 502"
-                    ]
-                    for m in plc_state.keys():
-                        res.append(f"{m}: connected")
-                    sock.sendall(("\n".join(res) + "\n\x03").encode("utf-8"))
-                    
-                else:
-                    sock.sendall(f"Comando '{cmd}' non supportato dal mock.\n\x03".encode("utf-8"))
+                        risposte_lista.append(f"Comando '{cmd}' non supportato dal mock.")
+                
+                if risposte_lista:
+                    sock.sendall(("\n".join(risposte_lista) + "\n\x03").encode("utf-8"))
         except Exception:
             break
     sock.close()

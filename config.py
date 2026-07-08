@@ -12,24 +12,25 @@ DEFAULT_CONFIG = {
         "corsa_max_y": 28500.0
     },
     "caricatore": {
-        "corsa_max_z": 1500.0
+        "corsa_max_z": 1500.0,
+        "posizione_y": 2000.0
     },
     "navette": {
         "Navetta_1": {
             "attivo": True,
-            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 18500.0]
+            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 18500.0, 1500.0]
         },
         "Navetta_2": {
             "attivo": True,
-            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 21200.0]
+            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 21200.0, 1500.0]
         },
         "Navetta_3": {
             "attivo": True,
-            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 24040.0]
+            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 24040.0, 1500.0]
         },
         "Navetta_4": {
             "attivo": True,
-            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 27060.0]
+            "valori": [27000.0, 1200.0, 1200.0, 3685.0, 27060.0, 1500.0]
         }
     }
 }
@@ -37,7 +38,7 @@ DEFAULT_CONFIG = {
 for i in range(5, 11):
     DEFAULT_CONFIG["navette"][f"Navetta_{i}"] = {
         "attivo": False,
-        "valori": [27000.0, 1200.0, 1200.0, 3685.0, 0.0]
+        "valori": [27000.0, 1200.0, 1200.0, 3685.0, 0.0, 1500.0]
     }
 
 def get_config_path():

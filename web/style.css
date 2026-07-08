@@ -644,6 +644,7 @@ td:first-child, th:first-child {
     gap: 15px;
     min-height: 100%;
     overflow: visible;
+    position: relative;
 }
 
 .device-top-block {
@@ -1744,20 +1745,23 @@ input[type="number"] {
 .job-card-wrapper::before {
     content: '';
     position: absolute;
-    top: -12px;
+    top: -20px;
     left: 0;
     right: 0;
-    bottom: 0;
-    z-index: 0;
+    bottom: -20px;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0); /* Garantisce l'interattività dell'area invisibile in tutti i browser */
+    pointer-events: auto;
 }
 .job-card {
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     position: relative;
+    z-index: 2; /* Sopra al cushion per consentire il click e hover */
+    pointer-events: auto;
 }
 .job-card-wrapper:hover .job-card {
     transform: translateY(-8px);
-    z-index: 100;
     animation: flashHover 1s infinite ease-in-out;
 }
 .step-dot {
@@ -1862,5 +1866,186 @@ input[type="number"] {
 .modal-footer button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Stili Tabella Commesse a Schede (Frames) */
+.jobs-table-cards {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 10px !important; /* Spazio tra le righe/frame */
+    font-size: 13px;
+    margin-top: -10px;
+}
+
+.jobs-table-cards th {
+    background-color: transparent !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    padding: 8px 12px !important;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.jobs-table-cards tbody tr {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease !important;
+}
+
+.jobs-table-cards tbody tr:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Applica il colore di sfondo e i bordi alle singole celle td */
+.jobs-table-cards tbody td {
+    background-color: var(--row-bg) !important;
+    border-top: var(--row-border) !important;
+    border-bottom: var(--row-border) !important;
+    border-left: none !important;
+    border-right: none !important;
+    padding: 12px 14px !important;
+    transition: background-color 0.2s ease !important;
+}
+
+/* Bordo sinistro personalizzato con lo stato sul primo td */
+.jobs-table-cards tbody td:first-child {
+    border-left: var(--row-border-left) !important;
+    border-top-left-radius: 6px !important;
+    border-bottom-left-radius: 6px !important;
+    text-align: left;
+}
+
+/* Bordo destro personalizzato sul'ultimo td */
+.jobs-table-cards tbody td:last-child {
+    border-right: var(--row-border) !important;
+    border-top-right-radius: 6px !important;
+    border-bottom-right-radius: 6px !important;
+}
+
+/* --- VERTICAL SELECTOR & MODAL DISABLE COLOR PRESERVATION --- */
+
+/* Supporto per layout verticale del selettore vista */
+.vertical-title-container {
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 18px 8px !important;
+    min-width: 55px !important;
+    gap: 15px !important;
+}
+
+.view-selector-vertical {
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(15, 23, 42, 0.8);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    gap: 4px;
+    width: 32px;
+}
+
+.view-selector-vertical .btn-view {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 14px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1;
+}
+
+.view-selector-vertical .btn-view.active {
+    background-color: var(--accent-cyan);
+    color: var(--bg-sidebar);
+}
+
+/* Impedisce lo sbiadimento dei colori nei campi disabilitati (Sola Lettura) nel modale dettagli commessa */
+#commessa-modal input:disabled {
+    opacity: 1 !important;
+    color: var(--text-primary) !important;
+    background-color: rgba(15, 23, 42, 0.5) !important;
+    border-color: var(--border-color) !important;
+    cursor: default !important;
+}
+
+#commessa-modal input[type="checkbox"]:disabled {
+    opacity: 1 !important;
+    cursor: default !important;
+    filter: none !important;
+}
+
+#commessa-modal label {
+    opacity: 1 !important;
+    color: #fff !important;
+    cursor: default !important;
+}
+
+/* Badge specifici per gli Stati Avanzati ON/OFF */
+.badge.badge-on {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    border: 1px solid var(--accent-green) !important;
+    color: var(--accent-green) !important;
+    font-weight: 700 !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+}
+.badge.badge-off {
+    background-color: rgba(148, 163, 184, 0.05) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    color: var(--text-muted) !important;
+    font-weight: 600 !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+}
+
+/* Stile per i badge interattivi (pulsanti) */
+button.badge {
+    cursor: default;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+button.badge:not(:disabled) {
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+}
+button.badge:not(:disabled):hover {
+    filter: brightness(1.2) !important;
+    transform: scale(1.05);
+}
+button.badge:not(:disabled):active {
+    transform: scale(0.95);
+}
+
+
+/* Dati Commessa Inattiva */
+.control-frame-vertical-layout.inactive-commessa {
+    opacity: 0.5;
+    background: rgba(15, 23, 42, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
+    transition: all 0.3s ease;
+}
+.control-frame-vertical-layout.inactive-commessa span {
+    color: var(--text-muted) !important;
+}
+.control-frame-vertical-layout.inactive-commessa label {
+    color: rgba(148, 163, 184, 0.4) !important;
+}
+
+/* Stile per l'elemento Nessun lavoro in corso quando visualizzato con la commessa */
+.inactive-commessa .control-row[id$="-comm-no-job"] {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 8px !important;
+    font-size: 11px !important;
 }
 

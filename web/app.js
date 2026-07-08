@@ -6,6 +6,57 @@ let activeNavettaIndex = 0; // 0-based index per Navetta_1, Navetta_2, ecc.
 let currentStates = {};
 let config = {};
 let eventSource = null;
+let ultimaCodaCommesseHTML = "";
+let ultimoJobsTableHTML = "";
+
+// --- UTILITY PER COMANDI AVANZATI NAVETTA ---
+function inviaScritturaAvanzata(parameter, customVal = -1) {
+    const nomeMacchina = `Navetta_${activeNavettaIndex + 1}`;
+    const stato = currentStates[nomeMacchina] || {};
+    let targetVal = customVal;
+    
+    // Se non è stato passato un valore specifico (customVal = -1)
+    if (customVal === -1) {
+        let isActive = false;
+        if (parameter === "cmd_Caso5primaParte") isActive = !!stato.Stato_Caso5_PrimaParte;
+        else if (parameter === "cmd_Pannello_Preso") isActive = !!(stato.Stato_Y1_PannelloPreso || stato.Stato_Y2_PannelloPreso);
+        else if (parameter === "cmd_Y_soffia") isActive = !!stato.Stato_Y_soffia;
+        else if (parameter === "cmd_Memoria_Op1") isActive = !!stato.Stato_Memoria_Op1;
+        else if (parameter === "cmd_Memoria_Op2" || parameter === "cmd_Memoria_Op3") isActive = !!stato.Stato_Memoria_Op3;
+        else if (parameter === "cmd_Y1_Prendi") isActive = !!stato.Stato_Y1_Prendi;
+        else if (parameter === "cmd_Y1_bascula") isActive = !!stato.Stato_Y1_bascula;
+        else if (parameter === "cmd_Y1_avanti") isActive = !!stato.Stato_Y1_avanti;
+        else if (parameter === "cmd_Y1_indietro") isActive = !!stato.Stato_Y1_indietro;
+        else if (parameter === "cmd_Y1_venturi") isActive = !!stato.Stato_Y1_venturi;
+        else if (parameter === "cmd_Y2_Prendi") isActive = !!stato.Stato_Y2_Prendi;
+        else if (parameter === "cmd_Y2_bascula") isActive = !!stato.Stato_Y2_bascula;
+        else if (parameter === "cmd_Y2_avanti") isActive = !!stato.Stato_Y2_avanti;
+        else if (parameter === "cmd_Y2_indietro") isActive = !!stato.Stato_Y2_indietro;
+        else if (parameter === "cmd_Y2_venturi") isActive = !!stato.Stato_Y2_venturi;
+        
+        // Se è attivo scriviamo -513 (16#FDFF in signed INT) per spegnere, altrimenti -1 per accendere
+        targetVal = isActive ? -513 : -1;
+    }
+    
+    inviaScrittura(nomeMacchina, parameter, targetVal);
+}
+
+function aggiornaAbilitazioneComandiAvanzati() {
+    const nomeMacchina = `Navetta_${activeNavettaIndex + 1}`;
+    const stato = currentStates[nomeMacchina] || {};
+    const isManual = !stato.Stato_Automatico;
+    
+    const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+    const switchOn = switchEl ? switchEl.checked : false;
+    
+    const enabled = isManual && switchOn;
+    
+    // Disabilita/abilita tutti i badge interattivi (pulsanti badge-btn)
+    const buttons = document.querySelectorAll(".badge-btn");
+    buttons.forEach(btn => {
+        btn.disabled = !enabled;
+    });
+}
 
 // --- INIZIALIZZAZIONE ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -31,6 +82,36 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("carr-wood-panel-checkbox")?.addEventListener("change", () => {
         const rotVal = (currentStates.Carrello && currentStates.Carrello.Rotazione_Encoder) || 0;
         renderCarrelloRotazione(rotVal);
+    });
+
+    // Event listener per attivazione comandi avanzati
+    document.getElementById("switch-attiva-comandi-avanzati")?.addEventListener("change", aggiornaAbilitazioneComandiAvanzati);
+
+    // Double click su Dati Commessa delle schede macchina per aprire la modifica commessa
+    const bindCardDblClick = (cardId, getIdxLavoro) => {
+        document.getElementById(cardId)?.addEventListener("dblclick", () => {
+            const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+            if (switchEl && switchEl.checked) {
+                const idx = getIdxLavoro();
+                openCommessaModal(idx >= 1 && idx <= 6 ? idx : 1);
+            }
+        });
+    };
+    bindCardDblClick("frame-nav-commessa", () => {
+        const state = currentStates[`Navetta_${activeNavettaIndex + 1}`] || {};
+        return state.IndexTabellaLavoro || 0;
+    });
+    bindCardDblClick("frame-carr-commessa", () => {
+        const state = currentStates.Carrello || {};
+        return state.IndexTabellaLavoro || 0;
+    });
+    bindCardDblClick("frame-car-commessa", () => {
+        const state = currentStates.Caricatore || {};
+        return state.IndexTabellaLavoro || 0;
+    });
+    bindCardDblClick("frame-rul-commessa", () => {
+        const state = currentStates.Rulliere || {};
+        return state.IndexTabellaLavoro || 0;
     });
 
     // Avvia polling periodico per la console log (ogni 2 secondi)
@@ -62,6 +143,10 @@ function switchTab(targetId) {
     if (targetPanel) {
         targetPanel.classList.add("active");
     }
+    
+    // Disattiva comandi avanzati al cambio scheda/tab
+    const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+    if (switchEl) switchEl.checked = false;
     
     activeTab = targetId;
     
@@ -280,7 +365,11 @@ function aggiornaMatriceGlobale() {
                     const td = document.createElement("td");
                     td.id = `cell-${cmd}-${m}`;
                     td.className = "state-cell";
-                    td.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
+                    if (cmd === "Home" && m === "Rulliere") {
+                        td.innerHTML = "";
+                    } else {
+                        td.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
+                    }
                     row.appendChild(td);
                 });
             }
@@ -296,9 +385,9 @@ function aggiornaMatriceGlobale() {
             const statoMacchina = currentStates[m] || {};
             const comunicazione_ok = statoMacchina.__comunicazione_ok__;
             
-            // L'home di rulliere non esiste e deve sparire (mostrando X)
+            // L'home di rulliere non esiste e deve sparire (mostrando vuoto)
             if (cmd === "Home" && m === "Rulliere") {
-                cell.innerHTML = `<span class="badge-state" style="color:var(--text-muted); font-weight:bold; font-family:sans-serif;">X</span>`;
+                cell.innerHTML = "";
                 return;
             }
             
@@ -347,6 +436,10 @@ function aggiornaSchedaNavette() {
                 activeNavettaIndex = i - 1;
                 document.getElementById("navetta-selezionata-title").innerText = `Navetta ${i}`;
                 
+                // Disattiva comandi avanzati al cambio macchina
+                const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+                if (switchEl) switchEl.checked = false;
+                
                 // Mostra/Nascondi opzioni specifiche per Navetta 4 (template on-demand)
                 const isNav4 = (i === 4);
                 const tplGrp = document.getElementById("navetta-4-tpl-group");
@@ -392,7 +485,17 @@ function aggiornaSchedaNavette() {
         "X_Homed", "Y_Homed", "Z_Homed", "Home_OK",
         "Stato_Pick", "Stato_Picked", "IndexTabellaLavoro",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello"
+        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello",
+        // Stati avanzati numerici
+        "X_destinazione", "X_Ricalcolata", "Z_destinazione",
+        "Z_Speed", "Z_accelerazione", "Z_Decelerazione",
+        // Stati avanzati booleani
+        "Stato_Memoria_Op1", "Stato_Memoria_Op3",
+        "Stato_Op1", "Stato_Op2", "Stato_Op3", "Stato_Op4",
+        "Stato_Caso5_PrimaParte",
+        "Stato_Y1_Prendi", "Stato_Y1_avanti", "Stato_Y1_indietro", "Stato_Y1_venturi", "Stato_Y1_bascula", "Stato_Y1_PannelloPreso",
+        "Stato_Y2_Prendi", "Stato_Y2_avanti", "Stato_Y2_indietro", "Stato_Y2_venturi", "Stato_Y2_bascula", "Stato_Y2_PannelloPreso",
+        "Stato_Y_soffia"
     ];
     
     keys.forEach(k => {
@@ -411,8 +514,39 @@ function aggiornaSchedaNavette() {
             el.innerText = val ? "❌ ALLARME" : "✅";
             el.className = `badge ${val ? 'val-offline' : 'val-online'}`;
         } else if (typeof val === "boolean") {
-            el.innerText = val ? "✅" : "❌";
-            el.style.color = val ? "var(--accent-green)" : "var(--accent-red)";
+            const advancedBools = [
+                "Stato_Memoria_Op1", "Stato_Memoria_Op3",
+                "Stato_Op1", "Stato_Op2", "Stato_Op3", "Stato_Op4",
+                "Stato_Caso5_PrimaParte",
+                "Stato_Y1_Prendi", "Stato_Y1_avanti", "Stato_Y1_indietro", "Stato_Y1_venturi", "Stato_Y1_bascula", "Stato_Y1_PannelloPreso",
+                "Stato_Y2_Prendi", "Stato_Y2_avanti", "Stato_Y2_indietro", "Stato_Y2_venturi", "Stato_Y2_bascula", "Stato_Y2_PannelloPreso",
+                "Stato_Y_soffia"
+            ];
+            if (advancedBools.includes(k)) {
+                el.innerText = val ? "ON" : "OFF";
+                const isBtn = el.tagName === "BUTTON";
+                el.className = `badge ${isBtn ? 'badge-btn' : ''} ${val ? 'badge-on' : 'badge-off'}`;
+                el.style.color = "";
+            } else {
+                el.innerText = val ? "✅" : "❌";
+                el.className = "badge";
+                el.style.color = val ? "var(--accent-green)" : "var(--accent-red)";
+            }
+        } else {
+            // Campi numerici avanzati
+            if (val !== undefined && val !== null) {
+                if (k.endsWith("_destinazione") || k.endsWith("_Ricalcolata")) {
+                    el.innerText = `${val} mm`;
+                } else if (k === "Z_Speed") {
+                    el.innerText = `${val} mm/s`;
+                } else if (k === "Z_accelerazione" || k === "Z_Decelerazione") {
+                    el.innerText = `${val} mm/s²`;
+                } else {
+                    el.innerText = val;
+                }
+            } else {
+                el.innerText = "-";
+            }
         }
     });
     
@@ -459,48 +593,7 @@ function aggiornaSchedaNavette() {
     if (navZh) navZh.value = `${zVal} mm`;
     
     // Aggiorna Dati Commessa
-    const inLavoro = (stato.Stato_Picked ? true : false);
-    const noJobEl = document.getElementById("nav-comm-no-job");
-    const detailsEl = document.getElementById("nav-comm-details");
-    
-    if (noJobEl && detailsEl) {
-        if (inLavoro) {
-            noJobEl.style.display = "none";
-            detailsEl.style.display = "flex";
-            
-            // Popola i campi
-            const valID = document.getElementById("nav-comm-val-ID");
-            const valDim = document.getElementById("nav-comm-val-Dimensioni");
-            const valFrom = document.getElementById("nav-comm-val-From");
-            const valTo = document.getElementById("nav-comm-val-To");
-            
-            if (valID) valID.innerText = stato.comanda_ID !== undefined ? stato.comanda_ID : "-";
-            
-            if (valDim) {
-                const len = stato.comanda_Lunghezza !== undefined ? stato.comanda_Lunghezza : "-";
-                const wid = stato.comanda_Larghezza !== undefined ? stato.comanda_Larghezza : "-";
-                const thk = stato.comanda_Spessore !== undefined ? stato.comanda_Spessore : "-";
-                valDim.innerText = `${len} x ${wid} x ${thk} mm`;
-            }
-            
-            if (valFrom) {
-                const fx_val = stato.comanda_From_X !== undefined ? stato.comanda_From_X : "-";
-                const fy_val = stato.comanda_From_Y !== undefined ? stato.comanda_From_Y : "-";
-                const fz_val = stato.comanda_From_Z !== undefined ? stato.comanda_From_Z : "-";
-                valFrom.innerText = `${fx_val} / ${fy_val} / ${fz_val} mm`;
-            }
-            
-            if (valTo) {
-                const tx_val = stato.comanda_To_X !== undefined ? stato.comanda_To_X : "-";
-                const ty_val = stato.comanda_To_Y !== undefined ? stato.comanda_To_Y : "-";
-                const tz_val = stato.comanda_ToZ !== undefined ? stato.comanda_ToZ : "-";
-                valTo.innerText = `${tx_val} / ${ty_val} / ${tz_val} mm`;
-            }
-        } else {
-            noJobEl.style.display = "flex";
-            detailsEl.style.display = "none";
-        }
-    }
+    aggiornaDatiCommessaMacchina("nav", stato, currentStates.Rulliere || {});
 
     if (nomeMacchina === "Navetta_4") {
         const elId = document.getElementById("nav-val-ID");
@@ -571,53 +664,157 @@ function aggiornaSchedaNavette() {
         gotoZ.min = minZ;
         gotoZ.max = corsaMaxZ;
     }
+    
+    // Disabilita lo switch attiva comandi avanzati se la macchina non è in manuale
+    const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+    if (switchEl) {
+        const isManual = !stato.Stato_Automatico;
+        if (!isManual) {
+            switchEl.checked = false;
+            switchEl.disabled = true;
+        } else {
+            switchEl.disabled = false;
+        }
+    }
+    
+    // Aggiorna l'abilitazione dei comandi avanzati in base a manuale + switch
+    aggiornaAbilitazioneComandiAvanzati();
+}
+
+function initCustomTooltip() {
+    let tooltip = document.getElementById("hmi-svg-tooltip");
+    if (!tooltip) {
+        tooltip = document.createElement("div");
+        tooltip.id = "hmi-svg-tooltip";
+        tooltip.style.position = "absolute";
+        tooltip.style.backgroundColor = "rgba(15, 23, 42, 0.95)";
+        tooltip.style.color = "#ffffff";
+        tooltip.style.padding = "6px 10px";
+        tooltip.style.borderRadius = "4px";
+        tooltip.style.fontSize = "12px";
+        tooltip.style.fontWeight = "500";
+        tooltip.style.fontFamily = "system-ui, -apple-system, sans-serif";
+        tooltip.style.pointerEvents = "none";
+        tooltip.style.display = "none";
+        tooltip.style.zIndex = "99999";
+        tooltip.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)";
+        tooltip.style.border = "1px solid rgba(255, 255, 255, 0.1)";
+        document.body.appendChild(tooltip);
+    }
+    return tooltip;
+}
+
+function bindTooltip(el, text) {
+    const tooltip = initCustomTooltip();
+    el.setAttribute("data-tooltip", text);
+    
+    // Rimuove eventuali title nativi per non avere doppioni e ritardi del browser
+    const oldTitle = el.querySelector("title");
+    if (oldTitle) {
+        oldTitle.remove();
+    }
+    el.removeAttribute("title");
+    
+    if (!el.dataset.tooltipBound) {
+        el.dataset.tooltipBound = "true";
+        el.addEventListener("mouseenter", () => {
+            tooltip.innerText = el.getAttribute("data-tooltip");
+            tooltip.style.display = "block";
+        });
+        el.addEventListener("mousemove", (e) => {
+            tooltip.style.left = (e.pageX + 12) + "px";
+            tooltip.style.top = (e.pageY + 12) + "px";
+        });
+        el.addEventListener("mouseleave", () => {
+            tooltip.style.display = "none";
+        });
+    }
+}
+
+function getMachineComandaValue(statoMacchina, idPrefisso, field) {
+    let lowerName = "";
+    if (idPrefisso === "carr") lowerName = "carrello";
+    else if (idPrefisso === "car") lowerName = "caricatore";
+    else if (idPrefisso === "rul") lowerName = "rulliere";
+    else lowerName = "navetta";
+    
+    const prefixKey = `${lowerName}_comanda_${field}`;
+    if (statoMacchina[prefixKey] !== undefined) {
+        return statoMacchina[prefixKey];
+    }
+    const directKey = `comanda_${field}`;
+    if (statoMacchina[directKey] !== undefined) {
+        return statoMacchina[directKey];
+    }
+    return undefined;
 }
 
 function aggiornaDatiCommessaMacchina(idPrefisso, statoMacchina, statoRulliere) {
     const idxLavoro = statoMacchina.IndexTabellaLavoro || 0;
-    const inLavoro = (statoMacchina.Stato_Picked ? true : false) && idxLavoro >= 1 && idxLavoro <= 6;
+    const inLavoro = idPrefisso === "nav" 
+        ? (statoMacchina.Stato_Picked ? true : false)
+        : (statoMacchina.Stato_Picked ? true : false) && idxLavoro >= 1 && idxLavoro <= 6;
     
     const noJobEl = document.getElementById(`${idPrefisso}-comm-no-job`);
     const detailsEl = document.getElementById(`${idPrefisso}-comm-details`);
+    const frameEl = document.getElementById(`frame-${idPrefisso}-commessa`);
     
     if (noJobEl && detailsEl) {
-        if (inLavoro) {
-            noJobEl.style.display = "none";
-            detailsEl.style.display = "flex";
-            
-            const idPad = idxLavoro.toString().padStart(2, '0');
-            
-            const valID = document.getElementById(`${idPrefisso}-comm-val-ID`);
-            const valDim = document.getElementById(`${idPrefisso}-comm-val-Dimensioni`);
-            const valFrom = document.getElementById(`${idPrefisso}-comm-val-From`);
-            const valTo = document.getElementById(`${idPrefisso}-comm-val-To`);
-            
-            if (valID) valID.innerText = statoRulliere[`Tabella${idPad}_ID`] !== undefined ? statoRulliere[`Tabella${idPad}_ID`] : "-";
-            
-            if (valDim) {
-                const len = statoRulliere[`Tabella${idPad}_Lunghezza`] !== undefined ? statoRulliere[`Tabella${idPad}_Lunghezza`] : "-";
-                const wid = statoRulliere[`Tabella${idPad}_Larghezza`] !== undefined ? statoRulliere[`Tabella${idPad}_Larghezza`] : "-";
-                const thk = statoRulliere[`Tabella${idPad}_Spessore`] !== undefined ? statoRulliere[`Tabella${idPad}_Spessore`] : "-";
-                valDim.innerText = `${len} x ${wid} x ${thk} mm`;
-            }
-            
-            if (valFrom) {
-                const fx = statoRulliere[`Tabella${idPad}_From_X`] !== undefined ? statoRulliere[`Tabella${idPad}_From_X`] : "-";
-                const fy = statoRulliere[`Tabella${idPad}_From_Y`] !== undefined ? statoRulliere[`Tabella${idPad}_From_Y`] : "-";
-                const fz = statoRulliere[`Tabella${idPad}_From_Z`] !== undefined ? statoRulliere[`Tabella${idPad}_From_Z`] : "-";
-                valFrom.innerText = `${fx} / ${fy} / ${fz} mm`;
-            }
-            
-            if (valTo) {
-                const tx = statoRulliere[`Tabella${idPad}_To_X`] !== undefined ? statoRulliere[`Tabella${idPad}_To_X`] : "-";
-                const ty = statoRulliere[`Tabella${idPad}_To_Y`] !== undefined ? statoRulliere[`Tabella${idPad}_To_Y`] : "-";
-                const tz = statoRulliere[`Tabella${idPad}_ToZ`] !== undefined ? statoRulliere[`Tabella${idPad}_ToZ`] : "-";
-                valTo.innerText = `${tx} / ${ty} / ${tz} mm`;
-            }
-        } else {
-            noJobEl.style.display = "flex";
-            detailsEl.style.display = "none";
+        if (noJobEl.getAttribute("data-default-text") === null) {
+            noJobEl.setAttribute("data-default-text", noJobEl.innerText);
         }
+        
+        if (inLavoro) {
+            // Verifica se i dati della commessa sono presenti sulla macchina
+            const requiredFields = ["ID", "Lunghezza", "Larghezza", "Spessore", "From_X", "From_Y", "From_Z", "To_X", "To_Y", "ToZ"];
+            let dataMissing = false;
+            for (const f of requiredFields) {
+                if (getMachineComandaValue(statoMacchina, idPrefisso, f) === undefined) {
+                    dataMissing = true;
+                    break;
+                }
+            }
+            
+            if (dataMissing) {
+                console.error(`[${idPrefisso.toUpperCase()}] errore dati mancanti`);
+                noJobEl.innerHTML = `<span style="color: var(--accent-red); font-weight: 700;">errore dati mancanti</span>`;
+                noJobEl.style.display = "flex";
+                detailsEl.style.display = "none";
+                if (frameEl) frameEl.classList.remove("inactive-commessa");
+                return;
+            }
+        }
+        
+        noJobEl.style.display = inLavoro ? "none" : "flex";
+        if (inLavoro) {
+            if (frameEl) frameEl.classList.remove("inactive-commessa");
+        } else {
+            noJobEl.innerText = "Nessun lavoro in corso";
+            if (frameEl) frameEl.classList.add("inactive-commessa");
+        }
+        
+        detailsEl.style.display = "flex";
+        
+        const valID = document.getElementById(`${idPrefisso}-comm-val-ID`);
+        const valDim = document.getElementById(`${idPrefisso}-comm-val-Dimensioni`);
+        const valFrom = document.getElementById(`${idPrefisso}-comm-val-From`);
+        const valTo = document.getElementById(`${idPrefisso}-comm-val-To`);
+        
+        const idVal = getMachineComandaValue(statoMacchina, idPrefisso, "ID");
+        const len = getMachineComandaValue(statoMacchina, idPrefisso, "Lunghezza");
+        const wid = getMachineComandaValue(statoMacchina, idPrefisso, "Larghezza");
+        const thk = getMachineComandaValue(statoMacchina, idPrefisso, "Spessore");
+        const fx = getMachineComandaValue(statoMacchina, idPrefisso, "From_X");
+        const fy = getMachineComandaValue(statoMacchina, idPrefisso, "From_Y");
+        const fz = getMachineComandaValue(statoMacchina, idPrefisso, "From_Z");
+        const tx = getMachineComandaValue(statoMacchina, idPrefisso, "To_X");
+        const ty = getMachineComandaValue(statoMacchina, idPrefisso, "To_Y");
+        const tz = getMachineComandaValue(statoMacchina, idPrefisso, "ToZ");
+        
+        if (valID) valID.innerText = (idVal !== undefined && idVal > 0) ? idVal : "-";
+        if (valDim) valDim.innerText = (len || wid || thk) ? `${len} x ${wid} x ${thk} mm` : "-";
+        if (valFrom) valFrom.innerText = (fx !== undefined || fy !== undefined || fz !== undefined) ? `${fx} / ${fy} / ${fz} mm` : "-";
+        if (valTo) valTo.innerText = (tx !== undefined || ty !== undefined || tz !== undefined) ? `${tx} / ${ty} / ${tz} mm` : "-";
     }
 }
 
@@ -852,15 +1049,15 @@ function aggiornaSchedaCaricatore() {
     const corsaMaxZ = (config.caricatore && config.caricatore.corsa_max_z) || 1500;
     const minZ = -200;
     
-    const pctZ = Math.min(Math.max(((zVal - minZ) / (corsaMaxZ - minZ)) * 100, 0), 100);
+    const pctZ = Math.min(Math.max((1 - (zVal - minZ) / (corsaMaxZ - minZ)) * 100, 0), 100);
     document.getElementById("car-bar-z").style.height = `${pctZ}%`;
     document.getElementById("car-ind-z").style.bottom = `${pctZ}%`;
     
-    // Aggiorna le etichette degli estremi dell'asse Z
+    // Aggiorna le etichette degli estremi dell'asse Z (Invertiti: 0/min in alto, max in basso)
     const lblMaxZ = document.getElementById("car-lbl-max-z");
-    if (lblMaxZ) lblMaxZ.innerText = `${corsaMaxZ} mm`;
+    if (lblMaxZ) lblMaxZ.innerText = `${minZ} mm`;
     const lblMinZ = document.getElementById("car-lbl-min-z");
-    if (lblMinZ) lblMinZ.innerText = `${minZ} mm`;
+    if (lblMinZ) lblMinZ.innerText = `${corsaMaxZ} mm`;
 
     // Aggiorna ago rotazione
     const needle = document.getElementById("car-needle");
@@ -980,61 +1177,168 @@ function getOrderedJobIndices(firstValue) {
 }
 
 function getMachineStepHTML(label, isWorking, isDone) {
-    let bg = "rgba(71, 85, 105, 0.4)"; // idle - Slate gray
+    if (!isWorking && isDone) {
+        // Non necessaria (working == false, done == true)
+        return `<span class="step-dot" title="${label}: Non necessaria" style="display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,0.01); color: rgba(255,255,255,0.15); border: 1px dashed rgba(255,255,255,0.08); cursor: default; min-width: 20px; text-align: center; opacity: 0.3;">${label}</span>`;
+    }
+
+    let bg = "rgba(148, 163, 184, 0.15)"; // In attesa (working == false, done == false) - Grigio
     let fg = "var(--text-muted)";
-    let border = "rgba(255,255,255,0.05)";
+    let border = "rgba(148, 163, 184, 0.3)";
     let title = "In attesa";
 
-    if (isDone) {
-        bg = "rgba(16, 185, 129, 0.2)"; // Done - Green
+    if (isWorking && isDone) {
+        // Finito (working == true, done == true) - Verde
+        bg = "rgba(16, 185, 129, 0.2)";
         fg = "var(--accent-green)";
         border = "var(--accent-green)";
-        title = "Completato";
-    } else if (isWorking) {
-        bg = "rgba(59, 130, 246, 0.2)"; // Working - Blue
+        title = "Finito";
+    } else if (isWorking && !isDone) {
+        // In corso (working == true, done == false) - Blu
+        bg = "rgba(59, 130, 246, 0.2)";
         fg = "var(--accent-blue)";
         border = "var(--accent-blue)";
-        title = "In corso";
+        title = "In lavorazione";
     }
 
     return `<span class="step-dot" title="${label}: ${title}" style="display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: ${bg}; color: ${fg}; border: 1px solid ${border}; cursor: default; min-width: 20px; text-align: center;">${label}</span>`;
+}
+
+function applyModalCheckboxesLogic(isEditable, stateSource, idPad) {
+    const machines = [
+        { key: "Stampante", workId: "mod-job-work-sp", doneId: "mod-job-done-sp", wKey: "WorkingStampante", dKey: "DoneStampante" },
+        { key: "Rulliera1", workId: "mod-job-work-r1", doneId: "mod-job-done-r1", wKey: "WorkingR1", dKey: "DoneR1" },
+        { key: "Rulliera2", workId: "mod-job-work-r2", doneId: "mod-job-done-r2", wKey: "WorkingR2", dKey: "DoneR2" },
+        { key: "Navetta1", workId: "mod-job-work-n1", doneId: "mod-job-done-n1", wKey: "Working_Navette", dKey: "Done_Navette" },
+        { key: "Navetta2", workId: "mod-job-work-n2", doneId: "mod-job-done-n2", wKey: "Working_Navetta_2", dKey: "Done_Navetta_2" },
+        { key: "Carrello", workId: "mod-job-work-cr", doneId: "mod-job-done-cr", wKey: "Working_Carrello", dKey: "Done_Carrello" },
+        { key: "Caricatore", workId: "mod-job-work-car", doneId: "mod-job-done-car", wKey: "Working_Caricatore", dKey: "Done_Caricatore" }
+    ];
+
+    machines.forEach(m => {
+        const wVal = !!stateSource[`Tabella${idPad}_${m.wKey}`];
+        const dVal = !!stateSource[`Tabella${idPad}_${m.dKey}`];
+        const notNeeded = (!wVal && dVal);
+
+        const workEl = document.getElementById(m.workId);
+        const doneEl = document.getElementById(m.doneId);
+
+        if (workEl && doneEl) {
+            workEl.checked = wVal;
+            doneEl.checked = dVal;
+
+            const workParent = workEl.parentElement;
+            const doneParent = doneEl.parentElement;
+
+            if (notNeeded) {
+                workEl.disabled = true;
+                doneEl.disabled = true;
+                workEl.style.pointerEvents = "none";
+                doneEl.style.pointerEvents = "none";
+                if (workParent) workParent.style.opacity = "0.25";
+                if (doneParent) doneParent.style.opacity = "0.25";
+            } else {
+                if (isEditable) {
+                    workEl.removeAttribute("disabled");
+                    doneEl.removeAttribute("disabled");
+                    workEl.style.pointerEvents = "auto";
+                    doneEl.style.pointerEvents = "auto";
+                } else {
+                    workEl.removeAttribute("disabled");
+                    doneEl.removeAttribute("disabled");
+                    workEl.style.pointerEvents = "none";
+                    doneEl.style.pointerEvents = "none";
+                }
+                if (workParent) workParent.style.opacity = "1";
+                if (doneParent) doneParent.style.opacity = "1";
+            }
+        }
+    });
 }
 
 let isEditingCommessa = false;
 let selectedCommessaSlot = null;
 let tempCommessaData = {};
 
-function getJobColoring(isNew, workingFlags, doneFlags) {
-    if (!isNew) {
+function getJobColoring(statoLabel) {
+    if (statoLabel === "ESEGUITA") {
         return {
             bg: "rgba(71, 85, 105, 0.15)", // Grigio
             border: "rgba(255, 255, 255, 0.05)",
             borderColor: "rgba(148, 163, 184, 0.3)"
         };
-    }
-    
-    // Controlla se c'è almeno un flag working attivo senza il relativo done
-    let isWorking = false;
-    for (let i = 0; i < workingFlags.length; i++) {
-        if (workingFlags[i] && !doneFlags[i]) {
-            isWorking = true;
-            break;
-        }
-    }
-    
-    if (isWorking) {
+    } else if (statoLabel === "IN ATTESA") {
         return {
-            bg: "rgba(16, 185, 129, 0.12)", // Verde
-            border: "1px solid rgba(16, 185, 129, 0.4)",
-            borderColor: "#10b981"
+            bg: "rgba(245, 158, 11, 0.12)", // Arancione (In attesa)
+            border: "1px solid rgba(245, 158, 11, 0.4)",
+            borderColor: "#f59e0b"
         };
     } else {
+        // IN LAVORAZIONE
         return {
-            bg: "rgba(59, 130, 246, 0.12)", // Blu
+            bg: "rgba(59, 130, 246, 0.12)", // Blu (In lavorazione / Lavoro attivo)
             border: "1px solid rgba(59, 130, 246, 0.4)",
             borderColor: "#3b82f6"
         };
     }
+}
+
+function calcolaMacchineCoinvolte(fromX, fromY, toX, toY) {
+    let involved = [];
+    const y101 = 101;
+    
+    const fx = parseInt(fromX) || 0;
+    const fy = parseInt(fromY) || 0;
+    const tx = parseInt(toX) || 0;
+    const ty = parseInt(toY) || 0;
+    
+    // 1. Rulliera R1
+    if (fy === 0 || ty === 0) {
+        involved.push("Rulliera 1 (R1)");
+    }
+    
+    // 2. Rulliera R2
+    if ((fy === 0 && fx !== 1) || ty === 0) {
+        involved.push("Rulliera 2 (R2)");
+    }
+    
+    // 3. Caricatore
+    if (fy === 1 || ty === 1) {
+        involved.push("Caricatore");
+    }
+    
+    // 4. Carrello
+    if (fy !== ty) {
+        involved.push("Carrello");
+    }
+    
+    // 5. Navette
+    const hasShuttle = fy >= y101 || ty >= y101;
+    if (hasShuttle) {
+        const fromShuttleNum = fy >= y101 ? Math.floor((fy - y101) / 2) + 1 : 0;
+        const toShuttleNum = ty >= y101 ? Math.floor((ty - y101) / 2) + 1 : 0;
+        
+        const isCaso5 = (fy !== ty) && (fromShuttleNum > 0 && toShuttleNum > 0) && (fromShuttleNum === toShuttleNum);
+        
+        if (isCaso5) {
+            // Caso 5: La stessa navetta viene coinvolta 2 volte (spalle diverse)
+            involved.push(`Navetta ${fromShuttleNum} (Ciclo 1)`);
+            involved.push(`Navetta ${fromShuttleNum} (Ciclo 2)`);
+        } else {
+            // Coinvolgimento standard
+            if (fromShuttleNum >= 1 && fromShuttleNum <= 10) {
+                involved.push(`Navetta ${fromShuttleNum}`);
+            }
+            if (toShuttleNum >= 1 && toShuttleNum <= 10 && toShuttleNum !== fromShuttleNum) {
+                involved.push(`Navetta ${toShuttleNum}`);
+            }
+        }
+    }
+    
+    // Stampante
+    involved.push("Stampante");
+    
+    return involved;
 }
 
 function aggiornaSchedaCommesse() {
@@ -1049,11 +1353,15 @@ function aggiornaSchedaCommesse() {
         overlay?.classList.add("active");
         const tbody = document.getElementById("jobs-table-body");
         if (tbody) {
-            tbody.innerHTML = `
+            const offlineHTML = `
                 <tr>
-                    <td colspan="7" style="color: var(--text-muted); padding: 30px;">HMI Offline - Nessuna comunicazione con il PLC.</td>
+                    <td colspan="7" style="color: var(--text-muted); padding: 30px; text-align: center;">HMI Offline - Nessuna comunicazione con il PLC.</td>
                 </tr>
             `;
+            if (ultimoJobsTableHTML !== offlineHTML) {
+                ultimoJobsTableHTML = offlineHTML;
+                tbody.innerHTML = offlineHTML;
+            }
         }
         return;
     }
@@ -1081,27 +1389,14 @@ function aggiornaSchedaCommesse() {
             document.getElementById("mod-job-new").checked = !!stato[`Tabella${idPad}_NewDatas`];
             
             // Checkbox degli stati macchina
-            document.getElementById("mod-job-work-sp").checked = !!stato[`Tabella${idPad}_WorkingStampante`];
-            document.getElementById("mod-job-done-sp").checked = !!stato[`Tabella${idPad}_DoneStampante`];
-            document.getElementById("mod-job-work-r1").checked = !!stato[`Tabella${idPad}_WorkingR1`];
-            document.getElementById("mod-job-done-r1").checked = !!stato[`Tabella${idPad}_DoneR1`];
-            document.getElementById("mod-job-work-r2").checked = !!stato[`Tabella${idPad}_WorkingR2`];
-            document.getElementById("mod-job-done-r2").checked = !!stato[`Tabella${idPad}_DoneR2`];
-            document.getElementById("mod-job-work-n1").checked = !!stato[`Tabella${idPad}_Working_Navette`];
-            document.getElementById("mod-job-done-n1").checked = !!stato[`Tabella${idPad}_Done_Navette`];
-            document.getElementById("mod-job-work-n2").checked = !!stato[`Tabella${idPad}_Working_Navetta_2`];
-            document.getElementById("mod-job-done-n2").checked = !!stato[`Tabella${idPad}_Done_Navetta_2`];
-            document.getElementById("mod-job-work-cr").checked = !!stato[`Tabella${idPad}_Working_Carrello`];
-            document.getElementById("mod-job-done-cr").checked = !!stato[`Tabella${idPad}_Done_Carrello`];
+            applyModalCheckboxesLogic(false, stato, idPad);
 
-            // Ricalcola le macchine coinvolte in tempo reale
-            let involved = [];
-            if (stato[`Tabella${idPad}_WorkingR1`] || stato[`Tabella${idPad}_DoneR1`]) involved.push("Rulliera 1 (R1)");
-            if (stato[`Tabella${idPad}_WorkingR2`] || stato[`Tabella${idPad}_DoneR2`]) involved.push("Rulliera 2 (R2)");
-            if (stato[`Tabella${idPad}_Working_Navette`] || stato[`Tabella${idPad}_Done_Navette`]) involved.push("Navetta 1 (N1)");
-            if (stato[`Tabella${idPad}_Working_Navetta_2`] || stato[`Tabella${idPad}_Done_Navetta_2`]) involved.push("Navetta 2 (N2)");
-            if (stato[`Tabella${idPad}_Working_Carrello`] || stato[`Tabella${idPad}_Done_Carrello`]) involved.push("Carrello (CR)");
-            if (stato[`Tabella${idPad}_WorkingStampante`] || stato[`Tabella${idPad}_DoneStampante`]) involved.push("Stampante (SP)");
+            // Ricalcola le macchine coinvolte in tempo reale dalle coordinate
+            const fromX = stato[`Tabella${idPad}_From_X`] || 0;
+            const fromY = stato[`Tabella${idPad}_From_Y`] || 0;
+            const toX = stato[`Tabella${idPad}_To_X`] || 0;
+            const toY = stato[`Tabella${idPad}_To_Y`] || 0;
+            let involved = calcolaMacchineCoinvolte(fromX, fromY, toX, toY);
             document.getElementById("modal-macchine-list").innerText = involved.length > 0 ? involved.join(", ") : "Nessuna (in attesa)";
         }
     }
@@ -1119,7 +1414,7 @@ function aggiornaSchedaCommesse() {
         
         if (!jobId || jobId === 0) {
             html += `
-                <tr style="opacity: 0.5; cursor: pointer;" onclick="openCommessaModal(${idx})">
+                <tr style="opacity: 0.5; cursor: pointer; --row-bg: rgba(71, 85, 105, 0.05); --row-border: 1px solid rgba(255, 255, 255, 0.03); --row-border-left: 5px solid rgba(148, 163, 184, 0.2);" onclick="openCommessaModal(${idx})">
                     <td><strong>#${idx}</strong></td>
                     <td colspan="6" style="color: var(--text-muted); text-align: center; font-style: italic;">[ Slot vuoto - Clicca per caricare ]</td>
                 </tr>
@@ -1150,6 +1445,8 @@ function aggiornaSchedaCommesse() {
         const doneNav2 = !!stato[`Tabella${idPad}_Done_Navetta_2`];
         const workCarr = !!stato[`Tabella${idPad}_Working_Carrello`];
         const doneCarr = !!stato[`Tabella${idPad}_Done_Carrello`];
+        const workCar = !!stato[`Tabella${idPad}_Working_Caricatore`];
+        const doneCar = !!stato[`Tabella${idPad}_Done_Caricatore`];
         const workPrint = !!stato[`Tabella${idPad}_WorkingStampante`];
         const donePrint = !!stato[`Tabella${idPad}_DoneStampante`];
 
@@ -1158,28 +1455,55 @@ function aggiornaSchedaCommesse() {
             getMachineStepHTML("Rulliera2", workR2, doneR2),
             getMachineStepHTML("Navetta Ciclo 1", workNav1, doneNav1),
             getMachineStepHTML("Navetta Ciclo 2", workNav2, doneNav2),
+            getMachineStepHTML("Caricatore", workCar, doneCar),
             getMachineStepHTML("Carrello", workCarr, doneCarr),
             getMachineStepHTML("Stampante", workPrint, donePrint)
         ].join(" ");
 
-        // Checkbox status logic (eseguito / in lavorazione)
-        const statusCol = isNew 
-            ? `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-orange); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-orange); background: rgba(245, 158, 11, 0.1); border-radius: 3px; font-size: 10px; font-weight: 900;"></span> in lavorazione</div>` 
-            : `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-green); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-green); background: rgba(16, 185, 129, 0.1); border-radius: 3px; color: var(--accent-green); font-size: 10px; font-weight: 900;">✓</span> eseguito</div>`;
+        const machineStates = [
+            { w: workR1, d: doneR1 },
+            { w: workR2, d: doneR2 },
+            { w: workNav1, d: doneNav1 },
+            { w: workNav2, d: doneNav2 },
+            { w: workCarr, d: doneCarr },
+            { w: workCar, d: doneCar },
+            { w: workPrint, d: donePrint }
+        ];
 
-        // Background coloring based on execution flags
-        const workingFlags = [workR1, workR2, workNav1, workNav2, workCarr, workPrint];
-        const doneFlags = [doneR1, doneR2, doneNav1, doneNav2, doneCarr, donePrint];
-        const coloring = getJobColoring(isNew, workingFlags, doneFlags);
+        const allFinishedOrNotNeeded = machineStates.every(m => (m.w && m.d) || (!m.w && m.d));
+        const allNotNeededOrInAttesa = machineStates.every(m => (!m.w && m.d) || (!m.w && !m.d));
+
+        let statoLabel = "ESEGUITA";
+        if (isNew) {
+            if (allFinishedOrNotNeeded) {
+                statoLabel = "ESEGUITA";
+            } else if (allNotNeededOrInAttesa) {
+                statoLabel = "IN ATTESA";
+            } else {
+                statoLabel = "IN LAVORAZIONE";
+            }
+        }
+
+        const coloring = getJobColoring(statoLabel);
+
+        let statusCol = "";
+        if (statoLabel === "ESEGUITA") {
+            statusCol = `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-green); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-green); background: rgba(16, 185, 129, 0.1); border-radius: 3px; color: var(--accent-green); font-size: 10px; font-weight: 900;">✓</span> eseguito</div>`;
+        } else if (statoLabel === "IN ATTESA") {
+            statusCol = `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-orange); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-orange); background: rgba(245, 158, 11, 0.1); border-radius: 3px; font-size: 10px; font-weight: 900;"></span> in attesa</div>`;
+        } else {
+            statusCol = `<div style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent-blue); font-weight: 600;"><span style="display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: 1.5px solid var(--accent-blue); background: rgba(59, 130, 246, 0.1); border-radius: 3px; font-size: 10px; font-weight: 900;"></span> in lavorazione</div>`;
+        }
 
         // Highlight if this is the active First job
         const isFirst = (idx === firstVal);
-        const firstIndicator = isFirst ? "border-left: 5px solid var(--accent-cyan);" : `border-left: 5px solid ${coloring.borderColor};`;
-        const rowStyle = `background-color: ${coloring.bg}; ${firstIndicator} cursor: pointer; transition: background-color 0.2s;`;
+        const borderCol = coloring.border.includes("solid") ? coloring.border.split("solid ")[1] : coloring.border;
+        const rowIndicator = isFirst ? "var(--accent-cyan)" : coloring.borderColor;
+        const rowStyle = `--row-bg: ${coloring.bg}; --row-border: 1px solid ${borderCol}; --row-border-left: 5px solid ${rowIndicator};`;
 
         html += `
             <tr style="${rowStyle}" onclick="openCommessaModal(${idx})">
-                <td><strong>#${idx} ${isFirst ? '🔥' : ''}</strong></td>
+                <td><strong>#${idx}</strong></td>
                 <td><span style="font-weight: 700; color: #fff;">${jobId}</span></td>
                 <td>${len} x ${wid} x ${thk}</td>
                 <td><strong style="color: var(--accent-cyan);">${fromX}</strong>, ${fromY}, ${fromZ}</td>
@@ -1194,7 +1518,10 @@ function aggiornaSchedaCommesse() {
         `;
     });
 
-    tbody.innerHTML = html;
+    if (ultimoJobsTableHTML !== html) {
+        ultimoJobsTableHTML = html;
+        tbody.innerHTML = html;
+    }
 }
 
 function aggiornaCodaCommesse() {
@@ -1254,19 +1581,51 @@ function aggiornaCodaCommesse() {
         const doneNav2 = !!stato[`Tabella${idPad}_Done_Navetta_2`];
         const workCarr = !!stato[`Tabella${idPad}_Working_Carrello`];
         const doneCarr = !!stato[`Tabella${idPad}_Done_Carrello`];
+        const workCar = !!stato[`Tabella${idPad}_Working_Caricatore`];
+        const doneCar = !!stato[`Tabella${idPad}_Done_Caricatore`];
         const workPrint = !!stato[`Tabella${idPad}_WorkingStampante`];
         const donePrint = !!stato[`Tabella${idPad}_DoneStampante`];
 
         // Background coloring based on execution flags
-        const workingFlags = [workR1, workR2, workNav1, workNav2, workCarr, workPrint];
-        const doneFlags = [doneR1, doneR2, doneNav1, doneNav2, doneCarr, donePrint];
-        const coloring = getJobColoring(isNew, workingFlags, doneFlags);
+        const workingFlags = [workR1, workR2, workNav1, workNav2, workCarr, workCar, workPrint];
+        const doneFlags = [doneR1, doneR2, doneNav1, doneNav2, doneCarr, doneCar, donePrint];
+        const machineStates = [
+            { w: workR1, d: doneR1 },
+            { w: workR2, d: doneR2 },
+            { w: workNav1, d: doneNav1 },
+            { w: workNav2, d: doneNav2 },
+            { w: workCarr, d: doneCarr },
+            { w: workCar, d: doneCar },
+            { w: workPrint, d: donePrint }
+        ];
 
+        const allFinishedOrNotNeeded = machineStates.every(m => (m.w && m.d) || (!m.w && m.d));
+        const allNotNeededOrInAttesa = machineStates.every(m => (!m.w && m.d) || (!m.w && !m.d));
+
+        let statoLabel = "ESEGUITA";
+        let statoColor = "var(--text-muted)";
+        if (isNew) {
+            if (allFinishedOrNotNeeded) {
+                statoLabel = "ESEGUITA";
+                statoColor = "var(--text-muted)";
+            } else if (allNotNeededOrInAttesa) {
+                statoLabel = "IN ATTESA";
+                statoColor = "var(--accent-orange)";
+            } else {
+                statoLabel = "IN LAVORAZIONE";
+                statoColor = "var(--accent-blue)";
+            }
+        }
+
+        const coloring = getJobColoring(statoLabel);
+
+        const involvedList = calcolaMacchineCoinvolte(fromX, fromY, toX, toY);
         const stepBadges = [
             getMachineStepHTML("Rulliera1", workR1, doneR1),
             getMachineStepHTML("Rulliera2", workR2, doneR2),
             getMachineStepHTML("Navetta Ciclo 1", workNav1, doneNav1),
             getMachineStepHTML("Navetta Ciclo 2", workNav2, doneNav2),
+            getMachineStepHTML("Caricatore", workCar, doneCar),
             getMachineStepHTML("Carrello", workCarr, doneCarr)
         ].join(" ");
 
@@ -1276,10 +1635,17 @@ function aggiornaCodaCommesse() {
 
         html += `
             <div class="job-card-wrapper" style="margin-bottom: 4px;">
-                <div class="job-card" onclick="openCommessaModal(${idx})" style="border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; ${cardStyle}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; line-height: 1.2;">
-                        <span style="font-weight: 700; color: #fff; font-size: 11px;">Slot: #${idx} ${isFirst ? '👉 ' : ''}ID: ${jobId} (${len}x${wid}x${thk})</span>
-                        <span style="font-size: 9px; font-weight: 600; color: ${isNew ? 'var(--accent-orange)' : 'var(--accent-green)'};">${isNew ? 'IN CORSO' : 'ESEGUITA'}</span>
+                <div class="job-card" onclick="switchTab('panel-commesse')" style="border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; ${cardStyle}">
+                    <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; line-height: 1.2; width: 100%;">
+                        <span style="font-size: 11px; text-align: left; color: #fff; white-space: nowrap;">
+                            <strong style="font-weight: 700;">Slot: #${idx} ${isFirst ? '👉 ' : ''}</strong>ID: <span style="font-weight: 400; color: var(--text-secondary);">${jobId}</span>
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 500; text-align: center; white-space: nowrap; padding: 0 5px;">
+                            Dimensioni: ${len}x${wid}x${thk} mm
+                        </span>
+                        <span style="font-size: 9px; font-weight: 600; text-align: right; color: ${statoColor}; white-space: nowrap;">
+                            ${statoLabel}
+                        </span>
                     </div>
                     <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.2;">
                         From: X:${fromX}, Y:${fromY}, Z:${fromZ}
@@ -1295,18 +1661,47 @@ function aggiornaCodaCommesse() {
         `;
     });
 
+    let finalHtml = "";
     if (activeJobsCount === 0) {
-        listEl.innerHTML = `
+        finalHtml = `
             <div style="color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px;">
                 Nessuna commessa attiva in coda
             </div>
         `;
     } else {
-        listEl.innerHTML = html;
+        finalHtml = html;
+    }
+
+    if (ultimaCodaCommesseHTML !== finalHtml) {
+        ultimaCodaCommesseHTML = finalHtml;
+        listEl.innerHTML = finalHtml;
     }
 }
 
 // --- POPUP DI MODIFICA COMMESSA ---
+function setModalInputsState(isEditable, stateSource = null, idPad = null) {
+    const inputs = document.querySelectorAll("#modal-edit-form input");
+    inputs.forEach(input => {
+        if (input.type === "checkbox") {
+            if (input.id === "mod-job-new" || !stateSource || !idPad) {
+                input.removeAttribute("disabled");
+                input.style.pointerEvents = isEditable ? "auto" : "none";
+                input.tabIndex = isEditable ? 0 : -1;
+            }
+        } else {
+            if (isEditable) {
+                input.removeAttribute("disabled");
+            } else {
+                input.setAttribute("disabled", "true");
+            }
+        }
+    });
+
+    if (stateSource && idPad) {
+        applyModalCheckboxesLogic(isEditable, stateSource, idPad);
+    }
+}
+
 function openCommessaModal(idx) {
     selectedCommessaSlot = idx;
     isEditingCommessa = false; // default view mode
@@ -1347,27 +1742,14 @@ function openCommessaModal(idx) {
     document.getElementById("mod-job-new").checked = !!rulState[`Tabella${idPad}_NewDatas`];
     
     // Checkbox degli stati macchina
-    document.getElementById("mod-job-work-sp").checked = !!rulState[`Tabella${idPad}_WorkingStampante`];
-    document.getElementById("mod-job-done-sp").checked = !!rulState[`Tabella${idPad}_DoneStampante`];
-    document.getElementById("mod-job-work-r1").checked = !!rulState[`Tabella${idPad}_WorkingR1`];
-    document.getElementById("mod-job-done-r1").checked = !!rulState[`Tabella${idPad}_DoneR1`];
-    document.getElementById("mod-job-work-r2").checked = !!rulState[`Tabella${idPad}_WorkingR2`];
-    document.getElementById("mod-job-done-r2").checked = !!rulState[`Tabella${idPad}_DoneR2`];
-    document.getElementById("mod-job-work-n1").checked = !!rulState[`Tabella${idPad}_Working_Navette`];
-    document.getElementById("mod-job-done-n1").checked = !!rulState[`Tabella${idPad}_Done_Navette`];
-    document.getElementById("mod-job-work-n2").checked = !!rulState[`Tabella${idPad}_Working_Navetta_2`];
-    document.getElementById("mod-job-done-n2").checked = !!rulState[`Tabella${idPad}_Done_Navetta_2`];
-    document.getElementById("mod-job-work-cr").checked = !!rulState[`Tabella${idPad}_Working_Carrello`];
-    document.getElementById("mod-job-done-cr").checked = !!rulState[`Tabella${idPad}_Done_Carrello`];
+    applyModalCheckboxesLogic(false, rulState, idPad);
     
     // Macchine coinvolte
-    let involved = [];
-    if (rulState[`Tabella${idPad}_WorkingR1`] || rulState[`Tabella${idPad}_DoneR1`]) involved.push("Rulliera1");
-    if (rulState[`Tabella${idPad}_WorkingR2`] || rulState[`Tabella${idPad}_DoneR2`]) involved.push("Rulliera2");
-    if (rulState[`Tabella${idPad}_Working_Navette`] || rulState[`Tabella${idPad}_Done_Navette`]) involved.push("Navetta Ciclo 1");
-    if (rulState[`Tabella${idPad}_Working_Navetta_2`] || rulState[`Tabella${idPad}_Done_Navetta_2`]) involved.push("Navetta Ciclo 2");
-    if (rulState[`Tabella${idPad}_Working_Carrello`] || rulState[`Tabella${idPad}_Done_Carrello`]) involved.push("Carrello");
-    if (rulState[`Tabella${idPad}_WorkingStampante`] || rulState[`Tabella${idPad}_DoneStampante`]) involved.push("Stampante");
+    const fromX = rulState[`Tabella${idPad}_From_X`] || 0;
+    const fromY = rulState[`Tabella${idPad}_From_Y`] || 0;
+    const toX = rulState[`Tabella${idPad}_To_X`] || 0;
+    const toY = rulState[`Tabella${idPad}_To_Y`] || 0;
+    let involved = calcolaMacchineCoinvolte(fromX, fromY, toX, toY);
     document.getElementById("modal-macchine-list").innerText = involved.length > 0 ? involved.join(", ") : "Nessuna (in attesa)";
     
     // Salva per il ripristino
@@ -1394,11 +1776,13 @@ function openCommessaModal(idx) {
         workN2: !!rulState[`Tabella${idPad}_Working_Navetta_2`],
         doneN2: !!rulState[`Tabella${idPad}_Done_Navetta_2`],
         workCr: !!rulState[`Tabella${idPad}_Working_Carrello`],
-        doneCr: !!rulState[`Tabella${idPad}_Done_Carrello`]
+        doneCr: !!rulState[`Tabella${idPad}_Done_Carrello`],
+        workCar: !!rulState[`Tabella${idPad}_Working_Caricatore`],
+        doneCar: !!rulState[`Tabella${idPad}_Done_Caricatore`]
     };
     
-    // Disabilita gli input per sicurezza
-    document.querySelectorAll("#modal-edit-form input").forEach(input => input.setAttribute("disabled", "true"));
+    // Imposta lo stato iniziale dei campi (sola lettura)
+    setModalInputsState(false, rulState, idPad);
     
     // Mostra il modal
     document.getElementById("commessa-modal").style.display = "flex";
@@ -1412,14 +1796,14 @@ function closeCommessaModal() {
     isEditingCommessa = false;
     selectedCommessaSlot = null;
     document.getElementById("commessa-modal").style.display = "none";
-    document.querySelectorAll("#modal-edit-form input").forEach(input => input.setAttribute("disabled", "true"));
+    setModalInputsState(false);
 }
 
 function enableCommessaEdit() {
     isEditingCommessa = true;
     
     // Rende editabili i campi
-    document.querySelectorAll("#modal-edit-form input").forEach(input => input.removeAttribute("disabled"));
+    setModalInputsState(true);
     
     // Mostra i bottoni di modifica
     document.getElementById("modal-footer-view").style.display = "none";
@@ -1452,11 +1836,18 @@ function resetCommessaEdit() {
     document.getElementById("mod-job-done-n2").checked = tempCommessaData.doneN2;
     document.getElementById("mod-job-work-cr").checked = tempCommessaData.workCr;
     document.getElementById("mod-job-done-cr").checked = tempCommessaData.doneCr;
+    document.getElementById("mod-job-work-car").checked = tempCommessaData.workCar;
+    document.getElementById("mod-job-done-car").checked = tempCommessaData.doneCar;
 }
 
 function cancelCommessaEdit() {
     resetCommessaEdit();
-    closeCommessaModal();
+    // Disabilita gli input per ritornare in sola lettura
+    setModalInputsState(false);
+    // Mostra i bottoni di visualizzazione
+    document.getElementById("modal-footer-view").style.display = "flex";
+    document.getElementById("modal-footer-edit").style.display = "none";
+    isEditingCommessa = false;
 }
 
 function saveCommessaEdit() {
@@ -1486,54 +1877,92 @@ function saveCommessaEdit() {
     const doneN2 = document.getElementById("mod-job-done-n2").checked ? 1 : 0;
     const workCr = document.getElementById("mod-job-work-cr").checked ? 1 : 0;
     const doneCr = document.getElementById("mod-job-done-cr").checked ? 1 : 0;
+    const workCar = document.getElementById("mod-job-work-car").checked ? 1 : 0;
+    const doneCar = document.getElementById("mod-job-done-car").checked ? 1 : 0;
     
     const idPad = selectedCommessaSlot.toString().padStart(2, '0');
-    
-    const fields = [
-        { name: `Tabella${idPad}_ID`, val: id },
-        { name: `Tabella${idPad}_Lunghezza`, val: len },
-        { name: `Tabella${idPad}_Larghezza`, val: wid },
-        { name: `Tabella${idPad}_Spessore`, val: thk },
-        { name: `Tabella${idPad}_From_X`, val: fromX },
-        { name: `Tabella${idPad}_From_Y`, val: fromY },
-        { name: `Tabella${idPad}_From_Z`, val: fromZ },
-        { name: `Tabella${idPad}_To_X`, val: toX },
-        { name: `Tabella${idPad}_To_Y`, val: toY },
-        { name: `Tabella${idPad}_ToZ`, val: toZ },
-        { name: `Tabella${idPad}_NewDatas`, val: isNew },
+    const writes = [
+        { parameter: `Tabella${idPad}_ID`, value: id },
+        { parameter: `Tabella${idPad}_Lunghezza`, value: len },
+        { parameter: `Tabella${idPad}_Larghezza`, value: wid },
+        { parameter: `Tabella${idPad}_Spessore`, value: thk },
+        { parameter: `Tabella${idPad}_From_X`, value: fromX },
+        { parameter: `Tabella${idPad}_From_Y`, value: fromY },
+        { parameter: `Tabella${idPad}_From_Z`, value: fromZ },
+        { parameter: `Tabella${idPad}_To_X`, value: toX },
+        { parameter: `Tabella${idPad}_To_Y`, value: toY },
+        { parameter: `Tabella${idPad}_ToZ`, value: toZ },
+        { parameter: `Tabella${idPad}_NewDatas`, value: isNew },
         
-        { name: `Tabella${idPad}_WorkingStampante`, val: workSp },
-        { name: `Tabella${idPad}_DoneStampante`, val: doneSp },
-        { name: `Tabella${idPad}_WorkingR1`, val: workR1 },
-        { name: `Tabella${idPad}_DoneR1`, val: doneR1 },
-        { name: `Tabella${idPad}_WorkingR2`, val: workR2 },
-        { name: `Tabella${idPad}_DoneR2`, val: doneR2 },
-        { name: `Tabella${idPad}_Working_Navette`, val: workN1 },
-        { name: `Tabella${idPad}_Done_Navette`, val: doneN1 },
-        { name: `Tabella${idPad}_Working_Navetta_2`, val: workN2 },
-        { name: `Tabella${idPad}_Done_Navetta_2`, val: doneN2 },
-        { name: `Tabella${idPad}_Working_Carrello`, val: workCr },
-        { name: `Tabella${idPad}_Done_Carrello`, val: doneCr }
+        { parameter: `Tabella${idPad}_WorkingStampante`, value: workSp },
+        { parameter: `Tabella${idPad}_DoneStampante`, value: doneSp },
+        { parameter: `Tabella${idPad}_WorkingR1`, value: workR1 },
+        { parameter: `Tabella${idPad}_DoneR1`, value: doneR1 },
+        { parameter: `Tabella${idPad}_WorkingR2`, value: workR2 },
+        { parameter: `Tabella${idPad}_DoneR2`, value: doneR2 },
+        { parameter: `Tabella${idPad}_Working_Navette`, value: workN1 },
+        { parameter: `Tabella${idPad}_Done_Navette`, value: doneN1 },
+        { parameter: `Tabella${idPad}_Working_Navetta_2`, value: workN2 },
+        { parameter: `Tabella${idPad}_Done_Navetta_2`, value: doneN2 },
+        { parameter: `Tabella${idPad}_Working_Carrello`, value: workCr },
+        { parameter: `Tabella${idPad}_Done_Carrello`, value: doneCr },
+        { parameter: `Tabella${idPad}_Working_Caricatore`, value: workCar },
+        { parameter: `Tabella${idPad}_Done_Caricatore`, value: doneCar }
     ];
     
-    // Invia in sequenza per sicurezza
-    let p = Promise.resolve();
-    fields.forEach(f => {
-        p = p.then(() => {
-            return fetch(`/api/write?device=Rulliere&parameter=${f.name}&value=${f.val}`)
-                .then(res => res.json())
-                .then(res => {
-                    if (!res.success) {
-                        console.error(`Errore parametro ${f.name}:`, res.error);
-                    }
-                });
-        });
-    });
-    
-    p.then(() => {
-        console.log("Scrittura commessa completata sul PLC!");
-        closeCommessaModal();
-    }).catch(err => {
+    fetch('/api/write_bulk', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            device: 'Rulliere',
+            writes: writes
+        })
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.success) {
+            console.log("Scrittura commessa completata sul PLC!");
+            
+            // Aggiorna anche currentStates in locale immediatamente
+            if (!currentStates['Rulliere']) {
+                currentStates['Rulliere'] = {};
+            }
+            writes.forEach(w => {
+                let valParsed = w.value;
+                if (typeof w.value === "string") {
+                    if (w.value.toLowerCase() === "true" || w.value === "1" || w.value === "-1") valParsed = true;
+                    else if (w.value.toLowerCase() === "false" || w.value === "0") valParsed = false;
+                    else if (!isNaN(w.value) && w.value.trim() !== "") valParsed = Number(w.value);
+                }
+                currentStates['Rulliere'][w.parameter] = valParsed;
+            });
+            aggiornaInterfaccia();
+            
+            // Aggiorna i dati temporanei di ripristino con i nuovi valori salvati
+            tempCommessaData = {
+                id, len, wid, thk, fromX, fromY, fromZ, toX, toY, toZ, isNew,
+                workSp, doneSp, workR1, doneR1, workR2, doneR2, workN1, doneN1, workN2, doneN2, workCr, doneCr
+            };
+            
+            // Disabilita gli input per ritornare in sola lettura
+            setModalInputsState(false);
+            
+            // Mostra i bottoni di visualizzazione
+            document.getElementById("modal-footer-view").style.display = "flex";
+            document.getElementById("modal-footer-edit").style.display = "none";
+            isEditingCommessa = false;
+            
+            // Forza aggiornamento delle code e tabelle commesse sullo sfondo
+            aggiornaCodaCommesse();
+            aggiornaTabellaCommesse();
+        } else {
+            console.error("Errore salvataggio commessa:", res.error);
+            alert("Errore durante la scrittura sul PLC: " + res.error);
+        }
+    })
+    .catch(err => {
         console.error("Errore salvataggio commessa:", err);
         alert("Errore durante la scrittura sul PLC.");
     });
@@ -1640,7 +2069,17 @@ function invalidaDatiNavetta() {
         "X_Homed", "Y_Homed", "Z_Homed", "Home_OK",
         "Stato_Pick", "Stato_Picked", "IndexTabellaLavoro",
         "Stato_Emergenza", "Stato_Aria_OK", "Stato_Inverter_OK",
-        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello"
+        "Stato_ComunicazioneRulliere", "Stato_ComunicazioneCarrello",
+        // Stati avanzati numerici
+        "X_destinazione", "X_Ricalcolata", "Z_destinazione",
+        "Z_Speed", "Z_accelerazione", "Z_Decelerazione",
+        // Stati avanzati booleani
+        "Stato_Memoria_Op1", "Stato_Memoria_Op3",
+        "Stato_Op1", "Stato_Op2", "Stato_Op3", "Stato_Op4",
+        "Stato_Caso5_PrimaParte",
+        "Stato_Y1_Prendi", "Stato_Y1_avanti", "Stato_Y1_indietro", "Stato_Y1_venturi", "Stato_Y1_bascula", "Stato_Y1_PannelloPreso",
+        "Stato_Y2_Prendi", "Stato_Y2_avanti", "Stato_Y2_indietro", "Stato_Y2_venturi", "Stato_Y2_bascula", "Stato_Y2_PannelloPreso",
+        "Stato_Y_soffia"
     ];
     keys.forEach(k => {
         const el = document.getElementById(`nav-val-${k}`);
@@ -1655,9 +2094,27 @@ function invalidaDatiNavetta() {
             } else {
                 el.innerText = "-";
             }
+        } else if (k.endsWith("_destinazione") || k.endsWith("_Ricalcolata") || k.startsWith("Z_Speed") || k.startsWith("Z_accelerazione") || k.startsWith("Z_Decelerazione")) {
+            el.innerText = "-";
         } else {
-            el.innerText = "⭕";
-            el.style.color = "var(--text-muted)";
+            const advancedBools = [
+                "Stato_Memoria_Op1", "Stato_Memoria_Op3",
+                "Stato_Op1", "Stato_Op2", "Stato_Op3", "Stato_Op4",
+                "Stato_Caso5_PrimaParte",
+                "Stato_Y1_Prendi", "Stato_Y1_avanti", "Stato_Y1_indietro", "Stato_Y1_venturi", "Stato_Y1_bascula", "Stato_Y1_PannelloPreso",
+                "Stato_Y2_Prendi", "Stato_Y2_avanti", "Stato_Y2_indietro", "Stato_Y2_venturi", "Stato_Y2_bascula", "Stato_Y2_PannelloPreso",
+                "Stato_Y_soffia"
+            ];
+            if (advancedBools.includes(k)) {
+                el.innerText = "OFF";
+                const isBtn = el.tagName === "BUTTON";
+                el.className = `badge ${isBtn ? 'badge-btn' : ''} badge-off`;
+                el.style.color = "";
+            } else {
+                el.innerText = "⭕";
+                el.className = "badge";
+                el.style.color = "var(--text-muted)";
+            }
         }
     });
 
@@ -1690,6 +2147,16 @@ function invalidaDatiNavetta() {
             }
         });
     }
+    
+    // Disattiva e disabilita lo switch comandi avanzati se offline
+    const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+    if (switchEl) {
+        switchEl.checked = false;
+        switchEl.disabled = true;
+    }
+    
+    // Disabilita anche comandi avanzati
+    aggiornaAbilitazioneComandiAvanzati();
     // Invalida Dati Commessa
     const noJobEl = document.getElementById("nav-comm-no-job");
     const detailsEl = document.getElementById("nav-comm-details");
@@ -2349,6 +2816,10 @@ function setupCommandButtons() {
         if (confirm(promptText)) {
             const macchine = ["Navetta_1", "Navetta_2", "Navetta_3", "Navetta_4", "Carrello", "Caricatore", "Rulliere"];
             macchine.forEach(m => {
+                // Se il comando è Home, escludi il Carrello per motivi di sicurezza collisione
+                if (cmd === "Home" && m === "Carrello") {
+                    return;
+                }
                 // Invia solo a macchine connesse e che soddisfano le condizioni
                 const condCmd = cmd === "EnableInverter" ? "EnableInverter_ON" : cmd === "Home" ? "CMD_Home" : "Enable_Auto_ON";
                 const cond = validaCondizioni(m, condCmd);
@@ -2397,6 +2868,13 @@ function eseguiGoTo(device, targetParam, targetVal, cmdParam) {
                 alert(`Impossibile impostare ${targetParam}: ${data1.error}`);
                 return;
             }
+            // Aggiorna lo stato locale immediatamente
+            if (!currentStates[device]) {
+                currentStates[device] = {};
+            }
+            currentStates[device][targetParam] = Number(targetVal);
+            aggiornaInterfaccia();
+
             fetch(`/api/write?device=${device}&parameter=${cmdParam}&value=-1`)
                 .then(res => res.json())
                 .then(data2 => {
@@ -2404,6 +2882,9 @@ function eseguiGoTo(device, targetParam, targetVal, cmdParam) {
                         alert(`Impossibile attivare il comando ${cmdParam}: ${data2.error}`);
                     } else {
                         console.log(`Comando GoTo attivato con successo su ${device}`);
+                        // Aggiorna lo stato locale del comando immediatamente
+                        currentStates[device][cmdParam] = true;
+                        aggiornaInterfaccia();
                     }
                 });
         })
@@ -2432,6 +2913,19 @@ function inviaScrittura(device, parameter, value) {
         .then(res => {
             if (!res.success) {
                 alert(`Errore invio comando a ${device}: ${res.error}`);
+            } else {
+                // Aggiorna lo stato locale immediatamente per reattività istantanea
+                if (!currentStates[device]) {
+                    currentStates[device] = {};
+                }
+                let valParsed = value;
+                if (typeof value === "string") {
+                    if (value.toLowerCase() === "true" || value === "1" || value === "-1") valParsed = true;
+                    else if (value.toLowerCase() === "false" || value === "0") valParsed = false;
+                    else if (!isNaN(value) && value.trim() !== "") valParsed = Number(value);
+                }
+                currentStates[device][parameter] = valParsed;
+                aggiornaInterfaccia();
             }
         })
         .catch(err => {
@@ -2485,6 +2979,17 @@ function aggiornaSinottico2D() {
                     <stop offset="50%" stop-color="#d97706" stop-opacity="0.85" />
                     <stop offset="100%" stop-color="#92400e" stop-opacity="0.85" />
                 </linearGradient>
+                <style>
+                    @keyframes flow {
+                        to {
+                            stroke-dashoffset: -20;
+                        }
+                    }
+                    .flow-path {
+                        stroke-dasharray: 6, 4;
+                        animation: flow 1s linear infinite;
+                    }
+                </style>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
             
@@ -2633,12 +3138,19 @@ function aggiornaSinottico2D() {
             <text x="0" y="32" font-size="10" font-weight="900" fill="#3b82f6" text-anchor="middle" id="carr-text-label">CARRELLO</text>
             <!-- Warning Overlay -->
             <g id="carr-warning" style="display: none;">
-                <rect x="-12" y="81" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
-                <text x="0" y="100" font-size="18" text-anchor="middle">⚠️</text>
+                <rect x="-12" y="50.5" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
+                <text x="0" y="69.5" font-size="18" text-anchor="middle">⚠️</text>
             </g>
         `;
         carrGroup.addEventListener("dblclick", () => {
-            switchTab("panel-carrello");
+            const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+            if (switchEl && switchEl.checked) {
+                const state = currentStates.Carrello || {};
+                const idx = state.IndexTabellaLavoro || 0;
+                openCommessaModal(idx >= 1 && idx <= 6 ? idx : 1);
+            } else {
+                switchTab("panel-carrello");
+            }
         });
         svg.appendChild(carrGroup);
     }
@@ -2706,8 +3218,15 @@ function aggiornaSinottico2D() {
                 </g>
             `;
             navGroup.addEventListener("dblclick", () => {
-                switchTab("panel-navette");
-                selectNavetta(i);
+                const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+                if (switchEl && switchEl.checked) {
+                    const state = currentStates[`Navetta_${i}`] || {};
+                    const idx = state.IndexTabellaLavoro || 0;
+                    openCommessaModal(idx >= 1 && idx <= 6 ? idx : 1);
+                } else {
+                    switchTab("panel-navette");
+                    selectNavetta(i);
+                }
             });
             svg.appendChild(navGroup);
         }
@@ -2739,11 +3258,300 @@ function aggiornaSinottico2D() {
         if (navLabel) {
             navLabel.setAttribute("fill", strokeColor);
         }
+
+        // Disegna Pannello di Partenza e Arrivo per la navetta
+        const yRight = 100 + 2 * i - 1;
+        const yLeft = 100 + 2 * i;
+        
+        let drawPartenza = false;
+        let drawArrivo = false;
+        let xPartenza = 0;
+        let xArrivo = 0;
+        let yCenterPartenza = 0;
+        let yCenterArrivo = 0;
+        let panelYPartenza = 0;
+        let panelYArrivo = 0;
+        let tempJob = null;
+        let job1 = null;
+        let job2 = null;
+        let isCaso5 = false;
+        let caso5PrimaParte = false;
+        
+        const panelW = 50 * scaleX;
+        const panelH = 4200 * scaleY;
+
+        // Pannelli di bordo navetta (sinistra e destra) che si muovono con la navetta
+        let pBoardLeft = document.getElementById(`nav-board-left-${i}`);
+        let pBoardRight = document.getElementById(`nav-board-right-${i}`);
+        
+        if (!pBoardLeft) {
+            pBoardLeft = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            pBoardLeft.setAttribute("id", `nav-board-left-${i}`);
+            pBoardLeft.setAttribute("fill", "url(#woodGrad)");
+            pBoardLeft.setAttribute("stroke", "#78350f");
+            pBoardLeft.setAttribute("stroke-width", "1");
+            pBoardLeft.setAttribute("rx", "1");
+            navGroup.appendChild(pBoardLeft);
+        }
+        pBoardLeft.setAttribute("x", -15 - panelW / 2);
+        pBoardLeft.setAttribute("y", -panelH / 2 + 1500 * scaleY);
+        pBoardLeft.setAttribute("width", panelW);
+        pBoardLeft.setAttribute("height", panelH);
+        pBoardLeft.style.display = (online && !!navState.Stato_Y2_PannelloPreso) ? "block" : "none";
+
+        if (!pBoardRight) {
+            pBoardRight = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            pBoardRight.setAttribute("id", `nav-board-right-${i}`);
+            pBoardRight.setAttribute("fill", "url(#woodGrad)");
+            pBoardRight.setAttribute("stroke", "#78350f");
+            pBoardRight.setAttribute("stroke-width", "1");
+            pBoardRight.setAttribute("rx", "1");
+            navGroup.appendChild(pBoardRight);
+        }
+        pBoardRight.setAttribute("x", 15 - panelW / 2);
+        pBoardRight.setAttribute("y", -panelH / 2 + 1500 * scaleY);
+        pBoardRight.setAttribute("width", panelW);
+        pBoardRight.setAttribute("height", panelH);
+        pBoardRight.style.display = (online && !!navState.Stato_Y1_PannelloPreso) ? "block" : "none";
+        
+        const idVal = getMachineComandaValue(navState, "navetta", "ID");
+        if (idVal !== undefined && idVal > 0) {
+            // Copiamo i dati in una tabella o registro temporaneo
+            tempJob = {
+                ID: idVal,
+                FromX: Number(getMachineComandaValue(navState, "navetta", "From_X")) || 0,
+                FromY: Number(getMachineComandaValue(navState, "navetta", "From_Y")) || 0,
+                FromZ: Number(getMachineComandaValue(navState, "navetta", "From_Z")) || 0,
+                ToX: Number(getMachineComandaValue(navState, "navetta", "To_X")) || 0,
+                ToY: Number(getMachineComandaValue(navState, "navetta", "To_Y")) || 0,
+                ToZ: Number(getMachineComandaValue(navState, "navetta", "ToZ")) || 0,
+            };
+            
+            // il caso5 viene definito true se (FromY != ToY e FromY == ( Y101 o Y102) e ToY == ( Y101 o Y102))
+            isCaso5 = (tempJob.FromY !== tempJob.ToY) && 
+                      (tempJob.FromY === yRight || tempJob.FromY === yLeft) && 
+                      (tempJob.ToY === yRight || tempJob.ToY === yLeft);
+            caso5PrimaParte = !!navState.Stato_Caso5_PrimaParte;
+
+            if (isCaso5) {
+                // Sdoppiamo la commessa in due:
+                // La prima andiamo a sostituire ToX = 1080 ; ToY = FromY
+                job1 = {
+                    ID: tempJob.ID,
+                    FromX: tempJob.FromX,
+                    FromY: tempJob.FromY,
+                    FromZ: tempJob.FromZ,
+                    ToX: 1080,
+                    ToY: tempJob.FromY,
+                    ToZ: 90
+                };
+                
+                // la seconda invece dobbiamo fare FromX = 1080; FromY = ToY
+                if (caso5PrimaParte) {
+                    job2 = {
+                        ID: tempJob.ID,
+                        FromX: 1080,
+                        FromY: tempJob.ToY,
+                        FromZ: 90,
+                        ToX: tempJob.ToX,
+                        ToY: tempJob.ToY,
+                        ToZ: tempJob.ToZ
+                    };
+                }
+            } else {
+                // Caso standard (non caso 5)
+                job1 = { ...tempJob };
+                
+                const isCaso3 = (job1.FromY !== yRight && job1.FromY !== yLeft);
+                const isCaso4 = (job1.ToY !== yRight && job1.ToY !== yLeft);
+                
+                // caso3 quando prelevo da un'altra navetta/caricatore/rulliera
+                if (isCaso3) {
+                    job1.FromX = 1080;
+                    job1.FromY = job1.ToY;
+                    job1.FromZ = 90;
+                }
+                // caso4 quando deposito su un'altra navetta/caricatore/rulliera
+                else if (isCaso4) {
+                    job1.ToX = 1080;
+                    job1.ToY = job1.FromY;
+                    job1.ToZ = 90;
+                }
+            }
+        }
+
+        // Clean up legacy element IDs if they exist
+        let legacyPartenza = document.getElementById(`nav-${i}-dot-partenza`);
+        if (legacyPartenza) legacyPartenza.remove();
+        let legacyArrivo = document.getElementById(`nav-${i}-dot-arrivo`);
+        if (legacyArrivo) legacyArrivo.remove();
+        let legacyFlow = document.getElementById(`nav-${i}-flow-path`);
+        if (legacyFlow) legacyFlow.remove();
+        let legacyArrows = document.getElementById(`nav-${i}-flow-arrows`);
+        if (legacyArrows) legacyArrows.remove();
+        let legacyOldArrivo = document.getElementById(`nav-${i}-panel-arrivo`);
+        if (legacyOldArrivo) legacyOldArrivo.remove();
+        let legacyOldPartenza = document.getElementById(`nav-${i}-panel-partenza`);
+        if (legacyOldPartenza) legacyOldPartenza.remove();
+
+        for (let step = 1; step <= 2; step++) {
+            const job = (step === 1) ? job1 : job2;
+            
+            let pPartenza = document.getElementById(`nav-${i}-dot-partenza-${step}`);
+            let pArrivo = document.getElementById(`nav-${i}-dot-arrivo-${step}`);
+            let pFlow = document.getElementById(`nav-${i}-flow-path-${step}`);
+            let pArrows = document.getElementById(`nav-${i}-flow-arrows-${step}`);
+
+            if (!job) {
+                if (pPartenza) pPartenza.style.display = "none";
+                if (pArrivo) pArrivo.style.display = "none";
+                if (pFlow) pFlow.style.display = "none";
+                if (pArrows) pArrows.style.display = "none";
+                continue;
+            }
+
+            let drawPartenza = false;
+            let drawArrivo = false;
+            let xPartenza = 0;
+            let xArrivo = 0;
+            
+            const yCenterPartenza = startY + ((job.FromX + 1500) * scaleY);
+            const yCenterArrivo = startY + ((job.ToX + 1500) * scaleY);
+
+            // Pannello di Partenza
+            if (job.FromY === yRight) {
+                drawPartenza = true;
+                xPartenza = xPosBin + 1000 * scaleX - panelW / 2;
+            } else if (job.FromY === yLeft) {
+                drawPartenza = true;
+                xPartenza = xPosBin - 1000 * scaleX - panelW / 2;
+            }
+            
+            // Pannello di Arrivo
+            if (job.ToY === yRight) {
+                drawArrivo = true;
+                xArrivo = xPosBin + 1000 * scaleX - panelW / 2;
+            } else if (job.ToY === yLeft) {
+                drawArrivo = true;
+                xArrivo = xPosBin - 1000 * scaleX - panelW / 2;
+            }
+
+            // Disegna/aggiorna pallino di partenza
+            if (drawPartenza) {
+                if (!pPartenza) {
+                    pPartenza = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    pPartenza.setAttribute("id", `nav-${i}-dot-partenza-${step}`);
+                    pPartenza.setAttribute("fill", "url(#woodGrad)");
+                    pPartenza.setAttribute("stroke", "#78350f"); // Bordo color legno scuro
+                    pPartenza.setAttribute("stroke-width", "1.5");
+                    svg.appendChild(pPartenza);
+                }
+                const cx = xPartenza + panelW / 2;
+                pPartenza.setAttribute("cx", cx);
+                pPartenza.setAttribute("cy", yCenterPartenza);
+                pPartenza.setAttribute("r", "6");
+                pPartenza.style.display = "block";
+                bindTooltip(pPartenza, `ID: ${job.ID} - From: ${job.FromX} / ${job.FromY} / ${job.FromZ}`);
+            } else {
+                if (pPartenza) pPartenza.style.display = "none";
+            }
+
+            // Disegna/aggiorna pallino di arrivo
+            if (drawArrivo) {
+                if (!pArrivo) {
+                    pArrivo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    pArrivo.setAttribute("id", `nav-${i}-dot-arrivo-${step}`);
+                    pArrivo.setAttribute("fill", "url(#woodGrad)");
+                    pArrivo.setAttribute("stroke", "#78350f"); // Bordo color legno scuro
+                    pArrivo.setAttribute("stroke-width", "1.5");
+                    svg.appendChild(pArrivo);
+                }
+                const cx = xArrivo + panelW / 2;
+                pArrivo.setAttribute("cx", cx);
+                pArrivo.setAttribute("cy", yCenterArrivo);
+                pArrivo.setAttribute("r", "6");
+                pArrivo.style.display = "block";
+                bindTooltip(pArrivo, `ID: ${job.ID} - To: ${job.ToX} / ${job.ToY} / ${job.ToZ}`);
+            } else {
+                if (pArrivo) pArrivo.style.display = "none";
+            }
+
+            // Calcolo percorso
+            let drawFlow = false;
+            let pathD = "";
+            
+            if (drawPartenza) {
+                drawFlow = true;
+                const xStart = xPartenza + panelW / 2;
+                const yStart = yCenterPartenza;
+                const yEnd = yCenterArrivo;
+                const isEven = (job.FromY % 2 === 0);
+                const xMid = xStart + (isEven ? 500 : -500) * scaleX;
+                pathD = `M ${xStart.toFixed(1)} ${yStart.toFixed(1)} L ${xMid.toFixed(1)} ${yStart.toFixed(1)} L ${xMid.toFixed(1)} ${yEnd.toFixed(1)} L ${xStart.toFixed(1)} ${yEnd.toFixed(1)}`;
+            } else if (drawArrivo) {
+                drawFlow = true;
+                const xStart = xArrivo + panelW / 2;
+                const yStart = yCenterPartenza;
+                const yEnd = yCenterArrivo;
+                const isEven = (job.ToY % 2 === 0);
+                const xMid = xStart + (isEven ? 500 : -500) * scaleX;
+                pathD = `M ${xStart.toFixed(1)} ${yStart.toFixed(1)} L ${xMid.toFixed(1)} ${yStart.toFixed(1)} L ${xMid.toFixed(1)} ${yEnd.toFixed(1)} L ${xStart.toFixed(1)} ${yEnd.toFixed(1)}`;
+            }
+
+            // Colori percorso e frecce
+            let flowColor = "#d97706";
+            let strokeColor = "rgba(217, 119, 6, 0.4)";
+            if (isCaso5 && step === 1 && caso5PrimaParte) {
+                flowColor = "#10b981"; // Verde per la prima linea completata
+                strokeColor = "rgba(16, 185, 129, 0.4)";
+            }
+
+            if (drawFlow) {
+                if (!pFlow) {
+                    pFlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    pFlow.setAttribute("id", `nav-${i}-flow-path-${step}`);
+                    pFlow.setAttribute("class", "flow-path");
+                    pFlow.setAttribute("fill", "none");
+                    pFlow.setAttribute("stroke-width", "2");
+                    svg.appendChild(pFlow);
+                }
+                pFlow.setAttribute("stroke", strokeColor);
+                pFlow.setAttribute("d", pathD);
+                pFlow.style.display = "block";
+
+                if (!pArrows) {
+                    pArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    pArrows.setAttribute("id", `nav-${i}-flow-arrows-${step}`);
+                    pArrows.innerHTML = `
+                        <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                            <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                                <mpath href="#nav-${i}-flow-path-${step}"/>
+                            </animateMotion>
+                        </polygon>
+                        <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                            <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                                <mpath href="#nav-${i}-flow-path-${step}"/>
+                            </animateMotion>
+                        </polygon>
+                    `;
+                    svg.appendChild(pArrows);
+                } else {
+                    const polygons = pArrows.querySelectorAll("polygon");
+                    polygons.forEach(poly => poly.setAttribute("fill", flowColor));
+                    const mpaths = pArrows.querySelectorAll("mpath");
+                    mpaths.forEach(mp => mp.setAttribute("href", `#nav-${i}-flow-path-${step}`));
+                    pArrows.style.display = "block";
+                }
+            } else {
+                if (pFlow) pFlow.style.display = "none";
+                if (pArrows) pArrows.style.display = "none";
+            }
+        }
     }
 
     // 3. RULLIERE E CINGHIE
     let rullGroup = document.getElementById("sin-rulliere-col");
-    const rullShiftX = 1000 * scaleX;
+    const rullShiftX = 200 * scaleX; // Shifted 800mm more to the left (1000 - 800 = 200)
     
     if (!rullGroup) {
         rullGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -2772,7 +3580,7 @@ function aggiornaSinottico2D() {
             <rect id="rul-biesse-rect" x="${1120 + rullShiftX}" y="0" width="70" height="10" fill="rgba(59, 130, 246, 0.2)" rx="2" stroke="#3b82f6" stroke-width="2" />
             <!-- Pannello di legno Biesse (altezza 10px, larghezza 800mm = panelW) allineato al centro -->
             <rect id="rul-wood-panel-biesse" x="${panelBiesseX}" y="0" width="${panelW}" height="10" fill="url(#woodGrad)" rx="1" stroke="#78350f" stroke-width="1.5" />
-
+ 
             <!-- Rulliera 1 (R1) sposta ulteriormente di 400mm più in alto (Y=32, height=150) -->
             <rect id="rul-r1-rect" x="${1120 + rullShiftX}" y="32" width="70" height="150" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
             ${r1Rollers}
@@ -2780,7 +3588,7 @@ function aggiornaSinottico2D() {
             
             <!-- Pannello di legno R1 (4200x800mm) sovrapposto, allineato al centro di R1 a 100mm dal bordo sx verso dx -->
             <rect id="rul-wood-panel-r1" x="${panelX}" y="${panel1Y}" width="${panelW}" height="${panelH}" fill="url(#woodGrad)" rx="3" stroke="#78350f" stroke-width="1.5" />
-
+ 
             <!-- Rulliera 2 (R2) - Rotata 45 gradi con centro il centro del lato inferiore, adiacente a R1 spostata in basso di 400mm (starts at Y=190, pivot at Y=320) -->
             <g id="rul-r2-group" transform="rotate(45 ${1155 + rullShiftX} 320)">
                 <rect id="rul-r2-rect" x="${1120 + rullShiftX}" y="190" width="70" height="130" fill="rgba(59, 130, 246, 0.2)" rx="4" stroke="#3b82f6" stroke-width="2" />
@@ -2791,7 +3599,7 @@ function aggiornaSinottico2D() {
             </g>
             
             <!-- Macchina troncatrice a destra di R2 quando ruotata a 90 gradi (alta come la larghezza di R2=70, lunga 1500mm = 30px) -->
-            <rect id="rul-r2-out-rect" x="${1285 + 2400 * scaleX}" y="285" width="30" height="70" fill="rgba(59, 130, 246, 0.2)" rx="3" stroke="#3b82f6" stroke-width="2" />
+            <rect id="rul-r2-out-rect" x="${1285 + rullShiftX + 1400 * scaleX}" y="285" width="30" height="70" fill="rgba(59, 130, 246, 0.2)" rx="3" stroke="#3b82f6" stroke-width="2" />
             
             <!-- Warning Overlay -->
             <g id="rul-warning" style="display: none;">
@@ -2800,7 +3608,14 @@ function aggiornaSinottico2D() {
             </g>
         `;
         rullGroup.addEventListener("dblclick", () => {
-            switchTab("panel-rulliere");
+            const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+            if (switchEl && switchEl.checked) {
+                const state = currentStates.Rulliere || {};
+                const idx = state.IndexTabellaLavoro || 0;
+                openCommessaModal(idx >= 1 && idx <= 6 ? idx : 1);
+            } else {
+                switchTab("panel-rulliere");
+            }
         });
         svg.appendChild(rullGroup);
     }
@@ -2887,14 +3702,14 @@ function aggiornaSinottico2D() {
                     <!-- Telaio ventose (lungo 80px) centrato su X=${armLen} -->
                     <rect x="${armLen - 40}" y="-12" width="80" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
                     <!-- I 8 punti/ventose distanziati lungo la larghezza del telaio centrati su ${armLen} -->
-                    <circle cx="${armLen - 30}" cy="-6" r="3" fill="blue" />
-                    <circle cx="${armLen - 10}" cy="-6" r="3" fill="blue" />
-                    <circle cx="${armLen + 10}" cy="-6" r="3" fill="blue" />
-                    <circle cx="${armLen + 30}" cy="-6" r="3" fill="blue" />
-                    <circle cx="${armLen - 30}" cy="6" r="3" fill="blue" />
-                    <circle cx="${armLen - 10}" cy="6" r="3" fill="blue" />
-                    <circle cx="${armLen + 10}" cy="6" r="3" fill="blue" />
-                    <circle cx="${armLen + 30}" cy="6" r="3" fill="blue" />
+                    <circle cx="${armLen - 30}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen - 10}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen + 10}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen + 30}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen - 30}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen - 10}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen + 10}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${armLen + 30}" cy="6" r="3" fill="#3b82f6" />
                 </g>
             </g>
             <text x="0" y="-22" font-size="10" font-weight="800" fill="#3b82f6" text-anchor="middle" id="sin-caricatore-label">CARICATORE</text>
@@ -2905,12 +3720,19 @@ function aggiornaSinottico2D() {
             </g>
         `;
         carGroup.addEventListener("dblclick", () => {
-            switchTab("panel-caricatore");
+            const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+            if (switchEl && switchEl.checked) {
+                const state = currentStates.Caricatore || {};
+                const idx = state.IndexTabellaLavoro || 0;
+                openCommessaModal(idx >= 1 && idx <= 6 ? idx : 1);
+            } else {
+                switchTab("panel-caricatore");
+            }
         });
         svg.appendChild(carGroup);
     }
-    // Spostato 500mm a sx (1000-500) e 1340mm in alto (840 + 500) rispetto al riferimento
-    carGroup.setAttribute("transform", `translate(${1092.6 + 500 * scaleX}, ${215 - (840 + 500 + 1000) * scaleY})`);
+    // Spostato 300mm a sx (1000-700, ora 200mm in più a sx quindi +300*scaleX invece di +500) e 1340mm in alto rispetto al riferimento
+    carGroup.setAttribute("transform", `translate(${1092.6 + 300 * scaleX}, ${215 - (840 + 500 + 1000) * scaleY})`);
     
     // Ruota il braccio in base all'encoder (base angle 225 - caricatoreRot)
     const arm = document.getElementById("sin-caricatore-braccio");
@@ -2948,6 +3770,193 @@ function aggiornaSinottico2D() {
     
     if (caricatoreWarning) {
         caricatoreWarning.style.display = carReady ? "none" : "block";
+    }
+
+    // --- DISEGNO PERCORSO ROTAZIONE CARICATORE ---
+    const carIdVal = Number(getMachineComandaValue(carState, "car", "ID")) || 0;
+    let capFlow = document.getElementById("car-flow-path");
+    let capArrows = document.getElementById("car-flow-arrows");
+    
+    if (carIdVal > 0) {
+        const fromY = Number(getMachineComandaValue(carState, "car", "From_Y")) || 0;
+        const toY = Number(getMachineComandaValue(carState, "car", "To_Y")) || 0;
+        
+        const isAntioraria = (toY === 1 && fromY !== 1);
+        const isOraria = (fromY === 1 && toY !== 1);
+        
+        if (isAntioraria || isOraria) {
+            const R = Number(armLen) || 85;
+            let pathD = "";
+            if (isAntioraria) {
+                // Da Destra (R, 0) a Sinistra (-R, 0) in senso antiorario (sweep-flag = 1)
+                pathD = `M ${R.toFixed(1)} 0 A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 -${R.toFixed(1)} 0`;
+            } else {
+                // Da Sinistra (-R, 0) a Destra (R, 0) in senso orario (sweep-flag = 0)
+                pathD = `M -${R.toFixed(1)} 0 A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 0 ${R.toFixed(1)} 0`;
+            }
+            
+            if (!capFlow) {
+                capFlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                capFlow.setAttribute("id", "car-flow-path");
+                capFlow.setAttribute("fill", "none");
+                capFlow.setAttribute("stroke-width", "2");
+                capFlow.setAttribute("stroke-dasharray", "4 4"); // Tratteggiato
+                carGroup.appendChild(capFlow);
+            }
+            capFlow.setAttribute("stroke", "rgba(59, 130, 246, 0.5)"); // Blu traslucido
+            capFlow.setAttribute("d", pathD);
+            capFlow.style.display = "block";
+            
+            if (!capArrows) {
+                capArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                capArrows.setAttribute("id", "car-flow-arrows");
+                capArrows.innerHTML = `
+                    <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                        <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#car-flow-path"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                        <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#car-flow-path"/>
+                        </animateMotion>
+                    </polygon>
+                `;
+                carGroup.appendChild(capArrows);
+            } else {
+                const polygons = capArrows.querySelectorAll("polygon");
+                polygons.forEach(poly => poly.setAttribute("fill", "#3b82f6"));
+                const mpaths = capArrows.querySelectorAll("mpath");
+                mpaths.forEach(mp => mp.setAttribute("href", "#car-flow-path"));
+                capArrows.style.display = "block";
+            }
+        } else {
+            if (capFlow) capFlow.style.display = "none";
+            if (capArrows) capArrows.style.display = "none";
+        }
+    } else {
+        if (capFlow) capFlow.style.display = "none";
+        if (capArrows) capArrows.style.display = "none";
+    }
+
+    // --- DISEGNO COMANDI / PERCORSI CARRELLO ---
+    function getCarrelloXPixel(Y) {
+        let Y_in_mm = 0;
+        if (Y === 0) {
+            Y_in_mm = -1500; // rulliere
+        } else if (Y === 1) {
+            // caricatore
+            Y_in_mm = (config && config.caricatore && config.caricatore.posizione_y) !== undefined ? config.caricatore.posizione_y : 2000;
+        } else if (Y >= 101 && Y <= 120) {
+            const i = Math.floor((Y - 101) / 2) + 1; // 1-based shuttle index
+            let yNav = [18500, 21200, 24040, 27060][i-1] || 0;
+            let dist = 1500;
+            if (i >= 1 && i <= 10) {
+                if (config && config.navette && config.navette[`Navetta_${i}`] && config.navette[`Navetta_${i}`].valori) {
+                    yNav = config.navette[`Navetta_${i}`].valori[4];
+                    dist = config.navette[`Navetta_${i}`].valori[5] !== undefined ? config.navette[`Navetta_${i}`].valori[5] : 1500;
+                }
+            }
+            const isRight = (Y % 2 === 1);
+            Y_in_mm = isRight ? (yNav - dist) : (yNav + dist);
+        }
+        return 1100 - (Y_in_mm * scaleX);
+    }
+
+    const carrIdVal = Number(getMachineComandaValue(carrState, "carr", "ID")) || 0;
+    let cpPartenza = document.getElementById("carr-dot-partenza");
+    let cpArrivo = document.getElementById("carr-dot-arrivo");
+    let cpFlow = document.getElementById("carr-flow-path");
+    let cpArrows = document.getElementById("carr-flow-arrows");
+    
+    if (carrIdVal > 0) {
+        const fromY = Number(getMachineComandaValue(carrState, "carr", "From_Y")) || 0;
+        const toY = Number(getMachineComandaValue(carrState, "carr", "To_Y")) || 0;
+        const fromX = Number(getMachineComandaValue(carrState, "carr", "From_X")) || 0;
+        const fromZ = Number(getMachineComandaValue(carrState, "carr", "From_Z")) || 0;
+        const toX = Number(getMachineComandaValue(carrState, "carr", "To_X")) || 0;
+        const toZ = Number(getMachineComandaValue(carrState, "carr", "ToZ")) || 0;
+        
+        const xPixelPartenza = getCarrelloXPixel(fromY);
+        const xPixelArrivo = getCarrelloXPixel(toY);
+        
+        // Calcola quota Y in pixel con shift di 1000mm verso l'alto (sottraendo pixel)
+        const yCarriage = startY + ((1080 + 1500) * scaleY);
+        const yDraw = yCarriage - (1000 * scaleY);
+        
+        // Disegna pallino partenza
+        if (!cpPartenza) {
+            cpPartenza = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            cpPartenza.setAttribute("id", "carr-dot-partenza");
+            cpPartenza.setAttribute("fill", "url(#woodGrad)");
+            cpPartenza.setAttribute("stroke", "#78350f");
+            cpPartenza.setAttribute("stroke-width", "1.5");
+            cpPartenza.setAttribute("r", "6");
+            svg.appendChild(cpPartenza);
+        }
+        cpPartenza.setAttribute("cx", xPixelPartenza);
+        cpPartenza.setAttribute("cy", yDraw);
+        cpPartenza.style.display = "block";
+        bindTooltip(cpPartenza, `ID: ${carrIdVal} - From: ${fromX} / ${fromY} / ${fromZ}`);
+        
+        // Disegna pallino arrivo
+        if (!cpArrivo) {
+            cpArrivo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            cpArrivo.setAttribute("id", "carr-dot-arrivo");
+            cpArrivo.setAttribute("fill", "url(#woodGrad)");
+            cpArrivo.setAttribute("stroke", "#78350f");
+            cpArrivo.setAttribute("stroke-width", "1.5");
+            cpArrivo.setAttribute("r", "6");
+            svg.appendChild(cpArrivo);
+        }
+        cpArrivo.setAttribute("cx", xPixelArrivo);
+        cpArrivo.setAttribute("cy", yDraw);
+        cpArrivo.style.display = "block";
+        bindTooltip(cpArrivo, `ID: ${carrIdVal} - To: ${toX} / ${toY} / ${toZ}`);
+        
+        // Disegna percorso orizzontale lungo la linea di scorrimento del carrello
+        const pathD = `M ${xPixelPartenza.toFixed(1)} ${yDraw.toFixed(1)} L ${xPixelArrivo.toFixed(1)} ${yDraw.toFixed(1)}`;
+        
+        if (!cpFlow) {
+            cpFlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            cpFlow.setAttribute("id", "carr-flow-path");
+            cpFlow.setAttribute("class", "flow-path");
+            cpFlow.setAttribute("fill", "none");
+            cpFlow.setAttribute("stroke-width", "2");
+            svg.appendChild(cpFlow);
+        }
+        cpFlow.setAttribute("stroke", "rgba(59, 130, 246, 0.4)"); // Blu traslucido per il carrello
+        cpFlow.setAttribute("d", pathD);
+        cpFlow.style.display = "block";
+        
+        if (!cpArrows) {
+            cpArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            cpArrows.setAttribute("id", "carr-flow-arrows");
+            cpArrows.innerHTML = `
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#carr-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#carr-flow-path"/>
+                    </animateMotion>
+                </polygon>
+            `;
+            svg.appendChild(cpArrows);
+        } else {
+            const polygons = cpArrows.querySelectorAll("polygon");
+            polygons.forEach(poly => poly.setAttribute("fill", "#3b82f6"));
+            const mpaths = cpArrows.querySelectorAll("mpath");
+            mpaths.forEach(mp => mp.setAttribute("href", "#carr-flow-path"));
+            cpArrows.style.display = "block";
+        }
+    } else {
+        if (cpPartenza) cpPartenza.style.display = "none";
+        if (cpArrivo) cpArrivo.style.display = "none";
+        if (cpFlow) cpFlow.style.display = "none";
+        if (cpArrows) cpArrows.style.display = "none";
     }
 }
 
@@ -2991,6 +4000,7 @@ function caricaLogConsole() {
 }
 
 // --- GESTIONE IMPOSTAZIONI ---
+// --- GESTIONE IMPOSTAZIONI ---
 function caricaConfigForm() {
     // Carica dinamicamente gli input delle navette nella form
     const listContainer = document.getElementById("navette-config-list");
@@ -3001,8 +4011,11 @@ function caricaConfigForm() {
         const item = document.createElement("div");
         item.className = "navetta-config-item";
         item.innerHTML = `
-            <div class="navetta-config-header">
-                <span>Navetta ${i}</span>
+            <div class="navetta-config-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-weight: 700;">Navetta ${i}</span>
+                    <span style="font-size: 10px; color: var(--text-muted); font-weight: normal; margin-top: 2px;">Constant: Y${100 + 2*i - 1} / Y${100 + 2*i}</span>
+                </div>
                 <label class="switch-container">
                     <input type="checkbox" id="cfg-nav-active-${i}"> Attivo
                 </label>
@@ -3028,9 +4041,32 @@ function caricaConfigForm() {
                     <span>Posizione Y (mm):</span>
                     <input type="number" id="cfg-nav-posy-${i}" step="any">
                 </div>
+                <div class="field">
+                    <span>Distanza da carrello (mm):</span>
+                    <input type="number" id="cfg-nav-distcarr-${i}" step="any">
+                </div>
+                <div class="field">
+                    <span>Y${100 + 2*i - 1} (Valore Costante):</span>
+                    <input type="text" id="cfg-nav-const-val-a-${i}" readonly style="background: rgba(255,255,255,0.03); color: var(--accent-cyan); border-color: rgba(255,255,255,0.1); cursor: default; font-weight: 600;">
+                </div>
+                <div class="field">
+                    <span>Y${100 + 2*i} (Valore Costante):</span>
+                    <input type="text" id="cfg-nav-const-val-b-${i}" readonly style="background: rgba(255,255,255,0.03); color: var(--accent-cyan); border-color: rgba(255,255,255,0.1); cursor: default; font-weight: 600;">
+                </div>
             </div>
         `;
         listContainer.appendChild(item);
+
+        // Popola i valori costanti predefiniti
+        const updateConsts = () => {
+            document.getElementById(`cfg-nav-const-val-a-${i}`).value = (100 + 2*i - 1).toString();
+            document.getElementById(`cfg-nav-const-val-b-${i}`).value = (100 + 2*i).toString();
+        };
+        updateConsts();
+        const posyInput = item.querySelector(`#cfg-nav-posy-${i}`);
+        const distInput = item.querySelector(`#cfg-nav-distcarr-${i}`);
+        posyInput.addEventListener("input", updateConsts);
+        distInput.addEventListener("input", updateConsts);
     }
 }
 
@@ -3045,19 +4081,26 @@ function aggiornaCampiConfig() {
             document.getElementById("syslog_port").value = cfg.syslog_port || 514;
             document.getElementById("carrello_max_y").value = (cfg.carrello && cfg.carrello.corsa_max_y) || 28500;
             document.getElementById("caricatore_max_z").value = (cfg.caricatore && cfg.caricatore.corsa_max_z) || 1500;
+            document.getElementById("caricatore_pos_y").value = (cfg.caricatore && cfg.caricatore.posizione_y) || 2000;
             
             // Popola campi navette 1..10
             for (let i = 1; i <= 10; i++) {
                 const navName = `Navetta_${i}`;
-                const navCfg = (cfg.navette && cfg.navette[navName]) || { attivo: false, valori: [27000, 1200, 1200, 3685, 0] };
+                const navCfg = (cfg.navette && cfg.navette[navName]) || { attivo: false, valori: [27000, 1200, 1200, 3685, 0, 1500] };
                 
                 document.getElementById(`cfg-nav-active-${i}`).checked = !!navCfg.attivo;
-                const vals = navCfg.valori || [27000, 1200, 1200, 3685, 0];
+                const vals = navCfg.valori || [27000, 1200, 1200, 3685, 0, 1500];
                 document.getElementById(`cfg-nav-x-${i}`).value = vals[0];
                 document.getElementById(`cfg-nav-y1-${i}`).value = vals[1];
                 document.getElementById(`cfg-nav-y2-${i}`).value = vals[2];
                 document.getElementById(`cfg-nav-z-${i}`).value = vals[3];
                 document.getElementById(`cfg-nav-posy-${i}`).value = vals[4];
+                document.getElementById(`cfg-nav-distcarr-${i}`).value = vals[5] !== undefined ? vals[5] : 1500;
+
+                // Calcola inizialmente i valori delle costanti
+                const distVal = vals[5] !== undefined ? vals[5] : 1500;
+                document.getElementById(`cfg-nav-const-val-a-${i}`).value = (100 + 2*i - 1).toString();
+                document.getElementById(`cfg-nav-const-val-b-${i}`).value = (100 + 2*i).toString();
             }
         })
         .catch(err => console.error("Errore caricamento configurazione:", err));
@@ -3077,7 +4120,8 @@ function salvaConfigurazione(e) {
             corsa_max_y: parseFloat(document.getElementById("carrello_max_y").value)
         },
         caricatore: {
-            corsa_max_z: parseFloat(document.getElementById("caricatore_max_z").value)
+            corsa_max_z: parseFloat(document.getElementById("caricatore_max_z").value),
+            posizione_y: parseFloat(document.getElementById("caricatore_pos_y").value)
         },
         navette: {}
     };
@@ -3090,7 +4134,8 @@ function salvaConfigurazione(e) {
                 parseFloat(document.getElementById(`cfg-nav-y1-${i}`).value),
                 parseFloat(document.getElementById(`cfg-nav-y2-${i}`).value),
                 parseFloat(document.getElementById(`cfg-nav-z-${i}`).value),
-                parseFloat(document.getElementById(`cfg-nav-posy-${i}`).value)
+                parseFloat(document.getElementById(`cfg-nav-posy-${i}`).value),
+                parseFloat(document.getElementById(`cfg-nav-distcarr-${i}`).value)
             ]
         };
     }
@@ -3420,8 +4465,8 @@ function renderNavettaYCanvas(y1Val, y2Val, stato) {
     
     function drawWoodPanel(yVal, isLeft) {
         const hasPanel = isLeft 
-            ? (stato && stato.Y2_PannelloPreso)
-            : (stato && stato.Y1_PannelloPreso);
+            ? (stato && stato.Stato_Y2_PannelloPreso)
+            : (stato && stato.Stato_Y1_PannelloPreso);
         if (!hasPanel) return;
         
         const L = NAV_Y_GEO.arm.length;
@@ -3482,9 +4527,9 @@ function renderNavettaYCanvas(y1Val, y2Val, stato) {
         const edgeVisible = T * Math.cos(theta);
         const totalProjW = edgeVisible + y1Val;
         const hingeX = toX(NAV_Y_HINGE_X_MM);
-        const px = hingeX + toS(totalProjW);
+                const px = hingeX + toS(totalProjW);
         const py = ORIGIN_Y + toS(NAV_Y_GEO.arm.height)/2;
-        const isBascula = (stato && (stato.Y1_bascula || stato.Stato_Bascula1)) ? true : false;
+        const isBascula = (stato && (stato.Stato_Y1_bascula || stato.Stato_Bascula1)) ? true : false;
         
         ctx.save();
         if (isBascula) {
@@ -3519,7 +4564,7 @@ function renderNavettaYCanvas(y1Val, y2Val, stato) {
         const hingeX = toX(NAV_Y_HINGE_X_MM);
         const px = hingeX + toS(totalProjW);
         const py = ORIGIN_Y + toS(NAV_Y_GEO.arm.height)/2;
-        const isBascula = (stato && (stato.Y2_bascula || stato.Stato_Bascula2)) ? true : false;
+        const isBascula = (stato && (stato.Stato_Y2_bascula || stato.Stato_Bascula2)) ? true : false;
         
         ctx.save();
         if (isBascula) {

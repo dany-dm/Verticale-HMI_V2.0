@@ -56,13 +56,21 @@ class HMIHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.serve_static_files(path)
 
     def do_POST(self):
-        # Supporta la scrittura anche via POST
         parsed_url = urllib.parse.urlparse(self.path)
         if parsed_url.path == "/api/write":
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length).decode('utf-8')
             query_params = urllib.parse.parse_qs(post_data)
             self.handle_api_write(query_params)
+        elif parsed_url.path == "/api/write_bulk":
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            try:
+                import json
+                write_data = json.loads(post_data)
+                self.handle_api_write_bulk(write_data)
+            except Exception as e:
+                self.send_json_response({"success": False, "error": f"Invalid JSON: {e}"}, status=400)
         else:
             self.send_error(404, "Not Found")
 
@@ -149,16 +157,56 @@ class HMIHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         cmd = f"write {device} {parameter} {value}"
         self.server.syslog.log(f"Ricevuto comando da HMI Web: {cmd}", severity=5)
         
+        # Scrive nella console all'invio del comando
+        self.server.datastore.add_log("HMI Web", f"Inviato comando: {cmd}", level="INFO")
+        
         # Inoltra al client NetLinker
         risposta = self.server.client.invia_comando(cmd)
         
+        # Scrive nella console alla ricezione della risposta
         if "scritto" in risposta.lower():
-            # Aggiunge al log in memoria
-            self.server.datastore.add_log("HMI Web", f"Inviato comando: {cmd} - Esito: {risposta.strip()}", level="INFO")
+            # Aggiorna il database locale con i dati della risposta prima di rispondere
+            self.server.datastore.apply_write_response(risposta)
+            self.server.datastore.add_log("HMI Web", f"Ricevuta risposta: {risposta.strip()}", level="INFO")
             self.send_json_response({"success": True, "result": risposta.strip()})
         else:
-            self.server.datastore.add_log("HMI Web", f"Fallito comando: {cmd} - Risposta: {risposta.strip()}", level="WARNING")
+            self.server.datastore.add_log("HMI Web", f"Ricevuta risposta (errore): {risposta.strip()}", level="WARNING")
             self.send_json_response({"success": False, "error": risposta.strip()})
+
+    def handle_api_write_bulk(self, write_data):
+        device = write_data.get("device", "")
+        writes = write_data.get("writes", [])
+        
+        if not device or not writes:
+            self.send_json_response({"success": False, "error": "Parametri mancanti: device e writes richiesti"}, status=400)
+            return
+            
+        comandi = []
+        for w in writes:
+            param = w.get("parameter", "")
+            val = w.get("value", "")
+            if param and val is not None:
+                comandi.append(f"write {device} {param} {val}")
+                
+        if not comandi:
+            self.send_json_response({"success": False, "error": "Nessun comando valido da eseguire"}, status=400)
+            return
+            
+        compound_cmd = "; ".join(comandi)
+        self.server.syslog.log(f"Ricevuto comando bulk da HMI Web: {compound_cmd}", severity=5)
+        
+        # Scrive nella console all'invio del comando bulk
+        self.server.datastore.add_log("HMI Web Bulk", f"Inviato comando bulk: {compound_cmd}", level="INFO")
+        
+        # Inoltra al client NetLinker
+        risposta = self.server.client.invia_comando(compound_cmd)
+        
+        # Aggiorna immediatamente nel datastore locale usando la risposta di NetLinker
+        self.server.datastore.apply_write_response(risposta)
+            
+        # Scrive nella console alla ricezione della risposta bulk
+        self.server.datastore.add_log("HMI Web Bulk", f"Ricevuta risposta: {risposta.strip()}", level="INFO")
+        self.send_json_response({"success": True, "result": risposta.strip()})
 
     def handle_api_logs(self):
         logs = self.server.datastore.get_logs()

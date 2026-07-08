@@ -56,6 +56,70 @@ class Datastore:
                             level = "INFO" if v else "WARNING"
                         self.add_log(name, msg, level=level)
 
+    def apply_write_response(self, risposta):
+        """
+        Parsa la risposta testuale di NetLinker a seguito di una scrittura (singola o multipla)
+        e aggiorna il datastore locale con i valori effettivamente confermati da NetLinker.
+        Esempio di riga di successo: "Navetta_2.CMD_Home scritto: 1"
+        """
+        if not risposta:
+            return False
+            
+        righe = risposta.strip().split("\n")
+        aggiornato_almeno_uno = False
+        
+        with self._lock:
+            for riga in righe:
+                riga = riga.strip()
+                if not riga or "scritto" not in riga.lower():
+                    continue
+                try:
+                    # La risposta standard è del tipo "Macchina.Parametro scritto: Valore"
+                    if "scritto:" in riga.lower():
+                        sinistra, valore_str = riga.split("scritto:", 1)
+                    else:
+                        # Se manca il due punti, splittiamo su "scritto"
+                        parti = riga.split()
+                        idx_scritto = -1
+                        for idx, p in enumerate(parti):
+                            if "scritto" in p.lower():
+                                idx_scritto = idx
+                                break
+                        if idx_scritto != -1 and idx_scritto > 0 and len(parti) > idx_scritto + 1:
+                            sinistra = parti[idx_scritto - 1]
+                            valore_str = " ".join(parti[idx_scritto + 1:])
+                        else:
+                            sinistra, valore_str = riga.lower().split("scritto", 1)
+                            valore_str = riga[len(sinistra) + len("scritto"):]
+                            if valore_str.startswith(":"):
+                                valore_str = valore_str[1:]
+                    
+                    valore_str = valore_str.strip()
+                    sinistra = sinistra.strip().rstrip(".")
+                    
+                    if "." in sinistra:
+                        macchina, parametro = sinistra.split(".", 1)
+                        macchina = macchina.strip()
+                        parametro = parametro.strip()
+                        
+                        # Parsing del valore
+                        if valore_str.lower() in ["1", "true", "-1"]:
+                            val_parsed = True
+                        elif valore_str.lower() in ["0", "false"]:
+                            val_parsed = False
+                        else:
+                            try:
+                                val_parsed = float(valore_str) if "." in valore_str else int(valore_str)
+                            except ValueError:
+                                val_parsed = valore_str
+                        
+                        # Aggiorna lo stato nel datastore
+                        self.update_device_data(macchina, {parametro: val_parsed})
+                        aggiornato_almeno_uno = True
+                except Exception:
+                    pass
+        return aggiornato_almeno_uno
+
     def set_device_online(self, name, online):
         """Imposta lo stato di connessione di una macchina."""
         with self._lock:
@@ -107,7 +171,8 @@ class Datastore:
     def add_log(self, source, message, level="INFO"):
         """Aggiunge una riga di log in memoria per la console web."""
         with self._lock:
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             log_entry = {
                 "timestamp": timestamp,
                 "source": source,

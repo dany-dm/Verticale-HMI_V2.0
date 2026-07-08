@@ -206,18 +206,9 @@ class TCPServer:
             # Invia la scrittura a NetLinker
             risp = self.client.invia_comando(comando)
             
-            # Se la scrittura va a buon fine, forziamo l'aggiornamento locale della variabile per immediatezza
-            if "scritto" in risp:
-                if valore.lower() in ["1", "true", "-1"]:
-                    val_parsed = True
-                elif valore.lower() in ["0", "false"]:
-                    val_parsed = False
-                else:
-                    try:
-                        val_parsed = float(valore) if "." in valore else int(valore)
-                    except ValueError:
-                        val_parsed = valore
-                self.datastore.update_device_data(macchina, {parametro: val_parsed})
+            # Se la scrittura va a buon fine, forziamo l'aggiornamento locale della variabile per immediatezza usando la risposta
+            if "scritto" in risp.lower():
+                self.datastore.apply_write_response(risp)
                 
             return risp
 
