@@ -96,26 +96,31 @@ Since the coordinates `FromY` and `ToY` are numerical values, HMI checks compare
 
 ## 5. Sinottico 2D Rendering & Tooltips
 
+### Flow Animations:
+* **Animated Flow Arrows**: On all active flow paths (Shuttles, Carriage, and Loader), the flow direction is indicated by **6 animated arrows** moving sequentially along the path, spaced at `0.5s` intervals (`dur="3s"` with `begin` offsets of `0s`, `0.5s`, `1s`, `1.5s`, `2s`, `2.5s`) for smooth, premium visual cues.
+
 ### Coordinate Mapping & Overrides:
 * **Shuttles (Navette)**: 
-  * If a shuttle is involved in a job, it draws its departure and arrival dots.
+  * If a shuttle is involved in a job and is actively working on it (`Stato_Picked` is true), it draws its departure and arrival dots.
   * **Shoulder Board Panels**: The panel on the left shoulder is displayed when `Stato_Y2_PannelloPreso` is active, and the panel on the right shoulder is displayed when `Stato_Y1_PannelloPreso` is active.
   * **Caso 3**: If the job is a pickup from another shuttle (i.e. `FromY` does not belong to the shuttle's shoulders), `FromX` is overridden to `1080` (exchange level).
   * **Caso 4**: If the job is a drop-off to another shuttle (i.e. `ToY` does not belong to the shuttle's shoulders), `ToX` is overridden to `1080` (exchange level).
   * **Caso 5**: If a shuttle does a double transfer on its own shoulders, it is split into two visual job steps. Step 1 draws a green path (pickup to exchange at `ToX=1080` and `ToY=FromY` on shoulder) if `caso5PrimaParte` is active, and orange otherwise. Step 2 draws the rest.
 * **Carriage (Carrello)**:
   * The carriage comanda is retrieved using the `carrState` keys fallback (since the PLC returns `comanda_*` instead of `carrello_comanda_*` in the live API).
-  * The carriage's dots and flow line are drawn at a single horizontal line positioned vertically at `yCarriage - 1000` mm (about `72.1px` on the screen) to avoid overlapping.
+  * If the carriage is actively working on a job (`Stato_Picked` is true), the carriage's dots and flow line are drawn at a single horizontal line positioned vertically at `yCarriage - 1000` mm (about `72.1px` on the screen) to avoid overlapping.
+  * **Wood Panel**: A wood textured panel (`#carr-wood-panel`) measuring `29.5px` by `85.5px` (representing `800mm` by `4200mm`) is always drawn centered on the carriage (`(0, 95)` in local coordinates, overlaying the carriage body). Its width is dynamically adjusted based on `Carrello.Rotazione_Encoder` to simulate perspective/tilt: if the rotation is negative, the width reduces and the left edge stays fixed at `-14.8px`. If the rotation is positive, the width reduces and the right edge stays fixed at `14.8px`.
   * The horizontal X pixels of all coordinates are calculated using physical Y coordinates in mm:
     * **Rollers (`Y = 0`)**: `-1500` mm.
     * **Loader (`Y = 1`)**: `config.caricatore.posizione_y` (default `2000` mm).
     * **Shuttles (`Y >= 101`)**: `yNav - dist` (right shoulder, odd Y) or `yNav + dist` (left shoulder, even Y).
     * Formula: `xPixel = 1100 - (Y_in_mm * scaleX)`.
 * **Loader (Caricatore)**:
-  * When a job is active on the loader (`carIdVal > 0`), it draws a dashed semicircle path (`#car-flow-path`) centered at the base column with a radius equal to the arm length (`armLen`).
-  * **Counter-Clockwise Rotation**: If `ToY == 1 && FromY != 1` (pickup phase), the path is drawn from Right to Left (`sweep-flag = 1`).
-  * **Clockwise Rotation**: If `FromY == 1 && ToY != 1` (placement phase), the path is drawn from Left to Right (`sweep-flag = 0`).
-  * Animated blue flow arrows follow the path direction dynamically.
+  * When the loader is actively working on a job (`Stato_Picked` is true), it draws a dashed arc path (`#car-flow-path`) centered at the base column with a radius equal to the arm length (`armLen`).
+  * **Clockwise Rotation**: If `FromY == 1 && ToY != 1` (placement phase), the path goes from `7:30` (bottom-left, `135°`) to `10:30` (top-left, `225°`) with `sweep-flag = 1`.
+  * **Counter-Clockwise Rotation**: If `ToY == 1 && FromY != 1` (pickup phase), the path goes from `10:30` (top-left, `225°`) to `7:30` (bottom-left, `135°`) with `sweep-flag = 0`.
+  * Animated blue flow arrows and departure/arrival dots with custom tooltips are drawn at the endpoints of the arc.
+  * **Wood Panel**: A wood textured panel (`#sin-caricatore-wood-panel`) measuring `154.7px` by `16.3px` (representing `4200mm` by `800mm`) is always drawn centered and directly under the frame (`y = -8.2` in local rotated coordinates, so it lies behind the frame and the suction cups) with `opacity = 0.6`, shifted `500mm` to the left.
 
 ### Custom Tooltips:
 * The SVG layout implements a custom, instant-appearance HTML tooltip (`#hmi-svg-tooltip`) instead of the default browser `<title>` tags to eliminate the 1-second delay.

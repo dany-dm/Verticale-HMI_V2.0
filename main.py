@@ -15,6 +15,8 @@ from tcp_server import TCPServer
 from http_server import HTTPServerManager
 from launcher_gui import LauncherGUI
 
+from syslog_reader import SyslogReader
+
 # Variabili globali per orchestrare lo spegnimento e il reset a caldo
 running = True
 datastore = None
@@ -23,6 +25,7 @@ client = None
 tcp_server = None
 http_server = None
 launcher = None
+syslog_reader = None
 
 def query_status_mode(socket_port):
     """Esegue l'applicazione come messaggero CLI."""
@@ -118,7 +121,7 @@ def stdin_thread_loop():
 
 def esegui_reset_a_caldo():
     """Ricarica la configurazione e riavvia i moduli a caldo."""
-    global datastore, syslog, client
+    global datastore, syslog, client, syslog_reader
     if syslog:
         syslog.log("Reset a caldo: ricaricamento configurazione config.json...", severity=5)
         
@@ -127,6 +130,14 @@ def esegui_reset_a_caldo():
     # Aggiorna Syslog Logger
     if syslog:
         syslog.update_config(config.get("syslog_ip", "127.0.0.1"), config.get("syslog_port", 514))
+        
+    # Riavvia Syslog Reader
+    if syslog_reader:
+        syslog_reader.restart(
+            config.get("syslog_file_path", "C:\\logs\\syslog.log"),
+            config.get("syslog_username", ""),
+            config.get("syslog_password", "")
+        )
         
     # Riavvia Client NetLinker con i nuovi parametri
     if client:
@@ -159,8 +170,11 @@ def esegui_reset_a_caldo():
 
 def arresto_completo():
     """Arresta tutti i moduli in modo controllato."""
-    global running, client, tcp_server, http_server, launcher
+    global running, client, tcp_server, http_server, launcher, syslog_reader
     running = False
+    
+    if syslog_reader:
+        syslog_reader.stop()
     
     # Scrive lo stato finale "stopped" prima di chiudere tutto
     pid = os.getpid()
@@ -186,7 +200,7 @@ def arresto_completo():
     sys.exit(0)
 
 def main():
-    global datastore, syslog, client, tcp_server, http_server, launcher, running
+    global datastore, syslog, client, tcp_server, http_server, launcher, running, syslog_reader
     
     # 1. Parsing Argomenti CLI
     parser = argparse.ArgumentParser(description="Verticale HMI v2.0.16 - Interfaccia Controllo Navette")
@@ -250,6 +264,15 @@ def main():
     # 8. Avvio Server HTTP/SSE locale per la Web GUI
     http_server = HTTPServerManager(datastore, client, syslog)
     http_server.start("0.0.0.0", web_port)
+
+    # 8b. Avvio Syslog Reader per tailing log
+    syslog_reader = SyslogReader(
+        datastore,
+        config.get("syslog_file_path", "C:\\logs\\syslog.log"),
+        config.get("syslog_username", ""),
+        config.get("syslog_password", "")
+    )
+    syslog_reader.start()
 
     # 9. Scrittura periodica file di stato netlinker_status.json
     ports_map = {"socket": socket_port, "web": web_port}

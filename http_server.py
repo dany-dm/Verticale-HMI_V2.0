@@ -30,6 +30,9 @@ class HMIHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/events":
             self.handle_sse()
             return
+        elif path == "/api/syslog_stream":
+            self.handle_syslog_stream()
+            return
 
         # 2. Endpoint API Stato Macchine
         elif path == "/api/state":
@@ -109,6 +112,53 @@ class HMIHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 break
             except Exception:
                 break
+
+    def handle_syslog_stream(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        import queue
+        log_queue = queue.Queue()
+
+        # Invia prima la cronologia (tutti i log storici salvati)
+        history = self.server.datastore.get_syslog_logs()
+        for entry in history:
+            try:
+                self.wfile.write(f"data: {json.dumps(entry)}\n\n".encode("utf-8"))
+            except Exception:
+                return
+        try:
+            self.wfile.flush()
+        except Exception:
+            return
+
+        # Callback per ricevere i nuovi log in real-time
+        def listener_callback(log_entry):
+            log_queue.put(log_entry)
+
+        self.server.datastore.register_syslog_listener(listener_callback)
+
+        try:
+            while self.server.running:
+                try:
+                    # Timeout breve per non bloccare indefinitamente in caso di shutdown
+                    log_entry = log_queue.get(timeout=1.0)
+                    self.wfile.write(f"data: {json.dumps(log_entry)}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                except queue.Empty:
+                    # Invia un commento keep-alive per tenere la connessione attiva
+                    self.wfile.write(b": keep-alive\n\n")
+                    self.wfile.flush()
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+            pass
+        except Exception:
+            pass
+        finally:
+            self.server.datastore.unregister_syslog_listener(listener_callback)
 
     def handle_api_state(self):
         states = self.server.datastore.get_all_states()

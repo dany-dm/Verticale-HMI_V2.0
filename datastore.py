@@ -13,6 +13,9 @@ class Datastore:
         self._max_logs = 100
         self._server_status = "running"
         self._start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        self._syslog_logs = []
+        self._syslog_max = 5000
+        self._syslog_listeners = []
 
     def initialize_device(self, name, templates):
         """Inizializza lo stato di un dispositivo e dei suoi template."""
@@ -221,3 +224,45 @@ class Datastore:
             if "__system__" in self._states:
                 return self._states["__system__"].get("netlinker_connected", False)
             return False
+
+    def add_syslog_log(self, message, severity, facility=1, timestamp=None):
+        """Aggiunge una riga di log ricevuta dal syslog file."""
+        import datetime
+        if not timestamp:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+        log_entry = {
+            "timestamp": timestamp,
+            "severity": severity,
+            "facility": facility,
+            "message": message
+        }
+        
+        with self._lock:
+            self._syslog_logs.append(log_entry)
+            if len(self._syslog_logs) > self._syslog_max:
+                self._syslog_logs.pop(0)
+                
+            listeners_copy = list(self._syslog_listeners)
+            
+        for listener in listeners_copy:
+            try:
+                listener(log_entry)
+            except Exception:
+                pass
+
+    def get_syslog_logs(self):
+        """Restituisce tutti i log syslog memorizzati."""
+        with self._lock:
+            return list(self._syslog_logs)
+
+    def register_syslog_listener(self, callback):
+        """Registra una callback per ricevere i log in real-time."""
+        with self._lock:
+            self._syslog_listeners.append(callback)
+
+    def unregister_syslog_listener(self, callback):
+        """Rimuove una callback registrata."""
+        with self._lock:
+            if callback in self._syslog_listeners:
+                self._syslog_listeners.remove(callback)

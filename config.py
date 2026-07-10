@@ -8,6 +8,9 @@ DEFAULT_CONFIG = {
     "refresh": 0.3,
     "syslog_ip": "127.0.0.1",
     "syslog_port": 514,
+    "syslog_file_path": "C:\\logs\\syslog.log",
+    "syslog_username": "",
+    "syslog_password": "",
     "carrello": {
         "corsa_max_y": 28500.0
     },

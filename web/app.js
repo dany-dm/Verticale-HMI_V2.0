@@ -9,6 +9,28 @@ let eventSource = null;
 let ultimaCodaCommesseHTML = "";
 let ultimoJobsTableHTML = "";
 
+// --- VARIABILI DI STATO SYSLOG MONITOR ---
+let syslogLogs = [];
+let syslogEventSource = null;
+let syslogCurrentPage = 1;
+const syslogLogsPerPage = 100;
+let syslogSearchQuery = "";
+let syslogSelectedSeverity = "all";
+let syslogSelectedDate = "";
+let syslogRenderTimeout = null;
+let syslogDeferredRender = false;
+
+const SEVERITY_LABELS = {
+    0: "EMERG",
+    1: "ALERT",
+    2: "CRIT",
+    3: "ERROR",
+    4: "WARN",
+    5: "NOTICE",
+    6: "INFO",
+    7: "DEBUG"
+};
+
 // --- UTILITY PER COMANDI AVANZATI NAVETTA ---
 function inviaScritturaAvanzata(parameter, customVal = -1) {
     const nomeMacchina = `Navetta_${activeNavettaIndex + 1}`;
@@ -41,6 +63,220 @@ function inviaScritturaAvanzata(parameter, customVal = -1) {
     inviaScrittura(nomeMacchina, parameter, targetVal);
 }
 
+function aggiornaStatoSyslog() {
+    const switchEl = document.getElementById("switch-attiva-syslog");
+    const consoleEl = document.getElementById("syslog-console");
+    const placeholderEl = document.getElementById("syslog-placeholder");
+    const linesContainer = document.getElementById("syslog-lines-container");
+    const badgeEl = document.getElementById("syslog-status-badge");
+    
+    if (!switchEl || !consoleEl) return;
+    
+    if (switchEl.checked) {
+        consoleEl.classList.remove("disabled");
+        consoleEl.classList.add("active");
+        if (placeholderEl) placeholderEl.style.display = "none";
+        if (linesContainer) linesContainer.style.display = "block";
+        if (badgeEl) {
+            badgeEl.className = "syslog-badge-live";
+            badgeEl.innerText = "LIVE";
+        }
+        attivaSyslogStream();
+    } else {
+        consoleEl.classList.remove("active");
+        consoleEl.classList.add("disabled");
+        if (badgeEl) {
+            badgeEl.className = "syslog-badge-paused";
+            badgeEl.innerText = "IN PAUSA";
+        }
+        disattivaSyslogStream();
+    }
+}
+
+function attivaSyslogStream() {
+    if (syslogEventSource) return;
+    
+    syslogLogs = [];
+    syslogCurrentPage = 1;
+    
+    syslogEventSource = new EventSource("/api/syslog_stream");
+    
+    syslogEventSource.onmessage = (event) => {
+        try {
+            const logEntry = JSON.parse(event.data);
+            syslogLogs.push(logEntry);
+            
+            if (syslogLogs.length > 5000) {
+                syslogLogs.shift();
+            }
+            
+            triggerSyslogRender();
+        } catch (e) {
+            console.error("Errore nel parsing del log da SSE:", e);
+        }
+    };
+    
+    syslogEventSource.onerror = (err) => {
+        console.error("Errore connessione SSE syslog:", err);
+    };
+}
+
+function disattivaSyslogStream() {
+    if (syslogEventSource) {
+        syslogEventSource.close();
+        syslogEventSource = null;
+    }
+}
+
+function triggerSyslogRender() {
+    if (syslogRenderTimeout) return;
+    
+    syslogRenderTimeout = setTimeout(() => {
+        syslogRenderTimeout = null;
+        
+        const consoleEl = document.getElementById("syslog-console");
+        const selection = window.getSelection();
+        let hasSelection = false;
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            const range = selection.getRangeAt(0);
+            if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
+                hasSelection = true;
+            }
+        }
+        
+        if (hasSelection) {
+            syslogDeferredRender = true;
+        } else {
+            renderSyslog();
+            syslogDeferredRender = false;
+        }
+    }, 50);
+}
+
+function renderSyslog() {
+    const consoleEl = document.getElementById("syslog-console");
+    const container = document.getElementById("syslog-lines-container");
+    const statsEl = document.getElementById("syslog-stats");
+    const pageNumEl = document.getElementById("syslog-page-num");
+    
+    if (!consoleEl || !container) return;
+    
+    const query = syslogSearchQuery.toLowerCase().trim();
+    const severityFilter = syslogSelectedSeverity;
+    const dateFilter = syslogSelectedDate;
+    
+    const filtered = syslogLogs.filter(log => {
+        if (query && !log.message.toLowerCase().includes(query)) return false;
+        if (severityFilter !== "all") {
+            const sev = log.severity;
+            if (severityFilter === "error" && sev > 3) return false;
+            if (severityFilter === "warning" && sev !== 4) return false;
+            if (severityFilter === "info" && (sev < 5 || sev > 6)) return false;
+            if (severityFilter === "debug" && sev !== 7) return false;
+        }
+        if (dateFilter) {
+            if (!log.timestamp.startsWith(dateFilter)) return false;
+        }
+        return true;
+    });
+    
+    const totalLogs = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalLogs / syslogLogsPerPage));
+    
+    if (syslogCurrentPage > totalPages) {
+        syslogCurrentPage = totalPages;
+    }
+    
+    if (statsEl) {
+        statsEl.innerText = `${totalLogs} log trovati`;
+    }
+    if (pageNumEl) {
+        pageNumEl.innerText = `Pagina ${syslogCurrentPage} di ${totalPages}`;
+    }
+    
+    const startIdx = (syslogCurrentPage - 1) * syslogLogsPerPage;
+    const endIdx = Math.min(startIdx + syslogLogsPerPage, totalLogs);
+    const visibleLogs = filtered.slice(startIdx, endIdx);
+    
+    const wasAtBottom = (consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight) < 30;
+    
+    if (visibleLogs.length === 0) {
+        container.innerHTML = `<div style="color: #64748b; font-style: italic; text-align: center; padding: 20px;">Nessun log corrisponde ai criteri.</div>`;
+    } else {
+        container.innerHTML = visibleLogs.map(log => {
+            const label = SEVERITY_LABELS[log.severity] || "LOG";
+            return `
+                <div class="syslog-line syslog-sev-${log.severity}">
+                    <span class="syslog-time">${log.timestamp}</span>
+                    <span class="syslog-tag">${label}</span>
+                    <span class="syslog-msg">${escapeHtml(log.message)}</span>
+                </div>
+            `;
+        }).join("");
+    }
+    
+    const autoscrollEnabled = document.getElementById("syslog-autoscroll")?.checked;
+    if (wasAtBottom && autoscrollEnabled && syslogCurrentPage === totalPages) {
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+    
+    const btnFirst = document.getElementById("syslog-page-first");
+    const btnPrev = document.getElementById("syslog-page-prev");
+    const btnNext = document.getElementById("syslog-page-next");
+    const btnLast = document.getElementById("syslog-page-last");
+    
+    if (btnFirst) btnFirst.disabled = (syslogCurrentPage === 1);
+    if (btnPrev) btnPrev.disabled = (syslogCurrentPage === 1);
+    if (btnNext) btnNext.disabled = (syslogCurrentPage === totalPages);
+    if (btnLast) btnLast.disabled = (syslogCurrentPage === totalPages);
+}
+
+function exportSyslogLogs() {
+    const query = syslogSearchQuery.toLowerCase().trim();
+    const severityFilter = syslogSelectedSeverity;
+    const dateFilter = syslogSelectedDate;
+    
+    const filtered = syslogLogs.filter(log => {
+        if (query && !log.message.toLowerCase().includes(query)) return false;
+        if (severityFilter !== "all") {
+            const sev = log.severity;
+            if (severityFilter === "error" && sev > 3) return false;
+            if (severityFilter === "warning" && sev !== 4) return false;
+            if (severityFilter === "info" && (sev < 5 || sev > 6)) return false;
+            if (severityFilter === "debug" && sev !== 7) return false;
+        }
+        if (dateFilter) {
+            if (!log.timestamp.startsWith(dateFilter)) return false;
+        }
+        return true;
+    });
+    
+    const content = filtered.map(log => {
+        const label = SEVERITY_LABELS[log.severity] || "LOG";
+        return `[${log.timestamp}] [${label}] ${log.message}`;
+    }).join("\r\n");
+    
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `syslog_export_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function aggiornaAbilitazioneComandiAvanzati() {
     const nomeMacchina = `Navetta_${activeNavettaIndex + 1}`;
     const stato = currentStates[nomeMacchina] || {};
@@ -69,6 +305,86 @@ document.addEventListener("DOMContentLoaded", () => {
     // Clear logs button
     document.getElementById("btn-clear-logs")?.addEventListener("click", () => {
         document.getElementById("logs-console").innerHTML = "";
+    });
+
+    // Event listener per attivazione syslog
+    document.getElementById("switch-attiva-syslog")?.addEventListener("change", aggiornaStatoSyslog);
+
+    // Filtri Syslog
+    document.getElementById("syslog-search")?.addEventListener("input", (e) => {
+        syslogSearchQuery = e.target.value;
+        syslogCurrentPage = 1;
+        triggerSyslogRender();
+    });
+    
+    document.getElementById("syslog-filter-severity")?.addEventListener("change", (e) => {
+        syslogSelectedSeverity = e.target.value;
+        syslogCurrentPage = 1;
+        triggerSyslogRender();
+    });
+    
+    document.getElementById("syslog-filter-date")?.addEventListener("change", (e) => {
+        syslogSelectedDate = e.target.value;
+        syslogCurrentPage = 1;
+        triggerSyslogRender();
+    });
+    
+    document.getElementById("syslog-btn-clear-date")?.addEventListener("click", () => {
+        const dateInput = document.getElementById("syslog-filter-date");
+        if (dateInput) dateInput.value = "";
+        syslogSelectedDate = "";
+        syslogCurrentPage = 1;
+        triggerSyslogRender();
+    });
+    
+    document.getElementById("syslog-btn-clear")?.addEventListener("click", () => {
+        syslogLogs = [];
+        syslogCurrentPage = 1;
+        triggerSyslogRender();
+    });
+    
+    document.getElementById("syslog-btn-export")?.addEventListener("click", exportSyslogLogs);
+    
+    // Paginazione Syslog
+    document.getElementById("syslog-page-first")?.addEventListener("click", () => {
+        syslogCurrentPage = 1;
+        renderSyslog();
+    });
+    
+    document.getElementById("syslog-page-prev")?.addEventListener("click", () => {
+        if (syslogCurrentPage > 1) {
+            syslogCurrentPage--;
+            renderSyslog();
+        }
+    });
+    
+    document.getElementById("syslog-page-next")?.addEventListener("click", () => {
+        syslogCurrentPage++;
+        renderSyslog();
+    });
+    
+    document.getElementById("syslog-page-last")?.addEventListener("click", () => {
+        syslogCurrentPage = 99999;
+        renderSyslog();
+    });
+
+    // Ascolto cambio selezione per ripristinare il render rimandato
+    document.addEventListener("selectionchange", () => {
+        if (syslogDeferredRender) {
+            const selection = window.getSelection();
+            const consoleEl = document.getElementById("syslog-console");
+            let hasSelection = false;
+            if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                const range = selection.getRangeAt(0);
+                if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
+                    hasSelection = true;
+                }
+            }
+            if (!hasSelection) {
+                renderSyslog();
+                syslogDeferredRender = false;
+            }
+        }
     });
 
     // Toggle 2D/3D Sinottico
@@ -148,6 +464,13 @@ function switchTab(targetId) {
     const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
     if (switchEl) switchEl.checked = false;
     
+    // Disattiva anche il syslog reader al cambio scheda/tab
+    const switchSyslog = document.getElementById("switch-attiva-syslog");
+    if (switchSyslog) {
+        switchSyslog.checked = false;
+        aggiornaStatoSyslog();
+    }
+    
     activeTab = targetId;
     
     // Se entriamo in Impostazioni, ricarichiamo la form
@@ -174,6 +497,17 @@ function selectNavetta(i) {
         btn.classList.add("active");
         activeNavettaIndex = i - 1;
         document.getElementById("navetta-selezionata-title").innerText = `Navetta ${i}`;
+        
+        // Disattiva comandi avanzati al cambio macchina
+        const switchEl = document.getElementById("switch-attiva-comandi-avanzati");
+        if (switchEl) switchEl.checked = false;
+        
+        // Disattiva anche il syslog reader al cambio macchina
+        const switchSyslog = document.getElementById("switch-attiva-syslog");
+        if (switchSyslog) {
+            switchSyslog.checked = false;
+            aggiornaStatoSyslog();
+        }
         
         const isNav4 = (i === 4);
         const tplGrp = document.getElementById("navetta-4-tpl-group");
@@ -3136,6 +3470,8 @@ function aggiornaSinottico2D() {
             <circle cx="16" cy="145" r="4" fill="#64748b" />
             <circle cx="0" cy="95" r="5" fill="#3b82f6" id="carr-center-dot" />
             <text x="0" y="32" font-size="10" font-weight="900" fill="#3b82f6" text-anchor="middle" id="carr-text-label">CARRELLO</text>
+            <!-- Pannello in legno (alto 4200mm -> 85.5px, largo 800mm -> 29.5px, centrato su X=0, Y=95) -->
+            <rect id="carr-wood-panel" x="-14.8" y="52.3" width="29.5" height="85.5" fill="url(#woodGrad)" stroke="#78350f" stroke-width="1" rx="1" />
             <!-- Warning Overlay -->
             <g id="carr-warning" style="display: none;">
                 <rect x="-12" y="50.5" width="24" height="24" fill="#0f172a" rx="4" opacity="0.85" />
@@ -3189,6 +3525,25 @@ function aggiornaSinottico2D() {
     const carrWarning = document.getElementById("carr-warning");
     if (carrWarning) {
         carrWarning.style.display = carrReady ? "none" : "block";
+    }
+
+    // Aggiorna l'inclinazione prospettica del pannello sul carrello in base alla rotazione
+    const carrWoodPanel = document.getElementById("carr-wood-panel");
+    if (carrWoodPanel) {
+        const rotVal = carrState.Rotazione_Encoder || 0;
+        const wOrig = 29.5;
+        const factor = Math.max(0, 1 - Math.abs(rotVal) / 100);
+        const wNew = wOrig * factor;
+        
+        let xNew = 0;
+        if (rotVal < 0) {
+            xNew = -14.8;
+        } else {
+            xNew = 14.8 - wNew;
+        }
+        
+        carrWoodPanel.setAttribute("x", xNew.toFixed(1));
+        carrWoodPanel.setAttribute("width", wNew.toFixed(1));
     }
 
     // 2. NAVETTE (Si muovono in verticale sui rispettivi binari)
@@ -3315,7 +3670,7 @@ function aggiornaSinottico2D() {
         pBoardRight.style.display = (online && !!navState.Stato_Y1_PannelloPreso) ? "block" : "none";
         
         const idVal = getMachineComandaValue(navState, "navetta", "ID");
-        if (idVal !== undefined && idVal > 0) {
+        if (idVal !== undefined && idVal > 0 && !!navState.Stato_Picked) {
             // Copiamo i dati in una tabella o registro temporaneo
             tempJob = {
                 ID: idVal,
@@ -3522,26 +3877,41 @@ function aggiornaSinottico2D() {
                 if (!pArrows) {
                     pArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
                     pArrows.setAttribute("id", `nav-${i}-flow-arrows-${step}`);
-                    pArrows.innerHTML = `
-                        <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
-                            <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
-                                <mpath href="#nav-${i}-flow-path-${step}"/>
-                            </animateMotion>
-                        </polygon>
-                        <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
-                            <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
-                                <mpath href="#nav-${i}-flow-path-${step}"/>
-                            </animateMotion>
-                        </polygon>
-                    `;
                     svg.appendChild(pArrows);
-                } else {
-                    const polygons = pArrows.querySelectorAll("polygon");
-                    polygons.forEach(poly => poly.setAttribute("fill", flowColor));
-                    const mpaths = pArrows.querySelectorAll("mpath");
-                    mpaths.forEach(mp => mp.setAttribute("href", `#nav-${i}-flow-path-${step}`));
-                    pArrows.style.display = "block";
                 }
+                pArrows.innerHTML = `
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" begin="0.5s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" begin="1s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" begin="2s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                    <polygon points="-6,-4 2,0 -6,4" fill="${flowColor}">
+                        <animateMotion dur="3s" begin="2.5s" repeatCount="indefinite" rotate="auto">
+                            <mpath href="#nav-${i}-flow-path-${step}"/>
+                        </animateMotion>
+                    </polygon>
+                `;
+                pArrows.style.display = "block";
             } else {
                 if (pFlow) pFlow.style.display = "none";
                 if (pArrows) pArrows.style.display = "none";
@@ -3685,7 +4055,7 @@ function aggiornaSinottico2D() {
     if (pR2) pR2.style.display = hasPanelR2 ? "block" : "none";
 
     // 4. CARICATORE A VENTOSE
-    const armLen = (120 - 1700 * scaleY).toFixed(1);
+    const armLen = 120 - 1700 * scaleY;
     let carGroup = document.getElementById("sin-caricatore");
     if (!carGroup) {
         carGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -3696,20 +4066,22 @@ function aggiornaSinottico2D() {
             <circle cx="0" cy="0" r="15" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="1.5" id="sin-caricatore-base" />
             <!-- Braccio rotante (accorciato di 700mm in scala) -->
             <g id="sin-caricatore-braccio">
-                <line x1="0" y1="0" x2="${armLen}" y2="0" stroke="#3b82f6" stroke-width="4" id="sin-caricatore-arm-line" />
+                <line x1="0" y1="0" x2="${armLen.toFixed(1)}" y2="0" stroke="#3b82f6" stroke-width="4" id="sin-caricatore-arm-line" />
                 <!-- Gruppo del telaio ventose rotato di -135 gradi rispetto al braccio -->
-                <g id="sin-caricatore-telaio" transform="rotate(-135 ${armLen} 0)">
+                <g id="sin-caricatore-telaio" transform="rotate(-135 ${armLen.toFixed(1)} 0)">
+                    <!-- Pannello in legno (lungo 4200mm -> 154.7px, largo 800mm -> 16.3px, centrato, spostato 500mm a sinistra, trasparente) -->
+                    <rect x="${(armLen - 500 * scaleX - 77.4).toFixed(1)}" y="-8.2" width="154.7" height="16.3" fill="url(#woodGrad)" stroke="#78350f" stroke-width="1" rx="1" opacity="0.6" id="sin-caricatore-wood-panel" />
                     <!-- Telaio ventose (lungo 80px) centrato su X=${armLen} -->
-                    <rect x="${armLen - 40}" y="-12" width="80" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
+                    <rect x="${(armLen - 40).toFixed(1)}" y="-12" width="80" height="24" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" rx="2" id="sin-caricatore-frame" />
                     <!-- I 8 punti/ventose distanziati lungo la larghezza del telaio centrati su ${armLen} -->
-                    <circle cx="${armLen - 30}" cy="-6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen - 10}" cy="-6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen + 10}" cy="-6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen + 30}" cy="-6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen - 30}" cy="6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen - 10}" cy="6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen + 10}" cy="6" r="3" fill="#3b82f6" />
-                    <circle cx="${armLen + 30}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen - 30).toFixed(1)}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen - 10).toFixed(1)}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen + 10).toFixed(1)}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen + 30).toFixed(1)}" cy="-6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen - 30).toFixed(1)}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen - 10).toFixed(1)}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen + 10).toFixed(1)}" cy="6" r="3" fill="#3b82f6" />
+                    <circle cx="${(armLen + 30).toFixed(1)}" cy="6" r="3" fill="#3b82f6" />
                 </g>
             </g>
             <text x="0" y="-22" font-size="10" font-weight="800" fill="#3b82f6" text-anchor="middle" id="sin-caricatore-label">CARICATORE</text>
@@ -3776,8 +4148,10 @@ function aggiornaSinottico2D() {
     const carIdVal = Number(getMachineComandaValue(carState, "car", "ID")) || 0;
     let capFlow = document.getElementById("car-flow-path");
     let capArrows = document.getElementById("car-flow-arrows");
+    let capPartenza = document.getElementById("car-dot-partenza");
+    let capArrivo = document.getElementById("car-dot-arrivo");
     
-    if (carIdVal > 0) {
+    if (carIdVal > 0 && !!carState.Stato_Picked) {
         const fromY = Number(getMachineComandaValue(carState, "car", "From_Y")) || 0;
         const toY = Number(getMachineComandaValue(carState, "car", "To_Y")) || 0;
         
@@ -3786,13 +4160,30 @@ function aggiornaSinottico2D() {
         
         if (isAntioraria || isOraria) {
             const R = Number(armLen) || 85;
+            const angle730 = 135 * Math.PI / 180;
+            const angle1030 = 225 * Math.PI / 180;
+            const x730 = R * Math.cos(angle730);
+            const y730 = R * Math.sin(angle730);
+            const x1030 = R * Math.cos(angle1030);
+            const y1030 = R * Math.sin(angle1030);
+
             let pathD = "";
-            if (isAntioraria) {
-                // Da Destra (R, 0) a Sinistra (-R, 0) in senso antiorario (sweep-flag = 1)
-                pathD = `M ${R.toFixed(1)} 0 A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 -${R.toFixed(1)} 0`;
+            let startDotX = 0, startDotY = 0, endDotX = 0, endDotY = 0;
+            
+            if (isOraria) {
+                // Clockwise: 7:30 to 10:30 (sweep-flag = 1)
+                pathD = `M ${x730.toFixed(1)} ${y730.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${x1030.toFixed(1)} ${y1030.toFixed(1)}`;
+                startDotX = x730;
+                startDotY = y730;
+                endDotX = x1030;
+                endDotY = y1030;
             } else {
-                // Da Sinistra (-R, 0) a Destra (R, 0) in senso orario (sweep-flag = 0)
-                pathD = `M -${R.toFixed(1)} 0 A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 0 ${R.toFixed(1)} 0`;
+                // Counter-Clockwise: 10:30 to 7:30 (sweep-flag = 0)
+                pathD = `M ${x1030.toFixed(1)} ${y1030.toFixed(1)} A ${R.toFixed(1)} ${R.toFixed(1)} 0 0 0 ${x730.toFixed(1)} ${y730.toFixed(1)}`;
+                startDotX = x1030;
+                startDotY = y1030;
+                endDotX = x730;
+                endDotY = y730;
             }
             
             if (!capFlow) {
@@ -3807,36 +4198,89 @@ function aggiornaSinottico2D() {
             capFlow.setAttribute("d", pathD);
             capFlow.style.display = "block";
             
+            // Disegna/aggiorna pallino di partenza (car-dot-partenza)
+            if (!capPartenza) {
+                capPartenza = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                capPartenza.setAttribute("id", "car-dot-partenza");
+                capPartenza.setAttribute("fill", "url(#woodGrad)");
+                capPartenza.setAttribute("stroke", "#78350f");
+                capPartenza.setAttribute("stroke-width", "1.5");
+                capPartenza.setAttribute("r", "6");
+                carGroup.appendChild(capPartenza);
+            }
+            capPartenza.setAttribute("cx", startDotX.toFixed(1));
+            capPartenza.setAttribute("cy", startDotY.toFixed(1));
+            capPartenza.style.display = "block";
+            const fromX = Number(getMachineComandaValue(carState, "car", "From_X")) || 0;
+            const fromZ = Number(getMachineComandaValue(carState, "car", "From_Z")) || 0;
+            bindTooltip(capPartenza, `ID: ${carIdVal} - From: ${fromX} / ${fromY} / ${fromZ}`);
+
+            // Disegna/aggiorna pallino di arrivo (car-dot-arrivo)
+            if (!capArrivo) {
+                capArrivo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                capArrivo.setAttribute("id", "car-dot-arrivo");
+                capArrivo.setAttribute("fill", "url(#woodGrad)");
+                capArrivo.setAttribute("stroke", "#78350f");
+                capArrivo.setAttribute("stroke-width", "1.5");
+                capArrivo.setAttribute("r", "6");
+                carGroup.appendChild(capArrivo);
+            }
+            capArrivo.setAttribute("cx", endDotX.toFixed(1));
+            capArrivo.setAttribute("cy", endDotY.toFixed(1));
+            capArrivo.style.display = "block";
+            const toX = Number(getMachineComandaValue(carState, "car", "To_X")) || 0;
+            const toZ = Number(getMachineComandaValue(carState, "car", "ToZ")) || 0;
+            bindTooltip(capArrivo, `ID: ${carIdVal} - To: ${toX} / ${toY} / ${toZ}`);
+            
             if (!capArrows) {
                 capArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
                 capArrows.setAttribute("id", "car-flow-arrows");
-                capArrows.innerHTML = `
-                    <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
-                        <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
-                            <mpath href="#car-flow-path"/>
-                        </animateMotion>
-                    </polygon>
-                    <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
-                        <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
-                            <mpath href="#car-flow-path"/>
-                        </animateMotion>
-                    </polygon>
-                `;
                 carGroup.appendChild(capArrows);
-            } else {
-                const polygons = capArrows.querySelectorAll("polygon");
-                polygons.forEach(poly => poly.setAttribute("fill", "#3b82f6"));
-                const mpaths = capArrows.querySelectorAll("mpath");
-                mpaths.forEach(mp => mp.setAttribute("href", "#car-flow-path"));
-                capArrows.style.display = "block";
             }
+            capArrows.innerHTML = `
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="0.5s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="1s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="2s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                    <animateMotion dur="3s" begin="2.5s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#car-flow-path"/>
+                    </animateMotion>
+                </polygon>
+            `;
+            capArrows.style.display = "block";
         } else {
             if (capFlow) capFlow.style.display = "none";
             if (capArrows) capArrows.style.display = "none";
+            if (capPartenza) capPartenza.style.display = "none";
+            if (capArrivo) capArrivo.style.display = "none";
         }
     } else {
         if (capFlow) capFlow.style.display = "none";
         if (capArrows) capArrows.style.display = "none";
+        if (capPartenza) capPartenza.style.display = "none";
+        if (capArrivo) capArrivo.style.display = "none";
     }
 
     // --- DISEGNO COMANDI / PERCORSI CARRELLO ---
@@ -3869,7 +4313,7 @@ function aggiornaSinottico2D() {
     let cpFlow = document.getElementById("carr-flow-path");
     let cpArrows = document.getElementById("carr-flow-arrows");
     
-    if (carrIdVal > 0) {
+    if (carrIdVal > 0 && !!carrState.Stato_Picked) {
         const fromY = Number(getMachineComandaValue(carrState, "carr", "From_Y")) || 0;
         const toY = Number(getMachineComandaValue(carrState, "carr", "To_Y")) || 0;
         const fromX = Number(getMachineComandaValue(carrState, "carr", "From_X")) || 0;
@@ -3932,26 +4376,41 @@ function aggiornaSinottico2D() {
         if (!cpArrows) {
             cpArrows = document.createElementNS("http://www.w3.org/2000/svg", "g");
             cpArrows.setAttribute("id", "carr-flow-arrows");
-            cpArrows.innerHTML = `
-                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
-                    <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
-                        <mpath href="#carr-flow-path"/>
-                    </animateMotion>
-                </polygon>
-                <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
-                    <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
-                        <mpath href="#carr-flow-path"/>
-                    </animateMotion>
-                </polygon>
-            `;
             svg.appendChild(cpArrows);
-        } else {
-            const polygons = cpArrows.querySelectorAll("polygon");
-            polygons.forEach(poly => poly.setAttribute("fill", "#3b82f6"));
-            const mpaths = cpArrows.querySelectorAll("mpath");
-            mpaths.forEach(mp => mp.setAttribute("href", "#carr-flow-path"));
-            cpArrows.style.display = "block";
         }
+        cpArrows.innerHTML = `
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" begin="0.5s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" begin="1s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" begin="1.5s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" begin="2s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+            <polygon points="-6,-4 2,0 -6,4" fill="#3b82f6">
+                <animateMotion dur="3s" begin="2.5s" repeatCount="indefinite" rotate="auto">
+                    <mpath href="#carr-flow-path"/>
+                </animateMotion>
+            </polygon>
+        `;
+        cpArrows.style.display = "block";
     } else {
         if (cpPartenza) cpPartenza.style.display = "none";
         if (cpArrivo) cpArrivo.style.display = "none";
@@ -4079,6 +4538,9 @@ function aggiornaCampiConfig() {
             document.getElementById("refresh").value = cfg.refresh || 0.3;
             document.getElementById("syslog_ip").value = cfg.syslog_ip || "127.0.0.1";
             document.getElementById("syslog_port").value = cfg.syslog_port || 514;
+            document.getElementById("syslog_file_path").value = cfg.syslog_file_path || "";
+            document.getElementById("syslog_username").value = cfg.syslog_username || "";
+            document.getElementById("syslog_password").value = cfg.syslog_password || "";
             document.getElementById("carrello_max_y").value = (cfg.carrello && cfg.carrello.corsa_max_y) || 28500;
             document.getElementById("caricatore_max_z").value = (cfg.caricatore && cfg.caricatore.corsa_max_z) || 1500;
             document.getElementById("caricatore_pos_y").value = (cfg.caricatore && cfg.caricatore.posizione_y) || 2000;
@@ -4116,6 +4578,9 @@ function salvaConfigurazione(e) {
         refresh: parseFloat(document.getElementById("refresh").value),
         syslog_ip: document.getElementById("syslog_ip").value,
         syslog_port: parseInt(document.getElementById("syslog_port").value),
+        syslog_file_path: document.getElementById("syslog_file_path").value,
+        syslog_username: document.getElementById("syslog_username").value,
+        syslog_password: document.getElementById("syslog_password").value,
         carrello: {
             corsa_max_y: parseFloat(document.getElementById("carrello_max_y").value)
         },
