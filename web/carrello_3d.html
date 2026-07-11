@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrello Traslatore — Vista 3D</title>
+    <!-- Importazione Font Outfit da Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js e OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --bg-card-hover: rgba(51, 65, 85, 0.85);
+            --border-color: rgba(255, 255, 255, 0.12);
+            --border-glow: rgba(6, 182, 212, 0.3);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            
+            --accent-cyan: hsl(187, 90%, 50%);
+            --accent-cyan-glow: rgba(6, 182, 212, 0.5);
+            --accent-orange: hsl(35, 95%, 55%);
+            --accent-orange-glow: rgba(249, 115, 22, 0.5);
+            --accent-green: hsl(142, 76%, 50%);
+            --accent-blue: hsl(217, 95%, 60%);
+            --accent-red: hsl(350, 90%, 55%);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+        }
+        
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Layout */
+        #viewport-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        /* Overlay UI Elements */
+        .overlay-ui {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            grid-template-rows: 80px 1fr;
+            padding: 20px;
+            gap: 20px;
+        }
+        
+        .interactive {
+            pointer-events: auto;
+        }
+        
+        /* Header */
+        header.main-header {
+            grid-column: 1 / -1;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+            height: 100%;
+        }
+        
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            font-size: 24px;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px var(--accent-cyan-glow);
+            animation: pulse 2s infinite alternate;
+        }
+        
+        .logo-text h1 {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #fff 40%, var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo-text span {
+            font-size: 10px;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-close {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-close:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--text-secondary);
+        }
+        
+        /* Floating Sidebars */
+        .sidebar-left {
+            grid-column: 1;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            max-height: calc(100vh - 140px);
+        }
+        
+        .sidebar-right {
+            grid-column: 3;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            max-height: calc(100vh - 140px);
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-cyan);
+            border-left: 3px solid var(--accent-cyan);
+            padding-left: 8px;
+            margin-bottom: 5px;
+        }
+        
+        /* Form Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .control-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 4px;
+            padding: 1px 6px;
+        }
+        
+        /* Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(6, 182, 212, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-cyan-glow);
+            border: 2px solid #fff;
+            transition: transform 0.1s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        
+        /* Buttons Grid */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .btn-action {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .btn-action:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--accent-cyan);
+            color: var(--text-primary);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+        }
+        
+        .btn-action.active {
+            background: var(--accent-cyan);
+            color: #0b0f19;
+            border-color: var(--accent-cyan);
+            font-weight: 600;
+        }
+        
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 0;
+        }
+        
+        .switch-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 18px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.12);
+            transition: .2s;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 2px;
+            bottom: 2px;
+            background-color: var(--text-primary);
+            transition: .2s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider-switch {
+            background-color: var(--accent-cyan);
+        }
+        
+        input:checked + .slider-switch:before {
+            transform: translateX(18px);
+            background-color: #0b0f19;
+        }
+        
+        /* Specs / Details styling */
+        .specs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .spec-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .spec-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .spec-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        .spec-desc strong {
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Custom Tooltip */
+        #canvas-tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #fff;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* CSS Animations */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Canvas Container -->
+    <div id="viewport-container"></div>
+    
+    <!-- Custom HTML Tooltip -->
+    <div id="canvas-tooltip"></div>
+
+    <!-- UI Overlay -->
+    <div class="overlay-ui">
+        
+        <!-- HEADER -->
+        <header class="main-header interactive">
+            <div class="logo-area">
+                <span class="logo-icon">▲</span>
+                <div class="logo-text">
+                    <h1>CARRELLO TRASLATORE 3D</h1>
+                    <span>Tavola Rotante e Nastri Trasportatori &middot; Vista CAD</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-close" onclick="window.close()">Chiudi Pagina</button>
+            </div>
+        </header>
+        
+        <!-- CONTROLLI (SINISTRA) -->
+        <div class="sidebar-left interactive">
+            <div>
+                <h3 class="panel-title">Simulazione Traslazione</h3>
+                <div class="control-group" style="margin-top: 8px;">
+                    <div class="control-header">
+                        <span class="control-label">Spostamento Y</span>
+                        <span class="control-value" id="val-pos-y">0 mm</span>
+                    </div>
+                    <input type="range" id="slider-pos-y" min="-500" max="500" step="5" value="0">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono'; margin-top:2px;">
+                        <span>-500mm</span>
+                        <span>0mm (Home)</span>
+                        <span>+500mm</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="panel-title">Simulazione Rotazione</h3>
+                <div class="control-group" style="margin-top: 8px;">
+                    <div class="control-header">
+                        <span class="control-label">Angolo Tavola</span>
+                        <span class="control-value" id="val-rot-angle">0.0°</span>
+                    </div>
+                    <input type="range" id="slider-rot-angle" min="-80" max="80" step="1" value="0">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono'; margin-top:2px;">
+                        <span>-80°</span>
+                        <span>0° (Orizzontale)</span>
+                        <span>+80°</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="panel-title">Inclinazione Flap Sinistra (-Y)</h3>
+                <div class="control-group" style="margin-top: 8px;">
+                    <div class="control-header">
+                        <span class="control-label">Flap Sinistra</span>
+                        <span class="control-value" id="val-flap-left">0.0°</span>
+                    </div>
+                    <input type="range" id="slider-flap-left" min="-10" max="0" step="0.5" value="0">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono'; margin-top:2px;">
+                        <span>-10° (Basso)</span>
+                        <span>-5°</span>
+                        <span>0° (Piano)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="panel-title">Inclinazione Flap Destra (+Y)</h3>
+                <div class="control-group" style="margin-top: 8px;">
+                    <div class="control-header">
+                        <span class="control-label">Flap Destra</span>
+                        <span class="control-value" id="val-flap-right">0.0°</span>
+                    </div>
+                    <input type="range" id="slider-flap-right" min="-10" max="0" step="0.5" value="0">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono'; margin-top:2px;">
+                        <span>-10° (Basso)</span>
+                        <span>-5°</span>
+                        <span>0° (Piano)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="panel-title">Visualizzazione</h3>
+                <div class="control-group" style="margin-top: 8px; gap: 10px;">
+                    <div class="toggle-group">
+                        <span class="switch-label">Griglia (500x500mm)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-grid" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <span class="switch-label">Assi XYZ Origine</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-axes" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <span class="switch-label">Misure CAD (Quote)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-dimensions" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-group">
+                        <span class="switch-label">Auto-Rotazione Camera</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-auto-rotate">
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="panel-title">Inquadrature</h3>
+                <div class="btn-grid" style="margin-top: 8px;">
+                    <button class="btn-action active" id="btn-cam-iso">Isometrica</button>
+                    <button class="btn-action" id="btn-cam-top">Dall'Alto</button>
+                    <button class="btn-action" id="btn-cam-front">Frontale (X-Z)</button>
+                    <button class="btn-action" id="btn-cam-side">Laterale (Y-Z)</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- INFORMAZIONI GEOMETRICHE (DESTRA) -->
+        <div class="sidebar-right interactive">
+            <h3 class="panel-title">Specifiche Progetto</h3>
+            
+            <div class="specs-list">
+                <div class="spec-item">
+                    <span class="spec-title">Tavola Rotante ($-80^\circ \text{ a } +80^\circ$)</span>
+                    <span class="spec-desc">I 4 dischi e il telaio superiore ruotano solidalmente attorno all'albero superiore (Y=940 mm).</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-title">Flap Indipendenti ($0^\circ \text{ a } -10^\circ$)</span>
+                    <span class="spec-desc">I traversini di sinistra ($-Y$ fisico) e destra ($+Y$ fisico) sono controllabili in modo indipendente.</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-title">Grandi Dischi ($\varnothing 600$ mm)</span>
+                    <span class="spec-desc">Estrusi solidi dal diametro di <strong>600 mm</strong>, spessore <strong>45 mm</strong>, tagliati in cima a quota <strong>Y = 1035 mm</strong>.</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-title">4 Cinghie e Pulegge</span>
+                    <span class="spec-desc">Profilo 45x45 rialzato di <strong>70 mm</strong>. Pulegge compatte $\varnothing 55$ mm, larghe <strong>30 mm</strong> alle estremità con <strong>interasse 1100 mm</strong>.<br>Cinghia di spessore: <strong>10 mm bianco</strong> + <strong>5 mm rosso</strong>.</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-title">Traversi Laterali &amp; Arresto Verde</span>
+                    <span class="spec-desc">Traversini lunghi 250 mm posizionati a <strong>105 mm</strong> dall'estremità. Ciascun traversino termina esternamente con un tappo/arresto in ferro <strong>verde</strong> rialzato di <strong>50 mm</strong> (+ Z).</span>
+                </div>
+
+                <div class="spec-item">
+                    <span class="spec-title">Alberi a Filo (Non sporgono)</span>
+                    <span class="spec-desc">Alberi a filo esterno colonne (lunghezza esatta <strong>4045 mm</strong>). Motore adiacente a Colonna 4.</span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- MAIN 3D LOGIC -->
+    <script>
+        // Configurazione e Costanti Geometriche (in mm)
+        const GEO = {
+            frame: { length: 5000, width: 1000, height: 90 },
+            upperFrame: { length: 5000, width: 800, profileSize: 45 }, 
+            wheel: { diameter: 150, radius: 75, width: 35, countPerSide: 4, outerSpacing: 1000, xOffset: 45 },
+            rail: { length: 2000, width: 40, height: 40 }, // Binario corre lungo Y
+            column: { depth: 45, width: 250, height: 900, count: 4, edgeOffset: 500 },
+            shaft: { length: 4045 },
+            disk: { radius: 300, thickness: 45, cutY: 1035 }, // Diametro 600mm
+            beltDeck: { raiseHeight: 70, length: 1100, pulleyRadius: 27.5, pulleyWidth: 30, width: 26 },
+            sideTraverso: { length: 250, zOffsetFromEnd: 105 } // Spostato a 105 mm dall'estremità (5 + 100 = 105mm)
+        };
+
+        // Calcoli per la spaziatura colonne
+        const colSpacing = (GEO.frame.length - 2 * GEO.column.edgeOffset) / (GEO.column.count - 1); 
+        const columnXPositions = [];
+        for(let i = 0; i < GEO.column.count; i++) {
+            columnXPositions.push(GEO.column.edgeOffset + colSpacing * i);
+        }
+
+        // Calcolo Y ruote (Three.js Z)
+        const wheelYSpacing = GEO.wheel.outerSpacing / (GEO.wheel.countPerSide - 1); 
+        const wheelYPositions = [];
+        for(let i = 0; i < GEO.wheel.countPerSide; i++) {
+            wheelYPositions.push(-GEO.wheel.outerSpacing/2 + wheelYSpacing * i);
+        }
+
+        // Variabili globali Three.js
+        let scene, camera, renderer, controls;
+        let carriageGroup; // Gruppo mobile principale
+        let rotatingUpperGroup; // Gruppo rotante (tavola + dischi + cinghie + alette)
+        let leftFlaps = []; // Array per i flap del lato sinistro (Z < 0, fisicamente -Y)
+        let rightFlaps = []; // Array per i flap del lato destro (Z > 0, fisicamente +Y)
+        let wheelsGroup = []; 
+        let dimensionsGroup; 
+        let gridHelper, axesGroup;
+        let container = document.getElementById('viewport-container');
+
+        // Stato dell'applicazione
+        const state = {
+            posY: 0, 
+            rotAngle: 0, 
+            flapLeftAngle: 0,  // Angolo flap sinistra da 0 a -10 gradi
+            flapRightAngle: 0, // Angolo flap destra da 0 a -10 gradi
+            showGrid: true,
+            showAxes: true,
+            showDimensions: true,
+            autoRotate: false
+        };
+
+        // Inizializzazione
+        init();
+        animate();
+
+        function init() {
+            // 1. Scena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111625);
+            scene.fog = new THREE.FogExp2(0x111625, 0.00008);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 30000);
+            resetCamera('iso');
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.25;
+            container.appendChild(renderer.domElement);
+
+            // 4. Controlli
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01;
+            controls.minDistance = 500;
+            controls.maxDistance = 15000;
+            controls.target.set(GEO.frame.length / 2, 500, 0);
+
+            // 5. Luci
+            setupLights();
+
+            // 6. Elementi Fissi della Scena
+            setupEnvironment();
+
+            // 7. Costruzione del Carrello
+            buildCarriage();
+
+            // 8. Costruzione Quote CAD
+            buildDimensions();
+
+            // 9. Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            setupUIHandlers();
+        }
+
+        function setupLights() {
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x223344, 0.75);
+            hemiLight.position.set(2500, 4000, 0);
+            scene.add(hemiLight);
+
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.4);
+            dirLight1.position.set(3000, 8000, 4000);
+            dirLight1.castShadow = true;
+            dirLight1.shadow.mapSize.width = 2048;
+            dirLight1.shadow.mapSize.height = 2048;
+            dirLight1.shadow.camera.near = 100;
+            dirLight1.shadow.camera.far = 15000;
+            const d = 4000;
+            dirLight1.shadow.camera.left = -d;
+            dirLight1.shadow.camera.right = d;
+            dirLight1.shadow.camera.top = d;
+            dirLight1.shadow.camera.bottom = -d;
+            scene.add(dirLight1);
+
+            const dirLight2 = new THREE.DirectionalLight(0xe0f2fe, 0.95);
+            dirLight2.position.set(2000, 4000, -5000);
+            scene.add(dirLight2);
+
+            const cyanLight = new THREE.PointLight(0x06b6d4, 1.8, 8000);
+            cyanLight.position.set(-1500, 1500, -2000);
+            scene.add(cyanLight);
+
+            const orangeLight = new THREE.PointLight(0xf97316, 1.5, 8000);
+            orangeLight.position.set(6500, 2000, 2000);
+            scene.add(orangeLight);
+        }
+
+        function setupEnvironment() {
+            // Pavimento Grid (500x500mm)
+            gridHelper = new THREE.GridHelper(12000, 24, 0x475569, 0x223344);
+            gridHelper.position.y = -30.1;
+            gridHelper.material.opacity = 0.65;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+
+            // Assi XYZ di origine
+            axesGroup = new THREE.Group();
+            
+            const xMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, metalness: 0.9, roughness: 0.1 }); 
+            const zMat = new THREE.MeshStandardMaterial({ color: 0x34c759, metalness: 0.9, roughness: 0.1 }); 
+            const yMat = new THREE.MeshStandardMaterial({ color: 0x007aff, metalness: 0.9, roughness: 0.1 }); 
+            
+            const axisLen = 1000;
+            const axisRadius = 6;
+            const arrowRadius = 15;
+            const arrowHeight = 50;
+
+            const xGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 12);
+            const xAxis = new THREE.Mesh(xGeo, xMat);
+            xAxis.position.x = axisLen / 2;
+            xAxis.rotation.z = -Math.PI / 2;
+            axesGroup.add(xAxis);
+
+            const xCone = new THREE.Mesh(new THREE.ConeGeometry(arrowRadius, arrowHeight, 12), xMat);
+            xCone.position.x = axisLen;
+            xCone.rotation.z = -Math.PI / 2;
+            axesGroup.add(xCone);
+
+            const yGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 12);
+            const yAxis = new THREE.Mesh(yGeo, yMat);
+            yAxis.position.y = axisLen / 2;
+            axesGroup.add(yAxis);
+
+            const yCone = new THREE.Mesh(new THREE.ConeGeometry(arrowRadius, arrowHeight, 12), yMat);
+            yCone.position.y = axisLen;
+            axesGroup.add(yCone);
+
+            const zGeo = new THREE.CylinderGeometry(axisRadius, axisRadius, axisLen, 12);
+            const zAxis = new THREE.Mesh(zGeo, zMat);
+            zAxis.position.z = axisLen / 2;
+            zAxis.rotation.x = Math.PI / 2;
+            axesGroup.add(zAxis);
+
+            const zCone = new THREE.Mesh(new THREE.ConeGeometry(arrowRadius, arrowHeight, 12), zMat);
+            zCone.position.z = axisLen;
+            zCone.rotation.x = Math.PI / 2;
+            axesGroup.add(zCone);
+
+            const originSphere = new THREE.Mesh(new THREE.SphereGeometry(20, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8 }));
+            axesGroup.add(originSphere);
+
+            axesGroup.add(createTextSprite('O (0,0,0)', '#f8fafc', 80));
+            
+            const spriteX = createTextSprite('X (Lunghezza)', '#ff3b30', 100);
+            spriteX.position.set(axisLen + 80, 0, 0);
+            axesGroup.add(spriteX);
+
+            const spriteZ = createTextSprite('Z (Altezza)', '#007aff', 100);
+            spriteZ.position.set(0, axisLen + 80, 0);
+            axesGroup.add(spriteZ);
+
+            const spriteY = createTextSprite('Y (Larghezza)', '#34c759', 100);
+            spriteY.position.set(0, 0, axisLen + 80);
+            axesGroup.add(spriteY);
+
+            scene.add(axesGroup);
+
+            // --- BINARI (Fissi, paralleli a Y) ---
+            const railMat = new THREE.MeshStandardMaterial({
+                color: 0xa1a1aa,
+                metalness: 0.95,
+                roughness: 0.1
+            });
+
+            const railXPositions = [-GEO.wheel.xOffset, GEO.frame.length + GEO.wheel.xOffset];
+
+            railXPositions.forEach(xPos => {
+                const rail = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.rail.width, GEO.rail.height, GEO.rail.length),
+                    railMat
+                );
+                rail.position.set(xPos, -50, 0);
+                rail.castShadow = true;
+                rail.receiveShadow = true;
+                scene.add(rail);
+
+                // Piastre di fissaggio
+                for(let z = -800; z <= 800; z += 400) {
+                    const plate = new THREE.Mesh(
+                        new THREE.BoxGeometry(100, 8, 120),
+                        new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.4 })
+                    );
+                    plate.position.set(xPos, -74, z);
+                    plate.receiveShadow = true;
+                    scene.add(plate);
+                }
+            });
+        }
+
+        function buildCarriage() {
+            carriageGroup = new THREE.Group();
+            
+            // MATERIALE ALLUMINIO ESTRUSO CHIARO
+            const alumMat = new THREE.MeshStandardMaterial({
+                color: 0xe2e8f0,
+                metalness: 0.9,
+                roughness: 0.18,
+            });
+
+            const darkJointMat = new THREE.MeshStandardMaterial({
+                color: 0x64748b,
+                metalness: 0.8,
+                roughness: 0.3
+            });
+
+            const steelMat = new THREE.MeshStandardMaterial({
+                color: 0xf1f5f9,
+                metalness: 0.98,
+                roughness: 0.08
+            });
+
+            // 1. TELAIO BASE IN ALLUMINIO (5000x1000x90 mm)
+            const sideBeamGeo = new THREE.BoxGeometry(GEO.frame.length, GEO.frame.height, 80);
+            
+            const leftSideBeam = new THREE.Mesh(sideBeamGeo, alumMat);
+            leftSideBeam.position.set(GEO.frame.length/2, GEO.frame.height/2, -460); 
+            leftSideBeam.castShadow = true;
+            leftSideBeam.receiveShadow = true;
+            carriageGroup.add(leftSideBeam);
+
+            const rightSideBeam = new THREE.Mesh(sideBeamGeo, alumMat);
+            rightSideBeam.position.set(GEO.frame.length/2, GEO.frame.height/2, 460);
+            rightSideBeam.castShadow = true;
+            rightSideBeam.receiveShadow = true;
+            carriageGroup.add(rightSideBeam);
+
+            const endBeamGeo = new THREE.BoxGeometry(60, GEO.frame.height, 840);
+            
+            const frontEndBeam = new THREE.Mesh(endBeamGeo, alumMat);
+            frontEndBeam.position.set(30, GEO.frame.height/2, 0);
+            frontEndBeam.castShadow = true;
+            frontEndBeam.receiveShadow = true;
+            carriageGroup.add(frontEndBeam);
+
+            const rearEndBeam = new THREE.Mesh(endBeamGeo, alumMat);
+            rearEndBeam.position.set(GEO.frame.length - 30, GEO.frame.height/2, 0);
+            rearEndBeam.castShadow = true;
+            rearEndBeam.receiveShadow = true;
+            carriageGroup.add(rearEndBeam);
+
+            columnXPositions.forEach(xPos => {
+                const midBeam = new THREE.Mesh(new THREE.BoxGeometry(80, GEO.frame.height, 840), alumMat);
+                midBeam.position.set(xPos, GEO.frame.height/2, 0);
+                midBeam.castShadow = true;
+                midBeam.receiveShadow = true;
+                carriageGroup.add(midBeam);
+            });
+
+            const cornerX = [50, GEO.frame.length - 50];
+            const cornerZ = [-420, 420];
+            cornerX.forEach(cx => {
+                cornerZ.forEach(cz => {
+                    const bracket = new THREE.Mesh(new THREE.BoxGeometry(100, 6, 100), darkJointMat);
+                    bracket.position.set(cx, GEO.frame.height + 3, cz);
+                    carriageGroup.add(bracket);
+                });
+            });
+
+            // 2. RUOTE (Offset X = 45)
+            const wheelTreadMat = new THREE.MeshStandardMaterial({
+                color: 0x334155,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+            const wheelRimMat = new THREE.MeshStandardMaterial({
+                color: 0xf1f5f9,
+                metalness: 0.98,
+                roughness: 0.08
+            });
+
+            function createWheelMesh() {
+                const wheelAssembly = new THREE.Group();
+
+                const treadGeo = new THREE.CylinderGeometry(GEO.wheel.radius, GEO.wheel.radius, GEO.wheel.width, 24);
+                const tread = new THREE.Mesh(treadGeo, wheelTreadMat);
+                tread.rotation.z = Math.PI / 2; 
+                tread.castShadow = true;
+                wheelAssembly.add(tread);
+
+                const rimGeo = new THREE.CylinderGeometry(GEO.wheel.radius * 0.7, GEO.wheel.radius * 0.7, GEO.wheel.width + 4, 16);
+                const rim = new THREE.Mesh(rimGeo, wheelRimMat);
+                rim.rotation.z = Math.PI / 2;
+                rim.castShadow = true;
+                wheelAssembly.add(rim);
+
+                const hubGeo = new THREE.CylinderGeometry(15, 15, GEO.wheel.width + 8, 12);
+                const hub = new THREE.Mesh(hubGeo, darkJointMat);
+                hub.rotation.z = Math.PI / 2;
+                wheelAssembly.add(hub);
+
+                const spokeGeo = new THREE.BoxGeometry(2, GEO.wheel.radius * 1.3, 8);
+                for (let i = 0; i < 3; i++) {
+                    const spoke = new THREE.Mesh(spokeGeo, darkJointMat);
+                    spoke.rotation.x = (i * Math.PI) / 3;
+                    spoke.position.x = GEO.wheel.width / 2 + 1.5;
+                    wheelAssembly.add(spoke);
+
+                    const spoke2 = spoke.clone();
+                    spoke2.position.x = -(GEO.wheel.width / 2 + 1.5);
+                    wheelAssembly.add(spoke2);
+                }
+
+                return wheelAssembly;
+            }
+
+            const sideXPositions = [-GEO.wheel.xOffset, GEO.frame.length + GEO.wheel.xOffset];
+            
+            sideXPositions.forEach(xPos => {
+                wheelYPositions.forEach(yPos => {
+                    const wheel = createWheelMesh();
+                    wheel.position.set(xPos, GEO.frame.height / 2, yPos);
+                    
+                    carriageGroup.add(wheel);
+                    wheelsGroup.push(wheel);
+                });
+            });
+
+            // 3. COLONNE DI SUPPORTO
+            const columnGeo = new THREE.BoxGeometry(GEO.column.depth, GEO.column.height, GEO.column.width);
+
+            columnXPositions.forEach((xPos, idx) => {
+                const column = new THREE.Mesh(columnGeo, alumMat);
+                column.position.set(xPos, GEO.frame.height + GEO.column.height / 2, 0);
+                column.castShadow = true;
+                column.receiveShadow = true;
+                carriageGroup.add(column);
+
+                // Scanalature verticali T-Slot
+                const slotMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+                const faceZ = [-GEO.column.width/2 - 1, GEO.column.width/2 + 1];
+                faceZ.forEach(cz => {
+                    [-60, 0, 60].forEach(offsetZ => {
+                        const slot = new THREE.Mesh(
+                            new THREE.BoxGeometry(6, GEO.column.height - 20, 2),
+                            slotMat
+                        );
+                        slot.position.set(xPos, GEO.frame.height + GEO.column.height / 2, cz + (cz > 0 ? -1 : 1));
+                        carriageGroup.add(slot);
+                    });
+                });
+
+                // Tappi neri protettivi in testa
+                const cap = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.column.depth + 2, 8, GEO.column.width + 2),
+                    slotMat
+                );
+                cap.position.set(xPos, GEO.frame.height + GEO.column.height + 4, 0);
+                carriageGroup.add(cap);
+
+                // Targhetta indicatrice con LED
+                const labelPlate = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 60, 100),
+                    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 })
+                );
+                labelPlate.position.set(xPos + GEO.column.depth/2 + 1, GEO.frame.height + GEO.column.height - 100, 0);
+                carriageGroup.add(labelPlate);
+
+                const led = new THREE.Mesh(
+                    new THREE.SphereGeometry(4, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x00f2fe })
+                );
+                led.position.set(xPos + GEO.column.depth/2 + 3, GEO.frame.height + GEO.column.height - 100, 0);
+                carriageGroup.add(led);
+
+                const textSprite = createTextSprite(`COL ${idx+1}`, '#00f2fe', 60);
+                textSprite.position.set(xPos + GEO.column.depth/2 + 10, GEO.frame.height + GEO.column.height - 100, 0);
+                carriageGroup.add(textSprite);
+            });
+
+            // 4. ALBERI IN ACCIAIO (NON SPORGONO: lunghezza 4045mm da Colonna 1 a Colonna 4)
+            const columnTopY = GEO.frame.height + GEO.column.height; 
+            const shaft1Y = columnTopY - 550; // Albero 1 a Y = 440 mm
+            const shaft2Y = columnTopY - 50;  // Albero 2 a Y = 940 mm
+            
+            // Albero 1 (inferiore, con motore adiacente)
+            const shaftGeo = new THREE.CylinderGeometry(15, 15, GEO.shaft.length, 24);
+            const shaft1 = new THREE.Mesh(shaftGeo, steelMat);
+            shaft1.rotation.z = Math.PI / 2;
+            shaft1.position.set(2500, shaft1Y, 0);
+            shaft1.castShadow = true;
+            carriageGroup.add(shaft1);
+
+            // Motore Elettrico adiacente a Colonna 4 (X_col4 = 4500, montato subito all'esterno a X = 4522.5)
+            const motorGroup = new THREE.Group();
+            motorGroup.position.set(4522.5 + 100, shaft1Y, 0);
+
+            const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(75, 75, 200, 24), new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                metalness: 0.7,
+                roughness: 0.35
+            }));
+            motorBody.rotation.z = Math.PI / 2;
+            motorBody.castShadow = true;
+            motorGroup.add(motorBody);
+
+            // Alette motore
+            const finGeo = new THREE.CylinderGeometry(80, 80, 8, 24);
+            const finMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9 });
+            for(let offset = -80; offset <= 80; offset += 30) {
+                const fin = new THREE.Mesh(finGeo, finMat);
+                fin.rotation.z = Math.PI / 2;
+                fin.position.x = offset;
+                motorGroup.add(fin);
+            }
+
+            const terminalBox = new THREE.Mesh(new THREE.BoxGeometry(60, 45, 60), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+            terminalBox.position.set(0, 80, 0);
+            motorGroup.add(terminalBox);
+            carriageGroup.add(motorGroup);
+
+            // Albero 2 (asse rotazione statico)
+            const shaft2 = new THREE.Mesh(shaftGeo, steelMat);
+            shaft2.rotation.z = Math.PI / 2;
+            shaft2.position.set(2500, shaft2Y, 0);
+            shaft2.castShadow = true;
+            carriageGroup.add(shaft2);
+
+            scene.add(carriageGroup);
+
+            // ========================================================
+            // 5. COSTRUZIONE GRUPPO ROTANTE (TAVOLA + DISCHI + CINGHIE + ALETTE ROTANTI SEPARATE)
+            // ========================================================
+            rotatingUpperGroup = new THREE.Group();
+            rotatingUpperGroup.position.set(0, shaft2Y, 0); // Asse su Albero 2 (Y = 940)
+
+            // Materiali per la Tavola Rotante
+            const upperAlumMat = new THREE.MeshStandardMaterial({
+                color: 0xf1f5f9, 
+                metalness: 0.95,
+                roughness: 0.12
+            });
+
+            // --- A. I 4 DISCHI TAGLIATI ESTRUSI (Ø 600 mm, spessore 45 mm, tagliati a Y_locale = 95) ---
+            const cutYLocal = GEO.disk.cutY - shaft2Y; // 95 mm
+            const theta = Math.asin(cutYLocal / GEO.disk.radius); // asin(95/300) = 0.322 rad
+            
+            // Contorno 2D del disco tagliato
+            const diskShape = new THREE.Shape();
+            diskShape.moveTo(-GEO.disk.radius * Math.cos(theta), cutYLocal); 
+            diskShape.lineTo(GEO.disk.radius * Math.cos(theta), cutYLocal);  
+            diskShape.absarc(0, 0, GEO.disk.radius, theta, Math.PI - theta, true); 
+
+            // Estrudiamo per lo spessore del disco (45 mm)
+            const extrudeSettings = {
+                depth: GEO.disk.thickness,
+                bevelEnabled: false
+            };
+            const diskExtrudeGeo = new THREE.ExtrudeGeometry(diskShape, extrudeSettings);
+            diskExtrudeGeo.translate(0, 0, -GEO.disk.thickness / 2);
+
+            // Materiali dischi
+            const diskMat = new THREE.MeshStandardMaterial({
+                color: 0xe2e8f0,
+                metalness: 0.95,
+                roughness: 0.15
+            });
+            const diskCoreMat = new THREE.MeshStandardMaterial({
+                color: 0x475569,
+                metalness: 0.8,
+                roughness: 0.3
+            });
+
+            columnXPositions.forEach(xPos => {
+                const diskSubGroup = new THREE.Group();
+                diskSubGroup.position.set(xPos + 45, 0, 0); 
+
+                // Mesh del disco estruso
+                const diskMesh = new THREE.Mesh(diskExtrudeGeo, diskMat);
+                diskMesh.rotation.y = Math.PI / 2;
+                diskMesh.castShadow = true;
+                diskMesh.receiveShadow = true;
+                diskSubGroup.add(diskMesh);
+
+                // Nucleo circolare centrale decorativo (non tagliato, Ø 180)
+                const coreGeo = new THREE.CylinderGeometry(90, 90, GEO.disk.thickness + 2, 24);
+                const coreMesh = new THREE.Mesh(coreGeo, diskCoreMat);
+                coreMesh.rotation.z = Math.PI / 2;
+                diskSubGroup.add(coreMesh);
+
+                rotatingUpperGroup.add(diskSubGroup);
+            });
+
+            // --- B. TELAIO TAVOLA RISTRETTO (Larghezza Y_fisico = 800 mm, Poggiato a Y_locale = 95 mm) ---
+            const upperFrameYLocal = cutYLocal + GEO.upperFrame.profileSize / 2; // 117.5 mm
+
+            // Longheroni longitudinali superiori (X = 5000, Y = 45, Z = 45)
+            const upSideBeamGeo = new THREE.BoxGeometry(GEO.upperFrame.length, GEO.upperFrame.profileSize, GEO.upperFrame.profileSize);
+            
+            const upLeftBeam = new THREE.Mesh(upSideBeamGeo, upperAlumMat);
+            upLeftBeam.position.set(GEO.upperFrame.length / 2, upperFrameYLocal, -377.5);
+            upLeftBeam.castShadow = true;
+            upLeftBeam.receiveShadow = true;
+            rotatingUpperGroup.add(upLeftBeam);
+
+            const upRightBeam = new THREE.Mesh(upSideBeamGeo, upperAlumMat);
+            upRightBeam.position.set(GEO.upperFrame.length / 2, upperFrameYLocal, 377.5);
+            upRightBeam.castShadow = true;
+            upRightBeam.receiveShadow = true;
+            rotatingUpperGroup.add(upRightBeam);
+
+            // Traverse trasversali superiori (Lungo Z: X = 45, Y = 45, Z = 710 per incastrarsi tra i longheroni da 800)
+            const upEndBeamGeo = new THREE.BoxGeometry(GEO.upperFrame.profileSize, GEO.upperFrame.profileSize, 710);
+            
+            const upFrontEndBeam = new THREE.Mesh(upEndBeamGeo, upperAlumMat);
+            upFrontEndBeam.position.set(22.5, upperFrameYLocal, 0);
+            upFrontEndBeam.castShadow = true;
+            upFrontEndBeam.receiveShadow = true;
+            rotatingUpperGroup.add(upFrontEndBeam);
+
+            const upRearEndBeam = new THREE.Mesh(upEndBeamGeo, upperAlumMat);
+            upRearEndBeam.position.set(GEO.upperFrame.length - 22.5, upperFrameYLocal, 0);
+            upRearEndBeam.castShadow = true;
+            upRearEndBeam.receiveShadow = true;
+            rotatingUpperGroup.add(upRearEndBeam);
+
+            // Traverse superiori sopra i 4 dischi
+            columnXPositions.forEach(xPos => {
+                const upMidBeam = new THREE.Mesh(upEndBeamGeo, upperAlumMat);
+                upMidBeam.position.set(xPos + 45, upperFrameYLocal, 0);
+                upMidBeam.castShadow = true;
+                upMidBeam.receiveShadow = true;
+                rotatingUpperGroup.add(upMidBeam);
+
+                // Staffe di accoppiamento disco-tavola
+                const bracketLeft = new THREE.Mesh(new THREE.BoxGeometry(45, 10, 45), darkJointMat);
+                bracketLeft.position.set(xPos + 45, cutYLocal + 5, -200);
+                rotatingUpperGroup.add(bracketLeft);
+
+                const bracketRight = bracketLeft.clone();
+                bracketRight.position.z = 200;
+                rotatingUpperGroup.add(bracketRight);
+            });
+
+            // --- C. 4 GRUPPI CINGHIA & PULEGGE (Rialzati di 70mm, quota centrale locale Y = 187.5 mm) ---
+            const beltDeckYLocal = upperFrameYLocal + GEO.beltDeck.raiseHeight; // 187.5 mm
+
+            // Materiali Cinghia, Tappi Verdi e Cardine
+            const beltWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+            const beltRedMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.6 });
+            const pulleyMat = new THREE.MeshStandardMaterial({ color: 0xa1a1aa, metalness: 0.9, roughness: 0.15 });
+            const ironGreenMat = new THREE.MeshStandardMaterial({ 
+                color: 0x22c55e, 
+                metalness: 0.65, 
+                roughness: 0.25 
+            });
+            const brassHingeMat = new THREE.MeshStandardMaterial({
+                color: 0xd97706, 
+                metalness: 0.9,
+                roughness: 0.15
+            });
+
+            columnXPositions.forEach(xPos => {
+                const xCenter = xPos + 45;
+
+                // 1. Profilo in alluminio rialzato da 45x45 mm parallelo al traversino (lungo Z, lunghezza 1100 mm)
+                const raisedProfile = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, GEO.upperFrame.profileSize, GEO.beltDeck.length),
+                    upperAlumMat
+                );
+                raisedProfile.position.set(xCenter, beltDeckYLocal, 0);
+                raisedProfile.castShadow = true;
+                raisedProfile.receiveShadow = true;
+                rotatingUpperGroup.add(raisedProfile);
+
+                // Montanti di rialzo verticali
+                const post1 = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, GEO.beltDeck.raiseHeight - GEO.upperFrame.profileSize/2, GEO.upperFrame.profileSize),
+                    darkJointMat
+                );
+                post1.position.set(xCenter, upperFrameYLocal + 20, -300);
+                rotatingUpperGroup.add(post1);
+                
+                const post2 = post1.clone();
+                post2.position.z = 300;
+                rotatingUpperGroup.add(post2);
+
+                // 2. Pulegge alle estremità (Z = -550 e Z = 550, interasse = 1100 mm)
+                const pulleyGeo = new THREE.CylinderGeometry(GEO.beltDeck.pulleyRadius, GEO.beltDeck.pulleyRadius, GEO.beltDeck.pulleyWidth, 24);
+                const pulley1 = new THREE.Mesh(pulleyGeo, pulleyMat);
+                pulley1.rotation.z = Math.PI / 2; 
+                pulley1.position.set(xCenter, beltDeckYLocal, -550);
+                pulley1.castShadow = true;
+                rotatingUpperGroup.add(pulley1);
+
+                const pulley2 = pulley1.clone();
+                pulley2.position.z = 550;
+                rotatingUpperGroup.add(pulley2);
+
+                // Flange pulegge
+                const flangeGeo = new THREE.CylinderGeometry(32.5, 32.5, 2, 24);
+                const flangeL1 = new THREE.Mesh(flangeGeo, darkJointMat);
+                flangeL1.rotation.z = Math.PI / 2;
+                flangeL1.position.set(xCenter - 16, beltDeckYLocal, -550);
+                rotatingUpperGroup.add(flangeL1);
+                
+                const flangeR1 = flangeL1.clone();
+                flangeR1.position.x = xCenter + 16;
+                rotatingUpperGroup.add(flangeR1);
+
+                const flangeL2 = flangeL1.clone();
+                flangeL2.position.z = 550;
+                rotatingUpperGroup.add(flangeL2);
+                
+                const flangeR2 = flangeR1.clone();
+                flangeR2.position.z = 550;
+                rotatingUpperGroup.add(flangeR2);
+
+                // ========================================================
+                // 3. ALETTE ROTANTI SEPARATE (Z < 0 Sinistra, Z > 0 Destra)
+                // ========================================================
+                const sideTraversoX = xCenter - 45; 
+
+                // --- LATO SINISTRO (Z = -320, fisicamente -Y) ---
+                const leftFlapGroup = new THREE.Group();
+                leftFlapGroup.position.set(sideTraversoX, beltDeckYLocal, -320); 
+
+                // Traversino: Z corre da 0 a -250 localmente
+                const leftProfile = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, GEO.upperFrame.profileSize, GEO.sideTraverso.length),
+                    upperAlumMat
+                );
+                leftProfile.position.set(0, 0, -125);
+                leftProfile.castShadow = true;
+                leftProfile.receiveShadow = true;
+                leftFlapGroup.add(leftProfile);
+
+                // Tappo Verde: a fine corsa (Z_locale = -254)
+                const leftGreenCap = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, 95, 8),
+                    ironGreenMat
+                );
+                leftGreenCap.position.set(0, 25, -254);
+                leftGreenCap.castShadow = true;
+                leftFlapGroup.add(leftGreenCap);
+
+                // Giunto di connessione
+                const leftBracket = new THREE.Mesh(new THREE.BoxGeometry(10, 45, 45), darkJointMat);
+                leftBracket.position.set(22, 0, -125); 
+                leftFlapGroup.add(leftBracket);
+
+                // Perno fisico del Cardine
+                const leftHingePin = new THREE.Mesh(
+                    new THREE.CylinderGeometry(8, 8, 48, 12),
+                    brassHingeMat
+                );
+                leftHingePin.rotation.z = Math.PI / 2; 
+                leftFlapGroup.add(leftHingePin);
+
+                rotatingUpperGroup.add(leftFlapGroup);
+                leftFlaps.push(leftFlapGroup);
+
+                // --- LATO DESTRO (Z = 320, fisicamente +Y) ---
+                const rightFlapGroup = new THREE.Group();
+                rightFlapGroup.position.set(sideTraversoX, beltDeckYLocal, 320); 
+
+                // Traversino: Z corre da 0 a 250 localmente
+                const rightProfile = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, GEO.upperFrame.profileSize, GEO.sideTraverso.length),
+                    upperAlumMat
+                );
+                rightProfile.position.set(0, 0, 125);
+                rightProfile.castShadow = true;
+                rightProfile.receiveShadow = true;
+                rightFlapGroup.add(rightProfile);
+
+                // Tappo Verde: a fine corsa (Z_locale = 254)
+                const rightGreenCap = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.upperFrame.profileSize, 95, 8),
+                    ironGreenMat
+                );
+                rightGreenCap.position.set(0, 25, 254);
+                rightGreenCap.castShadow = true;
+                rightFlapGroup.add(rightGreenCap);
+
+                // Giunto di connessione
+                const rightBracket = new THREE.Mesh(new THREE.BoxGeometry(10, 45, 45), darkJointMat);
+                rightBracket.position.set(22, 0, 125); 
+                rightFlapGroup.add(rightBracket);
+
+                // Perno fisico del Cardine
+                const rightHingePin = leftHingePin.clone();
+                rightFlapGroup.add(rightHingePin);
+
+                rotatingUpperGroup.add(rightFlapGroup);
+                rightFlaps.push(rightFlapGroup);
+
+                // --- 4. Cinghie (Larghezza 26 mm) ---
+                // --- STRATO BIANCO ---
+                const whiteTop = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.beltDeck.width, 10, GEO.beltDeck.length),
+                    beltWhiteMat
+                );
+                whiteTop.position.set(xCenter, beltDeckYLocal + 32.5, 0);
+                whiteTop.castShadow = true;
+                rotatingUpperGroup.add(whiteTop);
+
+                const whiteBottom = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.beltDeck.width, 10, GEO.beltDeck.length),
+                    beltWhiteMat
+                );
+                whiteBottom.position.set(xCenter, beltDeckYLocal - 32.5, 0);
+                whiteBottom.castShadow = true;
+                rotatingUpperGroup.add(whiteBottom);
+
+                // Curve esterne puleggia
+                const whiteWrap1 = new THREE.Mesh(
+                    new THREE.CylinderGeometry(32.5, 32.5, GEO.beltDeck.width, 24),
+                    beltWhiteMat
+                );
+                whiteWrap1.rotation.z = Math.PI / 2;
+                whiteWrap1.position.set(xCenter, beltDeckYLocal, -550);
+                rotatingUpperGroup.add(whiteWrap1);
+
+                const whiteWrap2 = whiteWrap1.clone();
+                whiteWrap2.position.z = 550;
+                rotatingUpperGroup.add(whiteWrap2);
+
+                // --- STRATO ROSSO ---
+                const redTop = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.beltDeck.width, 5, GEO.beltDeck.length),
+                    beltRedMat
+                );
+                redTop.position.set(xCenter, beltDeckYLocal + 40, 0);
+                redTop.castShadow = true;
+                rotatingUpperGroup.add(redTop);
+
+                const redBottom = new THREE.Mesh(
+                    new THREE.BoxGeometry(GEO.beltDeck.width, 5, GEO.beltDeck.length),
+                    beltRedMat
+                );
+                redBottom.position.set(xCenter, beltDeckYLocal - 40, 0);
+                redBottom.castShadow = true;
+                rotatingUpperGroup.add(redBottom);
+
+                const redWrap1 = new THREE.Mesh(
+                    new THREE.CylinderGeometry(40.0, 40.0, GEO.beltDeck.width, 24),
+                    beltRedMat
+                );
+                redWrap1.rotation.z = Math.PI / 2;
+                redWrap1.position.set(xCenter, beltDeckYLocal, -550);
+                rotatingUpperGroup.add(redWrap1);
+
+                const redWrap2 = redWrap1.clone();
+                redWrap2.position.z = 550;
+                rotatingUpperGroup.add(redWrap2);
+            });
+
+            // Aggiungiamo il gruppo rotante alla scena
+            scene.add(rotatingUpperGroup);
+        }
+
+        // 7. QUOTE E MISURE CAD (DISEGNO LINEE DI QUOTATURA)
+        function buildDimensions() {
+            dimensionsGroup = new THREE.Group();
+
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2 });
+            const textCol = '#f59e0b';
+            
+            function drawDimensionLine(start, end, offset, text, textOffset = 100) {
+                const group = new THREE.Group();
+                
+                const pStart = new THREE.Vector3().copy(start);
+                const pEnd = new THREE.Vector3().copy(end);
+                
+                const extStartPoints = [pStart, new THREE.Vector3().copy(pStart).add(offset)];
+                const extStartGeo = new THREE.BufferGeometry().setFromPoints(extStartPoints);
+                const extStart = new THREE.Line(extStartGeo, lineMat);
+                group.add(extStart);
+                
+                const extEndPoints = [pEnd, new THREE.Vector3().copy(pEnd).add(offset)];
+                const extEndGeo = new THREE.BufferGeometry().setFromPoints(extEndPoints);
+                const extEnd = new THREE.Line(extEndGeo, lineMat);
+                group.add(extEnd);
+
+                const qStart = new THREE.Vector3().copy(pStart).add(offset);
+                const qEnd = new THREE.Vector3().copy(pEnd).add(offset);
+                
+                const qGeo = new THREE.BufferGeometry().setFromPoints([qStart, qEnd]);
+                const qLine = new THREE.Line(qGeo, lineMat);
+                group.add(qLine);
+
+                const dir = new THREE.Vector3().subVectors(qEnd, qStart).normalize();
+                const normal = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+                
+                const arrowLen = 30;
+                const f1 = new THREE.Vector3().copy(qStart).add(new THREE.Vector3().copy(dir).multiplyScalar(arrowLen)).add(new THREE.Vector3().copy(normal).multiplyScalar(10));
+                const f2 = new THREE.Vector3().copy(qStart).add(new THREE.Vector3().copy(dir).multiplyScalar(arrowLen)).add(new THREE.Vector3().copy(normal).multiplyScalar(-10));
+                const fStartGeo = new THREE.BufferGeometry().setFromPoints([f1, qStart, f2]);
+                const fStart = new THREE.Line(fStartGeo, lineMat);
+                group.add(fStart);
+
+                const f3 = new THREE.Vector3().copy(qEnd).sub(new THREE.Vector3().copy(dir).multiplyScalar(arrowLen)).add(new THREE.Vector3().copy(normal).multiplyScalar(10));
+                const f4 = new THREE.Vector3().copy(qEnd).sub(new THREE.Vector3().copy(dir).multiplyScalar(arrowLen)).add(new THREE.Vector3().copy(normal).multiplyScalar(-10));
+                const fEndGeo = new THREE.BufferGeometry().setFromPoints([f3, qEnd, f4]);
+                const fEnd = new THREE.Line(fEndGeo, lineMat);
+                group.add(fEnd);
+
+                const textPos = new THREE.Vector3().addVectors(qStart, qEnd).multiplyScalar(0.5).add(new THREE.Vector3(0, textOffset, 0));
+                const textSprite = createTextSprite(text, textCol, 120);
+                textSprite.position.copy(textPos);
+                group.add(textSprite);
+
+                return group;
+            }
+
+            // --- QUOTA 1: LUNGHEZZA TELAIO BASE (X = 5000 mm) ---
+            const q1Start = new THREE.Vector3(0, 45, 500);
+            const q1End = new THREE.Vector3(5000, 45, 500);
+            const q1Offset = new THREE.Vector3(0, 0, 250);
+            dimensionsGroup.add(drawDimensionLine(q1Start, q1End, q1Offset, '5000 mm (X Base)', 120));
+
+            // --- QUOTA 2: LARGHEZZA TELAIO BASE (Y = 1000 mm) ---
+            const q2Start = new THREE.Vector3(0, 45, -500);
+            const q2End = new THREE.Vector3(0, 45, 500);
+            const q2Offset = new THREE.Vector3(-250 - GEO.wheel.xOffset, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q2Start, q2End, q2Offset, '1000 mm (Y Base)', 120));
+
+            // --- QUOTA 3: LARGHEZZA TELAIO SUPERIORE RISTRETTO (800 mm) ---
+            const cutY = GEO.frame.height + GEO.column.height + 45; // 1035 mm
+            const q3StartT = new THREE.Vector3(2500, cutY + 22.5, -400);
+            const q3EndT = new THREE.Vector3(2500, cutY + 22.5, 400);
+            const q3OffsetT = new THREE.Vector3(250, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q3StartT, q3EndT, q3OffsetT, '800 mm (Y Tavola)', 100));
+
+            // --- QUOTA 4: DIAMETRO DISCHI (D = 600 mm) ---
+            const shaft2Y = GEO.frame.height + GEO.column.height - 50;  // 940 mm
+            const q4StartD = new THREE.Vector3(545, shaft2Y - 300, 0);
+            const q4EndD = new THREE.Vector3(545, cutY, 0);
+            const q4OffsetD = new THREE.Vector3(0, 0, 300);
+            dimensionsGroup.add(drawDimensionLine(q4StartD, q4EndD, q4OffsetD, 'D 600 mm (Dischi)', 120));
+
+            // --- QUOTA 5: INTERASSE PULEGGE / CINGHIA (1100 mm) ---
+            const beltY = cutY + 22.5 + GEO.beltDeck.raiseHeight; 
+            const q5StartP = new THREE.Vector3(545, beltY, -550);
+            const q5EndP = new THREE.Vector3(545, beltY, 550);
+            const q5OffsetP = new THREE.Vector3(120, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q5StartP, q5EndP, q5OffsetP, '1100 mm (Interasse Pulegge)', 120));
+
+            // --- QUOTA 6: DIAMETRO PULEGGIA (Ø 55) ---
+            const q6StartPl = new THREE.Vector3(545, beltY - 27.5, -550);
+            const q6EndPl = new THREE.Vector3(545, beltY + 27.5, -550);
+            const q6OffsetPl = new THREE.Vector3(-150, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q6StartPl, q6EndPl, q6OffsetPl, 'D 55 mm (Puleggia)', 60));
+
+            // --- QUOTA 7: TRAVERSI LATERALI LUNGO Y (250 mm) ---
+            const q7StartS = new THREE.Vector3(545 - 45, beltY, -570);
+            const q7EndS = new THREE.Vector3(545 - 45, beltY, -320);
+            const q7OffsetS = new THREE.Vector3(-150, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q7StartS, q7EndS, q7OffsetS, '250 mm (Traverso Y)', 50));
+
+            // --- QUOTA 8: POSIZIONE PERNO / CARDINE (320 mm da mezzeria, offset 105 mm da fine) ---
+            const q8StartS = new THREE.Vector3(545, beltY, -320);
+            const q8EndS = new THREE.Vector3(545, beltY, -550);
+            const q8OffsetS = new THREE.Vector3(100, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(q8StartS, q8EndS, q8OffsetS, 'Cardine a 105 mm da Fine', 50));
+
+            // --- QUOTA 9: RIALZO TAPPO DI ARRESTO (50 mm) ---
+            const q9StartA = new THREE.Vector3(545 - 45, beltY + 22.5, -570);
+            const q9EndA = new THREE.Vector3(545 - 45, beltY + 72.5, -570);
+            const q9OffsetA = new THREE.Vector3(0, 0, -80);
+            dimensionsGroup.add(drawDimensionLine(q9StartA, q9EndA, q9OffsetA, '+50 mm (Altezza Tappo)', 40));
+
+            scene.add(dimensionsGroup);
+        }
+
+        // Sprite Text Generator Helper
+        function createTextSprite(text, colorStr, size = 120) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0,512,128);
+            ctx.font = 'Bold 42px Outfit, sans-serif';
+            ctx.fillStyle = colorStr;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillText(text, 256, 64);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(size * 4, size, 1);
+            return sprite;
+        }
+
+        function resetCamera(view) {
+            if (view === 'iso') {
+                camera.position.set(4000, 3000, 4200);
+            } else if (view === 'top') {
+                camera.position.set(2500, 6000, 0.1);
+            } else if (view === 'front') {
+                camera.position.set(2500, 500, 4500);
+            } else if (view === 'side') {
+                camera.position.set(-3000, 500, 0);
+            }
+            
+            if (controls) {
+                controls.target.set(GEO.frame.length / 2, 500, 0);
+                controls.update();
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupUIHandlers() {
+            const sliderY = document.getElementById('slider-pos-y');
+            const valY = document.getElementById('val-pos-y');
+            
+            sliderY.addEventListener('input', (e) => {
+                state.posY = parseFloat(e.target.value);
+                valY.innerText = `${state.posY} mm`;
+                
+                carriageGroup.position.z = state.posY;
+                rotatingUpperGroup.position.z = state.posY; 
+                
+                const wheelRadius = GEO.wheel.radius; 
+                const rotationAngle = state.posY / wheelRadius;
+                
+                wheelsGroup.forEach(wheel => {
+                    wheel.rotation.x = rotationAngle; 
+                });
+            });
+
+            // Slider Rotazione Tavola
+            const sliderRot = document.getElementById('slider-rot-angle');
+            const valRot = document.getElementById('val-rot-angle');
+
+            sliderRot.addEventListener('input', (e) => {
+                state.rotAngle = parseFloat(e.target.value);
+                valRot.innerText = `${state.rotAngle.toFixed(1)}°`;
+
+                const angleRad = (state.rotAngle * Math.PI) / 180;
+                rotatingUpperGroup.rotation.x = angleRad;
+            });
+
+            // Slider Flap Sinistra (-Y)
+            const sliderFlapLeft = document.getElementById('slider-flap-left');
+            const valFlapLeft = document.getElementById('val-flap-left');
+
+            sliderFlapLeft.addEventListener('input', (e) => {
+                state.flapLeftAngle = parseFloat(e.target.value);
+                valFlapLeft.innerText = `${state.flapLeftAngle.toFixed(1)}°`;
+
+                const angleRad = (state.flapLeftAngle * Math.PI) / 180;
+                leftFlaps.forEach(flap => {
+                    flap.rotation.x = angleRad; // Piegamento verso il basso (negativo in X)
+                });
+            });
+
+            // Slider Flap Destra (+Y)
+            const sliderFlapRight = document.getElementById('slider-flap-right');
+            const valFlapRight = document.getElementById('val-flap-right');
+
+            sliderFlapRight.addEventListener('input', (e) => {
+                state.flapRightAngle = parseFloat(e.target.value);
+                valFlapRight.innerText = `${state.flapRightAngle.toFixed(1)}°`;
+
+                const angleRad = (state.flapRightAngle * Math.PI) / 180;
+                rightFlaps.forEach(flap => {
+                    flap.rotation.x = -angleRad; // Piegamento verso il basso (positivo in X)
+                });
+            });
+
+            document.getElementById('toggle-grid').addEventListener('change', (e) => {
+                state.showGrid = e.target.checked;
+                gridHelper.visible = state.showGrid;
+            });
+
+            document.getElementById('toggle-axes').addEventListener('change', (e) => {
+                state.showAxes = e.target.checked;
+                axesGroup.visible = state.showAxes;
+            });
+
+            document.getElementById('toggle-dimensions').addEventListener('change', (e) => {
+                state.showDimensions = e.target.checked;
+                dimensionsGroup.visible = state.showDimensions;
+            });
+
+            document.getElementById('toggle-auto-rotate').addEventListener('change', (e) => {
+                state.autoRotate = e.target.checked;
+                controls.autoRotate = state.autoRotate;
+                controls.autoRotateSpeed = 1.0;
+            });
+
+            const camBtns = ['iso', 'top', 'front', 'side'];
+            camBtns.forEach(view => {
+                const btn = document.getElementById(`btn-cam-${view}`);
+                btn.addEventListener('click', () => {
+                    camBtns.forEach(v => document.getElementById(`btn-cam-${v}`).classList.remove('active'));
+                    btn.classList.add('active');
+                    resetCamera(view);
+                });
+            });
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            const tooltip = document.getElementById('canvas-tooltip');
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                const rectLeft = document.querySelector('.sidebar-left').getBoundingClientRect();
+                const rectRight = document.querySelector('.sidebar-right').getBoundingClientRect();
+                const rectHeader = document.querySelector('.main-header').getBoundingClientRect();
+                
+                if (e.clientX < rectLeft.right + 20 && e.clientY > rectHeader.bottom) {
+                    tooltip.style.opacity = 0;
+                    return;
+                }
+                if (e.clientX > rectRight.left - 20 && e.clientY > rectHeader.bottom) {
+                    tooltip.style.opacity = 0;
+                    return;
+                }
+                if (e.clientY < rectHeader.bottom + 20) {
+                    tooltip.style.opacity = 0;
+                    return;
+                }
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects([carriageGroup, rotatingUpperGroup], true);
+                
+                if (intersects.length > 0) {
+                    const hitObj = intersects[0].object;
+                    let componentName = "Componente Carrello";
+                    let infoText = "";
+
+                    if (hitObj.geometry.type === "CylinderGeometry") {
+                        const r = hitObj.geometry.parameters.radiusTop;
+                        const h = hitObj.geometry.parameters.height;
+                        
+                        if (r === 75 && h === 35) {
+                            componentName = "Ruota Flangiata (in linea)";
+                            infoText = `Diametro: 150mm<br>Offset X: +45mm esterno`;
+                        } else if (r === 75 && h === 200) {
+                            componentName = "Motore Elettrico Albero 1";
+                            infoText = `Diametro: 150mm<br>Montato adiacente alla colonna 4`;
+                        } else if (r === GEO.beltDeck.pulleyRadius) {
+                            componentName = "Puleggia Compatta";
+                            infoText = `Diametro: 55mm<br>Larghezza: 30mm<br>Interasse: 1100mm`;
+                        } else if (r === 32.5 || r === 40.0) {
+                            componentName = "Curva Avvolgimento Cinghia";
+                            infoText = `Spessore: 10mm bianco + 5mm rosso`;
+                        } else if (r === 15 && h === GEO.shaft.length) {
+                            componentName = "Albero di Trasmissione";
+                            infoText = `Diametro: 30mm<br>Lunghezza esatta: 4045mm<br>A filo colonne`;
+                        } else if (r === 8 && h === 48) {
+                            componentName = "Perno Hinge / Cardine di Rotazione";
+                            infoText = `Materiale: Bronzo / Ottone<br>Consente il ribaltamento $0\\text{ a } -10^\\circ$`;
+                        } else {
+                            componentName = "Mozzo / Raccordo Albero";
+                            infoText = `Giunto di accoppiamento`;
+                        }
+                    } else if (hitObj.geometry.type === "BoxGeometry") {
+                        const h = hitObj.geometry.parameters.height;
+                        const w = hitObj.geometry.parameters.width;
+                        const d = hitObj.geometry.parameters.depth;
+                        
+                        if (h === 900 || w === 900 || d === 900) {
+                            componentName = "Colonna di Supporto (Traverso)";
+                            infoText = `Sezione: 250x45 mm<br>Altezza: 900 mm`;
+                        } else if (h === 90 || w === 90 || d === 90) {
+                            componentName = "Longherone Telaio Base";
+                            infoText = `Dimensioni: 5000x90x80 mm<br>Alluminio Naturale`;
+                        } else if (h === 45 && (w === 45 || d === 45)) {
+                            if (d === 1100 || w === 1100) {
+                                componentName = "Profilo Cinghia Rialzato (+70 mm)";
+                                infoText = `Alluminio 45x45 mm<br>Lunghezza: 1100 mm`;
+                            } else if (d === 250 || w === 250) {
+                                componentName = "Traverso Laterale Ribaltabile (Flap)";
+                                infoText = `Alluminio 45x45 mm<br>Lunghezza: 250 mm<br>Incernierato a Z = &plusmn;320 mm`;
+                            } else {
+                                componentName = "Profilo Telaio Tavola";
+                                infoText = `Alluminio 45x45 mm<br>Larghezza tavola: 800 mm`;
+                            }
+                        } else if (h === 95 && w === 45 && d === 8) {
+                            componentName = "Tappo di Arresto (Fine Corsa)";
+                            infoText = `Materiale: Acciaio Verde<br>Rialzo utile: +50 mm<br>Inclinabile con il traverso`;
+                        } else if (h === 10 || w === 10 || d === 10) {
+                            componentName = "Tratto Cinghia (Interno Bianco)";
+                            infoText = `Spessore: 10mm<br>Larghezza: 26mm`;
+                        } else if (h === 5 || w === 5 || d === 5) {
+                            componentName = "Tratto Cinghia (Esterno Rosso)";
+                            infoText = `Spessore: 5mm<br>Larghezza: 26mm`;
+                        } else {
+                            componentName = "Traversa Strutturale";
+                            infoText = `Accoppiamento telai alluminio`;
+                        }
+                    } else if (hitObj.geometry.type === "SphereGeometry") {
+                        componentName = "LED Indicatore di Stato";
+                        infoText = `Stato: OK / Operativo`;
+                    } else if (hitObj.geometry.type === "ExtrudeGeometry") {
+                        componentName = "Grande Disco di Supporto (Tagliato)";
+                        infoText = `Diametro: 600mm<br>Tagliato a Z +45mm (Quota 1035mm)<br>Solido Estruso (Spessore 45mm)`;
+                    }
+
+                    tooltip.innerHTML = `<strong>${componentName}</strong><br>${infoText}`;
+                    tooltip.style.left = `${e.clientX + 15}px`;
+                    tooltip.style.top = `${e.clientY + 15}px`;
+                    tooltip.style.opacity = 1;
+                } else {
+                    tooltip.style.opacity = 0;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (controls) {
+                controls.update();
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
