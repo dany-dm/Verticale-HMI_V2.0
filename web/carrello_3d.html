@@ -489,7 +489,7 @@
                 <span class="logo-icon">▲</span>
                 <div class="logo-text">
                     <h1>CARRELLO TRASLATORE 3D</h1>
-                    <span>Vista Isometrica Ruotata 90° verso -X &middot; Binari Orientati su Corsa -Y</span>
+                    <span>Piatto Riscontro Fotocellula 1751 (da Z=+1400mm a Z=-1275mm) &middot; Vista Isometrica Ruotata 90°</span>
                 </div>
             </div>
             <div class="header-actions">
@@ -694,6 +694,11 @@
             
             <div class="specs-list">
                 <div class="spec-item">
+                    <span class="spec-title" style="color:#22c55e;">Piatto Riscontro Fotocellula 1751 (SN-1020)</span>
+                    <span class="spec-desc">Piatto in acciaio larghezza $X=25\text{ mm}$, spessore $6\text{ mm}$, montato a pavimento sotto la traiettoria della fotocellula 1751, da inizio binario ($Z=+1400\text{ mm}$) fino a quota $Y = 1800 - d_{\text{photo}} = -1275\text{ mm}$ ($L=2675\text{ mm}$).</span>
+                </div>
+
+                <div class="spec-item">
                     <span class="spec-title" style="color:#00f2fe;">Disattivazione Tooltip in Modalità Modello</span>
                     <span class="spec-desc">I tooltip pop-up al passaggio del mouse sono <strong>disattivati di default nelle due viste modello</strong> (<code>?mode=machine</code> e <code>?mode=overview</code>), rimanendo attivi solo nella finestra di debug standalone o se attivato lo switch in UI.</span>
                 </div>
@@ -732,18 +737,17 @@
         const urlParams = new URLSearchParams(window.location.search);
         const hasModeParam = urlParams.has('mode');
         const initialMode = urlParams.get('mode') === 'machine' ? 'machine' : 'overview';
+        const isCleanEmbed = urlParams.get('clean') === '1' || urlParams.get('embed') === '1';
 
-        // Disattivazione di default del Tooltip Hover nelle viste modello (quando ?mode= è specificato), attivo invece in finestra debug standalone
-        const defaultShowTooltip = urlParams.get('tooltip') !== null 
+        // Disattivazione di default del Tooltip Hover e UI nelle viste modello o embed pulite
+        const defaultShowTooltip = isCleanEmbed ? false : (urlParams.get('tooltip') !== null 
             ? (urlParams.get('tooltip') === '1' || urlParams.get('tooltip') === 'true') 
-            : !hasModeParam;
+            : !hasModeParam);
 
         // Quota Corsa Max Y (mm) dalla configurazione (Limiti Meccanici, default 28500 mm)
         const maxCarrelloY = parseFloat(urlParams.get('max_y')) || (window.parent && window.parent.HMI_CONFIG && window.parent.HMI_CONFIG.carrello && window.parent.HMI_CONFIG.carrello.corsa_max_y) || 28500;
 
         // FORMULA ESATTA ORIENTATA IN DIREZIONE DI CORSA -Y:
-        // Extremità su lato Home (Y=0):   Z = 0 + (1100 / 2) + 200 + 400 = +1150 mm
-        // Extremità su lato Max (Y=Max): Z = -(maxCarrelloY + (1100 / 2) + 200) = -(maxCarrelloY + 750) mm (-29250 mm)
         const railStartZ = -(maxCarrelloY + (1100 / 2) + 200); // -29250 mm per max_y=28500
         const railEndZ = 0 + (1100 / 2) + 200 + 400;          // +1150 mm
         const railLength = railEndZ - railStartZ;             // maxCarrelloY + 1900 mm (30400 mm)
@@ -822,9 +826,22 @@
             showTooltip: defaultShowTooltip, 
             showPanel: true,
             showGrid: true,
-            showAxes: true,
-            showDimensions: true,
+            showAxes: isCleanEmbed ? false : true,
+            showDimensions: isCleanEmbed ? false : true,
             autoRotate: false
+        };
+
+        // Funzione pubblica per aggiornamento posizione da PLC/app.js
+        window.updatePositionFromPLC = function(yVal, rotVal) {
+            if (typeof yVal === 'number' && !isNaN(yVal)) {
+                state.posY = yVal;
+                updateCarriagePosition();
+            }
+            if (typeof rotVal === 'number' && !isNaN(rotVal)) {
+                state.rotAngle = rotVal;
+                const angleRad = (state.rotAngle * Math.PI) / 180;
+                if (rotatingUpperGroup) rotatingUpperGroup.rotation.x = angleRad;
+            }
         };
 
         // Inizializzazione
@@ -832,6 +849,12 @@
         animate();
 
         function init() {
+            // Se in modalità embed pulita (clean=1), nascondi completamente la UI overlay
+            if (isCleanEmbed) {
+                const uiOverlay = document.querySelector('.overlay-ui');
+                if (uiOverlay) uiOverlay.style.display = 'none';
+            }
+
             // 1. Scena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111625);
@@ -874,6 +897,10 @@
 
             // 8. Costruzione Quote CAD
             buildDimensions();
+
+            // Imposta visibilità iniziale di assi e quote
+            if (axesGroup) axesGroup.visible = state.showAxes;
+            if (dimensionsGroup) dimensionsGroup.visible = state.showDimensions;
 
             // 9. Event Listeners & Inizializzazione UI
             window.addEventListener('resize', onWindowResize, false);
@@ -1018,6 +1045,36 @@
                     railsGroup.add(plate);
                 }
             });
+
+            // PIATTO DI RISCONTRO SOTTO FOTOCELLULA 1751 (SN-1020)
+            const photo1751X = GEO.frame.length + GEO.wheel.xOffset - 150; // X = 3867.5mm (sotto SN-1751)
+            const photo1751ZOffset = 525; // Distanza Y fotocellula dal centro carrello
+            const plateStartZ = 1400; // Inizio binario (circa +1400mm)
+            const plateEndZ = -(1800 - photo1751ZOffset); // -1275mm (corrisponde a quota corsa Y = 1800 - dist)
+            const plateLength = plateStartZ - plateEndZ; // 2675mm
+            const plateCenterZ = (plateStartZ + plateEndZ) / 2; // +62.5mm
+
+            const plateMat = new THREE.MeshStandardMaterial({
+                color: 0x94a3b8,
+                metalness: 0.9,
+                roughness: 0.2
+            });
+
+            const plate1751 = new THREE.Mesh(
+                new THREE.BoxGeometry(25, 6, plateLength),
+                plateMat
+            );
+            plate1751.position.set(photo1751X, -50, plateCenterZ);
+            plate1751.castShadow = true;
+            plate1751.receiveShadow = true;
+            setPartMetadata(
+                plate1751,
+                "SN-1020",
+                "Piatto di Riscontro Fotocellula 1751",
+                "Piatto / Camme di Lettura",
+                `Piatto in acciaio 25x6mm lungo ${plateLength}mm (da Z=+1400mm a Z=${plateEndZ}mm) montato sotto la traiettoria della Fotocellula SN-1751`
+            );
+            railsGroup.add(plate1751);
 
             scene.add(railsGroup);
         }
@@ -1787,7 +1844,7 @@
             redHolePath.lineTo(550, 37.5);
             redHolePath.absarc(-550, 0, 37.5, Math.PI / 2, -Math.PI / 2, false);
             redHolePath.lineTo(550, -37.5);
-            redHolePath.absarc(550, 0, 37.5, -Math.PI / 2, Math.PI / 2, false);
+            redHolePath.absarc(-550, 0, 37.5, -Math.PI / 2, Math.PI / 2, false);
             redBeltShape.holes.push(redHolePath);
 
             const redBeltExtrudeGeo = new THREE.ExtrudeGeometry(redBeltShape, { depth: GEO.beltDeck.width, bevelEnabled: false });
@@ -2116,13 +2173,15 @@
             const btnOverview = document.getElementById('btn-mode-overview');
             const btnMachine = document.getElementById('btn-mode-machine');
 
-            btnOverview.classList.remove('active');
-            btnMachine.classList.remove('active');
+            if (btnOverview && btnMachine) {
+                btnOverview.classList.remove('active');
+                btnMachine.classList.remove('active');
 
-            if (state.motionMode === 'machine') {
-                btnMachine.classList.add('active');
-            } else {
-                btnOverview.classList.add('active');
+                if (state.motionMode === 'machine') {
+                    btnMachine.classList.add('active');
+                } else {
+                    btnOverview.classList.add('active');
+                }
             }
 
             updateCarriagePosition();
@@ -2154,20 +2213,22 @@
             const btnMid = document.getElementById('btn-pos-mid');
             const btnMax = document.getElementById('btn-pos-max');
 
-            sliderPosY.value = state.posY;
-            valPosY.innerText = `${state.posY} mm`;
+            if (sliderPosY) sliderPosY.value = state.posY;
+            if (valPosY) valPosY.innerText = `${state.posY} mm`;
 
-            btnHome.classList.remove('active');
-            btnMid.classList.remove('active');
-            btnMax.classList.remove('active');
+            if (btnHome && btnMid && btnMax) {
+                btnHome.classList.remove('active');
+                btnMid.classList.remove('active');
+                btnMax.classList.remove('active');
 
-            const midY = Math.round(maxCarrelloY / 2);
-            if (state.posY === 0) {
-                btnHome.classList.add('active');
-            } else if (state.posY === midY) {
-                btnMid.classList.add('active');
-            } else if (state.posY === maxCarrelloY) {
-                btnMax.classList.add('active');
+                const midY = Math.round(maxCarrelloY / 2);
+                if (state.posY === 0) {
+                    btnHome.classList.add('active');
+                } else if (state.posY === midY) {
+                    btnMid.classList.add('active');
+                } else if (state.posY === maxCarrelloY) {
+                    btnMax.classList.add('active');
+                }
             }
 
             updateCarriagePosition();
@@ -2180,7 +2241,7 @@
             const btnCenter = document.getElementById('btn-panel-center');
             const btnPosY = document.getElementById('btn-panel-pos-y');
 
-            sliderPanelY.value = state.panelY;
+            if (sliderPanelY) sliderPanelY.value = state.panelY;
             if (woodPanelMesh) {
                 woodPanelMesh.position.z = state.panelY;
             }
@@ -2189,21 +2250,23 @@
                 redBeltTexture.offset.x = state.panelY / 150.0;
             }
 
-            btnNegY.classList.remove('active');
-            btnCenter.classList.remove('active');
-            btnPosY.classList.remove('active');
+            if (btnNegY && btnCenter && btnPosY) {
+                btnNegY.classList.remove('active');
+                btnCenter.classList.remove('active');
+                btnPosY.classList.remove('active');
 
-            if (state.panelY === -170) {
-                valPanelY.innerText = "-170 mm (Riscontro -Y)";
-                btnNegY.classList.add('active');
-            } else if (state.panelY === 170) {
-                valPanelY.innerText = "+170 mm (Riscontro +Y)";
-                btnPosY.classList.add('active');
-            } else if (state.panelY === 0) {
-                valPanelY.innerText = "0 mm (Centro)";
-                btnCenter.classList.add('active');
-            } else {
-                valPanelY.innerText = `${state.panelY > 0 ? '+' : ''}${state.panelY} mm`;
+                if (state.panelY === -170) {
+                    if (valPanelY) valPanelY.innerText = "-170 mm (Riscontro -Y)";
+                    btnNegY.classList.add('active');
+                } else if (state.panelY === 170) {
+                    if (valPanelY) valPanelY.innerText = "+170 mm (Riscontro +Y)";
+                    btnPosY.classList.add('active');
+                } else if (state.panelY === 0) {
+                    if (valPanelY) valPanelY.innerText = "0 mm (Centro)";
+                    btnCenter.classList.add('active');
+                } else {
+                    if (valPanelY) valPanelY.innerText = `${state.panelY > 0 ? '+' : ''}${state.panelY} mm`;
+                }
             }
         }
 
@@ -2211,7 +2274,7 @@
             const badge = document.getElementById('badge-photocell-status');
             const toggle = document.getElementById('toggle-photocell-status');
 
-            toggle.checked = state.photocellsActive;
+            if (toggle) toggle.checked = state.photocellsActive;
 
             photocellSideStatusMaterials.forEach(mat => {
                 if (state.photocellsActive) {
@@ -2225,183 +2288,247 @@
                 }
             });
 
-            if (state.photocellsActive) {
-                badge.innerText = "Attivi (Verde Neon)";
-                badge.className = "status-badge active";
-            } else {
-                badge.innerText = "Inattivi (Giallo)";
-                badge.className = "status-badge inactive";
+            if (badge) {
+                if (state.photocellsActive) {
+                    badge.innerText = "Attivi (Verde Neon)";
+                    badge.className = "status-badge active";
+                } else {
+                    badge.innerText = "Inattivi (Giallo)";
+                    badge.className = "status-badge inactive";
+                }
             }
         }
 
         function setupUIHandlers() {
+            if (isCleanEmbed) return;
+
             const sliderPosY = document.getElementById('slider-pos-y');
             const btnMid = document.getElementById('btn-pos-mid');
             const btnMax = document.getElementById('btn-pos-max');
 
-            sliderPosY.max = maxCarrelloY;
+            if (sliderPosY) sliderPosY.max = maxCarrelloY;
             const midY = Math.round(maxCarrelloY / 2);
-            btnMid.innerText = `${midY} mm (Metà)`;
-            btnMax.innerText = `${maxCarrelloY} mm (Max)`;
+            if (btnMid) btnMid.innerText = `${midY} mm (Metà)`;
+            if (btnMax) btnMax.innerText = `${maxCarrelloY} mm (Max)`;
 
-            document.getElementById('btn-mode-overview').addEventListener('click', () => {
-                state.motionMode = 'overview';
-                updateMotionModeUI();
-            });
+            const btnOverview = document.getElementById('btn-mode-overview');
+            if (btnOverview) {
+                btnOverview.addEventListener('click', () => {
+                    state.motionMode = 'overview';
+                    updateMotionModeUI();
+                });
+            }
 
-            document.getElementById('btn-mode-machine').addEventListener('click', () => {
-                state.motionMode = 'machine';
-                updateMotionModeUI();
-            });
+            const btnMachine = document.getElementById('btn-mode-machine');
+            if (btnMachine) {
+                btnMachine.addEventListener('click', () => {
+                    state.motionMode = 'machine';
+                    updateMotionModeUI();
+                });
+            }
 
             const toggleTooltip = document.getElementById('toggle-tooltip');
-            toggleTooltip.checked = state.showTooltip;
-            toggleTooltip.addEventListener('change', (e) => {
-                state.showTooltip = e.target.checked;
-                if (!state.showTooltip) {
-                    const tooltip = document.getElementById('canvas-tooltip');
-                    if (tooltip) tooltip.style.opacity = 0;
-                }
-            });
+            if (toggleTooltip) {
+                toggleTooltip.checked = state.showTooltip;
+                toggleTooltip.addEventListener('change', (e) => {
+                    state.showTooltip = e.target.checked;
+                    if (!state.showTooltip) {
+                        const tooltip = document.getElementById('canvas-tooltip');
+                        if (tooltip) tooltip.style.opacity = 0;
+                    }
+                });
+            }
 
             const togglePhotocellStatus = document.getElementById('toggle-photocell-status');
-            togglePhotocellStatus.addEventListener('change', (e) => {
-                state.photocellsActive = e.target.checked;
-                updatePhotocellsStatusUI();
-            });
+            if (togglePhotocellStatus) {
+                togglePhotocellStatus.addEventListener('change', (e) => {
+                    state.photocellsActive = e.target.checked;
+                    updatePhotocellsStatusUI();
+                });
+            }
 
             const toggleBeltsRunning = document.getElementById('toggle-belts-running');
-            toggleBeltsRunning.addEventListener('change', (e) => {
-                state.beltsRunning = e.target.checked;
-            });
+            if (toggleBeltsRunning) {
+                toggleBeltsRunning.addEventListener('change', (e) => {
+                    state.beltsRunning = e.target.checked;
+                });
+            }
 
-            sliderPosY.addEventListener('input', (e) => {
-                state.posY = parseFloat(e.target.value);
-                updateCarriagePosYUI();
-            });
+            if (sliderPosY) {
+                sliderPosY.addEventListener('input', (e) => {
+                    state.posY = parseFloat(e.target.value);
+                    updateCarriagePosYUI();
+                });
+            }
 
-            document.getElementById('btn-pos-home').addEventListener('click', () => {
-                state.posY = 0;
-                updateCarriagePosYUI();
-            });
+            const btnHome = document.getElementById('btn-pos-home');
+            if (btnHome) {
+                btnHome.addEventListener('click', () => {
+                    state.posY = 0;
+                    updateCarriagePosYUI();
+                });
+            }
 
-            document.getElementById('btn-pos-mid').addEventListener('click', () => {
-                state.posY = midY;
-                updateCarriagePosYUI();
-            });
+            if (btnMid) {
+                btnMid.addEventListener('click', () => {
+                    state.posY = midY;
+                    updateCarriagePosYUI();
+                });
+            }
 
-            document.getElementById('btn-pos-max').addEventListener('click', () => {
-                state.posY = maxCarrelloY;
-                updateCarriagePosYUI();
-            });
+            if (btnMax) {
+                btnMax.addEventListener('click', () => {
+                    state.posY = maxCarrelloY;
+                    updateCarriagePosYUI();
+                });
+            }
 
             const sliderAxisX = document.getElementById('slider-axis-x');
             const valAxisX = document.getElementById('val-axis-x');
 
-            sliderAxisX.addEventListener('input', (e) => {
-                state.axisX = parseFloat(e.target.value);
-                valAxisX.innerText = state.axisX === 400 ? "400 mm (Filo X=0)" : `${state.axisX} mm`;
-                if (linearAxisCarriageGroup) {
-                    linearAxisCarriageGroup.position.x = 400 - state.axisX;
-                }
-            });
+            if (sliderAxisX) {
+                sliderAxisX.addEventListener('input', (e) => {
+                    state.axisX = parseFloat(e.target.value);
+                    if (valAxisX) valAxisX.innerText = state.axisX === 400 ? "400 mm (Filo X=0)" : `${state.axisX} mm`;
+                    if (linearAxisCarriageGroup) {
+                        linearAxisCarriageGroup.position.x = 400 - state.axisX;
+                    }
+                });
+            }
 
             const sliderPanelY = document.getElementById('slider-panel-y');
-            sliderPanelY.addEventListener('input', (e) => {
-                state.panelY = parseFloat(e.target.value);
-                updatePanelPositionUI();
-            });
+            if (sliderPanelY) {
+                sliderPanelY.addEventListener('input', (e) => {
+                    state.panelY = parseFloat(e.target.value);
+                    updatePanelPositionUI();
+                });
+            }
 
-            document.getElementById('btn-panel-neg-y').addEventListener('click', () => {
-                state.panelY = -170;
-                updatePanelPositionUI();
-            });
+            const btnPanelNegY = document.getElementById('btn-panel-neg-y');
+            if (btnPanelNegY) {
+                btnPanelNegY.addEventListener('click', () => {
+                    state.panelY = -170;
+                    updatePanelPositionUI();
+                });
+            }
 
-            document.getElementById('btn-panel-center').addEventListener('click', () => {
-                state.panelY = 0;
-                updatePanelPositionUI();
-            });
+            const btnPanelCenter = document.getElementById('btn-panel-center');
+            if (btnPanelCenter) {
+                btnPanelCenter.addEventListener('click', () => {
+                    state.panelY = 0;
+                    updatePanelPositionUI();
+                });
+            }
 
-            document.getElementById('btn-panel-pos-y').addEventListener('click', () => {
-                state.panelY = 170;
-                updatePanelPositionUI();
-            });
+            const btnPanelPosY = document.getElementById('btn-panel-pos-y');
+            if (btnPanelPosY) {
+                btnPanelPosY.addEventListener('click', () => {
+                    state.panelY = 170;
+                    updatePanelPositionUI();
+                });
+            }
 
             const sliderRot = document.getElementById('slider-rot-angle');
             const valRot = document.getElementById('val-rot-angle');
 
-            sliderRot.addEventListener('input', (e) => {
-                state.rotAngle = parseFloat(e.target.value);
-                valRot.innerText = `${state.rotAngle.toFixed(1)}°`;
+            if (sliderRot) {
+                sliderRot.addEventListener('input', (e) => {
+                    state.rotAngle = parseFloat(e.target.value);
+                    if (valRot) valRot.innerText = `${state.rotAngle.toFixed(1)}°`;
 
-                const angleRad = (state.rotAngle * Math.PI) / 180;
-                if (rotatingUpperGroup) rotatingUpperGroup.rotation.x = angleRad;
-            });
+                    const angleRad = (state.rotAngle * Math.PI) / 180;
+                    if (rotatingUpperGroup) rotatingUpperGroup.rotation.x = angleRad;
+                });
+            }
 
             const sliderFlapLeft = document.getElementById('slider-flap-left');
             const valFlapLeft = document.getElementById('val-flap-left');
 
-            sliderFlapLeft.addEventListener('input', (e) => {
-                state.flapLeftAngle = parseFloat(e.target.value);
-                valFlapLeft.innerText = `${state.flapLeftAngle.toFixed(1)}°`;
+            if (sliderFlapLeft) {
+                sliderFlapLeft.addEventListener('input', (e) => {
+                    state.flapLeftAngle = parseFloat(e.target.value);
+                    if (valFlapLeft) valFlapLeft.innerText = `${state.flapLeftAngle.toFixed(1)}°`;
 
-                const angleRad = (state.flapLeftAngle * Math.PI) / 180;
-                leftFlaps.forEach(flap => {
-                    flap.rotation.x = angleRad; 
+                    const angleRad = (state.flapLeftAngle * Math.PI) / 180;
+                    leftFlaps.forEach(flap => {
+                        flap.rotation.x = angleRad; 
+                    });
                 });
-            });
+            }
 
             const sliderFlapRight = document.getElementById('slider-flap-right');
             const valFlapRight = document.getElementById('val-flap-right');
 
-            sliderFlapRight.addEventListener('input', (e) => {
-                state.flapRightAngle = parseFloat(e.target.value);
-                valFlapRight.innerText = `${state.flapRightAngle.toFixed(1)}°`;
+            if (sliderFlapRight) {
+                sliderFlapRight.addEventListener('input', (e) => {
+                    state.flapRightAngle = parseFloat(e.target.value);
+                    if (valFlapRight) valFlapRight.innerText = `${state.flapRightAngle.toFixed(1)}°`;
 
-                const angleRad = (state.flapRightAngle * Math.PI) / 180;
-                rightFlaps.forEach(flap => {
-                    flap.rotation.x = -angleRad; 
+                    const angleRad = (state.flapRightAngle * Math.PI) / 180;
+                    rightFlaps.forEach(flap => {
+                        flap.rotation.x = -angleRad; 
+                    });
                 });
-            });
+            }
 
-            document.getElementById('toggle-panel').addEventListener('change', (e) => {
-                state.showPanel = e.target.checked;
-                if (woodPanelMesh) {
-                    woodPanelMesh.visible = state.showPanel;
-                }
-            });
+            const togglePanel = document.getElementById('toggle-panel');
+            if (togglePanel) {
+                togglePanel.addEventListener('change', (e) => {
+                    state.showPanel = e.target.checked;
+                    if (woodPanelMesh) {
+                        woodPanelMesh.visible = state.showPanel;
+                    }
+                });
+            }
 
-            document.getElementById('toggle-grid').addEventListener('change', (e) => {
-                state.showGrid = e.target.checked;
-                if (gridHelper) gridHelper.visible = state.showGrid;
-            });
+            const toggleGrid = document.getElementById('toggle-grid');
+            if (toggleGrid) {
+                toggleGrid.addEventListener('change', (e) => {
+                    state.showGrid = e.target.checked;
+                    if (gridHelper) gridHelper.visible = state.showGrid;
+                });
+            }
 
-            document.getElementById('toggle-axes').addEventListener('change', (e) => {
-                state.showAxes = e.target.checked;
-                if (axesGroup) axesGroup.visible = state.showAxes;
-            });
+            const toggleAxes = document.getElementById('toggle-axes');
+            if (toggleAxes) {
+                toggleAxes.addEventListener('change', (e) => {
+                    state.showAxes = e.target.checked;
+                    if (axesGroup) axesGroup.visible = state.showAxes;
+                });
+            }
 
-            document.getElementById('toggle-dimensions').addEventListener('change', (e) => {
-                state.showDimensions = e.target.checked;
-                if (dimensionsGroup) dimensionsGroup.visible = state.showDimensions;
-            });
+            const toggleDimensions = document.getElementById('toggle-dimensions');
+            if (toggleDimensions) {
+                toggleDimensions.addEventListener('change', (e) => {
+                    state.showDimensions = e.target.checked;
+                    if (dimensionsGroup) dimensionsGroup.visible = state.showDimensions;
+                });
+            }
 
-            document.getElementById('toggle-auto-rotate').addEventListener('change', (e) => {
-                state.autoRotate = e.target.checked;
-                if (controls) {
-                    controls.autoRotate = state.autoRotate;
-                    controls.autoRotateSpeed = 1.0;
-                }
-            });
+            const toggleAutoRotate = document.getElementById('toggle-auto-rotate');
+            if (toggleAutoRotate) {
+                toggleAutoRotate.addEventListener('change', (e) => {
+                    state.autoRotate = e.target.checked;
+                    if (controls) {
+                        controls.autoRotate = state.autoRotate;
+                        controls.autoRotateSpeed = 1.0;
+                    }
+                });
+            }
 
             const camBtns = ['iso', 'top', 'front', 'side'];
             camBtns.forEach(view => {
                 const btn = document.getElementById(`btn-cam-${view}`);
-                btn.addEventListener('click', () => {
-                    camBtns.forEach(v => document.getElementById(`btn-cam-${v}`).classList.remove('active'));
-                    btn.classList.add('active');
-                    resetCamera(view);
-                });
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        camBtns.forEach(v => {
+                            const b = document.getElementById(`btn-cam-${v}`);
+                            if (b) b.classList.remove('active');
+                        });
+                        btn.classList.add('active');
+                        resetCamera(view);
+                    });
+                }
             });
 
             const raycaster = new THREE.Raycaster();
@@ -2418,25 +2545,31 @@
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
                 
-                const rectLeft = document.querySelector('.sidebar-left').getBoundingClientRect();
-                const rectRight = document.querySelector('.sidebar-right').getBoundingClientRect();
-                const rectHeader = document.querySelector('.main-header').getBoundingClientRect();
+                const sbLeft = document.querySelector('.sidebar-left');
+                const sbRight = document.querySelector('.sidebar-right');
+                const mHeader = document.querySelector('.main-header');
                 
-                if (e.clientX < rectLeft.right + 20 && e.clientY > rectHeader.bottom) {
-                    tooltip.style.opacity = 0;
-                    return;
-                }
-                if (e.clientX > rectRight.left - 20 && e.clientY > rectHeader.bottom) {
-                    tooltip.style.opacity = 0;
-                    return;
-                }
-                if (e.clientY < rectHeader.bottom + 20) {
-                    tooltip.style.opacity = 0;
-                    return;
+                if (sbLeft && sbRight && mHeader) {
+                    const rectLeft = sbLeft.getBoundingClientRect();
+                    const rectRight = sbRight.getBoundingClientRect();
+                    const rectHeader = mHeader.getBoundingClientRect();
+                    
+                    if (e.clientX < rectLeft.right + 20 && e.clientY > rectHeader.bottom) {
+                        tooltip.style.opacity = 0;
+                        return;
+                    }
+                    if (e.clientX > rectRight.left - 20 && e.clientY > rectHeader.bottom) {
+                        tooltip.style.opacity = 0;
+                        return;
+                    }
+                    if (e.clientY < rectHeader.bottom + 20) {
+                        tooltip.style.opacity = 0;
+                        return;
+                    }
                 }
 
                 raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects([carriageGroup, rotatingUpperGroup], true);
+                const intersects = raycaster.intersectObjects([carriageGroup, rotatingUpperGroup, railsGroup], true);
                 
                 if (intersects.length > 0) {
                     const hitObj = intersects[0].object;

@@ -1447,6 +1447,12 @@ function aggiornaSchedaCarrello() {
     document.getElementById("carr-val-Rotazione_Encoder").innerText = `${rotVal.toFixed(1)}°`;
     renderCarrelloRotazione(rotVal);
     
+    // Aggiorna posizione Carrello 3D in tempo reale se presente nella vista Macchina
+    const carr3dIframe = document.getElementById("carrello-3d-iframe");
+    if (carr3dIframe && carr3dIframe.contentWindow && carr3dIframe.contentWindow.updatePositionFromPLC) {
+        carr3dIframe.contentWindow.updatePositionFromPLC(yVal, rotVal);
+    }
+    
     // Aggiorna gli input non editabili negli azzeramenti
     const carrYh = document.getElementById("carr-val-Y_Encoder-h");
     const carrRoth = document.getElementById("carr-val-Rotazione_Encoder-h");

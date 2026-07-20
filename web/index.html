@@ -891,12 +891,13 @@
                                             </div>
                                         </div>
 
-                                        <!-- Vista Sezione Carrello (Canvas) -->
-                                        <div class="canvas-container" style="flex: 2; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                        <!-- Vista Sezione Carrello (Canvas 2D) -->
+                                        <div class="canvas-container" style="flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 320px;">
+                                            <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); letter-spacing: 1px;">Vista 2D Sezione Carrello</div>
                                             <!-- Quota nascosta ma presente per compatibilità script -->
                                             <span id="carr-val-Rotazione_Encoder" style="display: none;">0.0°</span>
                                             
-                                            <canvas id="carrello-rot-canvas" width="480" height="400" style="display: block; width: 100%; max-width: 480px; height: auto; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(10, 15, 25, 0.4);"></canvas>
+                                            <canvas id="carrello-rot-canvas" width="480" height="400" style="display: block; width: 100%; height: auto; border: 1px solid var(--border-color); border-radius: 10px; background: rgba(10, 15, 25, 0.4);"></canvas>
                                             
                                             <!-- Toggle pannello legno -->
                                             <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(15, 23, 42, 0.2); border-radius: 6px; border: 1px solid var(--border-color);">
@@ -908,6 +909,15 @@
                                                     </label>
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <!-- Vista 3D Carrello (Caso 1: Cinematica Macchina con Guide Mobili) -->
+                                        <div class="canvas-container" style="flex: 1.5; display: flex; flex-direction: column; gap: 10px; min-width: 400px; width: 100%;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px;">
+                                                <span style="font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--accent-cyan); letter-spacing: 1px;">Vista 3D Carrello (Cinematica Macchina)</span>
+                                                <span style="font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">Caso 1: Guide in movimento &bull; Carrello fisso</span>
+                                            </div>
+                                            <iframe id="carrello-3d-iframe" src="carrello_3d.html?mode=machine&clean=1" style="width: 100%; height: 440px; border: 1px solid var(--border-color); border-radius: 10px; background: #111625; overflow: hidden;" title="Carrello 3D Viewer"></iframe>
                                         </div>
                                     </div>
                                 </div>
@@ -1858,6 +1868,7 @@
     </div>
 
     <script src="app.js?v=2.0.16"></script>
+    <script src="carrello_3d_builder.js?v=2.0.16"></script>
     <script src="three_viewer.js?v=2.0.16"></script>
 </body>
 </html>

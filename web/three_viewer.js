@@ -85,51 +85,38 @@ function initThreeJS() {
 
     // 6. GEOMETRIE E STRUTTURE
 
-    // --- ROTAIE CARRELLO TRASLATORE (Due binari paralleli) ---
-    const railGeom = new THREE.BoxGeometry(100, 0.2, 0.2);
-    const rail1 = new THREE.Mesh(railGeom, railMat);
-    rail1.position.set(0, 0.1, -2.2);
-    scene.add(rail1);
+    // --- CARRELLO TRASLATORE DETTAGLIATO 1:1 (Importato da carrello_3d_builder.js) ---
+    if (typeof window.buildCarriage3DModel === 'function') {
+        const carriageModel = window.buildCarriage3DModel(THREE);
+        
+        // Contenitore Carrello per la scena del Sinottico
+        const carrelloContainer = new THREE.Group();
+        
+        // Scala da mm fisici a unita' sinottico (1000mm = 1 unita' 3D)
+        carriageModel.carriageGroup.scale.set(0.001, 0.001, 0.001);
+        carriageModel.railsGroup.scale.set(0.001, 0.001, 0.001);
 
-    const rail2 = new THREE.Mesh(railGeom, railMat);
-    rail2.position.set(0, 0.1, 2.2);
-    scene.add(rail2);
+        // Orientamento ed allineamento al layout dell'impianto:
+        // Asse trasversale sinottico = Z, Mezzeria X=2000mm allineata a Z=0
+        carriageModel.carriageGroup.rotation.y = Math.PI / 2;
+        carriageModel.carriageGroup.position.set(0, 0.04, -2.0); // Offset -2.0 per centrare X=2000mm a Z=0
 
-    // --- CARRELLO TRASLATORE ---
-    const carrelloGroup = new THREE.Group();
-    // Base
-    const carrGeom = new THREE.BoxGeometry(6, 0.8, 5);
-    const carrMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 }); // Colore iniziale rosso
-    const carrBase = new THREE.Mesh(carrGeom, carrMat);
-    carrBase.position.y = 0.4;
-    carrelloGroup.add(carrBase);
+        carriageModel.railsGroup.rotation.y = Math.PI / 2;
+        carriageModel.railsGroup.position.set(0, 0, -2.0);
 
-    // Cabina/dettaglio sopra
-    const cabinGeom = new THREE.BoxGeometry(2, 1.5, 4);
-    const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.2 });
-    const cabin = new THREE.Mesh(cabinGeom, cabinMat);
-    cabin.position.set(-1.5, 1.55, 0);
-    carrelloGroup.add(cabin);
+        carrelloContainer.add(carriageModel.carriageGroup);
+        scene.add(carriageModel.railsGroup);
 
-    // Ruote
-    const wheelGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16);
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
-    const wheelPositions = [
-        [-2.5, 0.3, -2.3],
-        [2.5, 0.3, -2.3],
-        [-2.5, 0.3, 2.3],
-        [2.5, 0.3, 2.3]
-    ];
-    wheelPositions.forEach(pos => {
-        const wheel = new THREE.Mesh(wheelGeom, wheelMat);
-        wheel.position.set(pos[0], pos[1], pos[2]);
-        wheel.rotation.x = Math.PI / 2;
-        carrelloGroup.add(wheel);
-    });
-
-    carrello3D = carrelloGroup;
-    carrello3D.userData = { baseMesh: carrBase };
-    scene.add(carrello3D);
+        carrello3D = carrelloContainer;
+        carrello3D.userData = {
+            baseMesh: carriageModel.carriageGroup,
+            carriageGroup: carriageModel.carriageGroup,
+            rotatingGroup: carriageModel.rotatingUpperGroup,
+            woodPanel: carriageModel.woodPanel,
+            update: carriageModel.update
+        };
+        scene.add(carrello3D);
+    }
 
 
     // --- BIESSE CARICO (Loading Unit) ---
@@ -322,16 +309,22 @@ function initThreeJS() {
         scene.add(shelfR);
 
         // Contorni wireframe ad effetto tecnologico
-        const wireframeGeom = new THREE.EdgesGeometry(shelfGeom);
-        const wireframeMat = new THREE.LineBasicMaterial({ color: 0x475569, linewidth: 1 });
-        
-        const wireL = new THREE.LineSegments(wireframeGeom, wireframeMat);
-        wireL.position.copy(shelfL.position);
-        scene.add(wireL);
-        
-        const wireR = new THREE.LineSegments(wireframeGeom, wireframeMat);
-        wireR.position.copy(shelfR.position);
-        scene.add(wireR);
+        if (typeof THREE.EdgesGeometry !== 'undefined' && typeof THREE.LineSegments !== 'undefined') {
+            try {
+                const wireframeGeom = new THREE.EdgesGeometry(shelfGeom);
+                const wireframeMat = new THREE.LineBasicMaterial({ color: 0x475569, linewidth: 1 });
+                
+                const wireL = new THREE.LineSegments(wireframeGeom, wireframeMat);
+                wireL.position.copy(shelfL.position);
+                scene.add(wireL);
+                
+                const wireR = new THREE.LineSegments(wireframeGeom, wireframeMat);
+                wireR.position.copy(shelfR.position);
+                scene.add(wireR);
+            } catch (e) {
+                console.warn("Wireframe edges skipped:", e);
+            }
+        }
 
         // La navetta (struttura composta)
         const navGroup = new THREE.Group();
@@ -401,8 +394,15 @@ function animateThree() {
     // 1. CARRELLO
     if (carrello3D && currentStates.Carrello) {
         const yEnc = currentStates.Carrello.Y_Encoder || 0;
-        // Allineamento corretto dell'asse X
+        const rotEnc = currentStates.Carrello.Rotazione_Encoder || 0;
+
+        // Allineamento corretto dell'asse X (corsa Y fisica -> X 3D sinottico)
         carrello3D.position.x = 40 - (yEnc * 0.0028);
+
+        // Aggiornamento rotazione tavola
+        if (carrello3D.userData && carrello3D.userData.rotatingGroup) {
+            carrello3D.userData.rotatingGroup.rotation.z = (rotEnc * Math.PI) / 180;
+        }
 
         const state = currentStates.Carrello;
         const online = state.__comunicazione_ok__;
@@ -411,7 +411,7 @@ function animateThree() {
         if (ready) {
             hexColor = state.Stato_Picked ? 0x3b82f6 : 0x10b981; // Blu / Verde
         }
-        if (carrello3D.userData && carrello3D.userData.baseMesh) {
+        if (carrello3D.userData && carrello3D.userData.baseMesh && carrello3D.userData.baseMesh.material) {
             carrello3D.userData.baseMesh.material.color.setHex(hexColor);
         }
     }
@@ -431,10 +431,10 @@ function animateThree() {
         if (ready) {
             hexColor = state.Stato_Picked ? 0x3b82f6 : 0x10b981;
         }
-        if (caricatore3D.userData && caricatore3D.userData.baseMesh) {
+        if (caricatore3D.userData && caricatore3D.userData.baseMesh && caricatore3D.userData.baseMesh.material) {
             caricatore3D.userData.baseMesh.material.color.setHex(hexColor);
         }
-        if (caricatore3D.userData && caricatore3D.userData.frameMesh) {
+        if (caricatore3D.userData && caricatore3D.userData.frameMesh && caricatore3D.userData.frameMesh.material) {
             caricatore3D.userData.frameMesh.material.color.setHex(hexColor);
         }
     }
@@ -450,13 +450,13 @@ function animateThree() {
         }
 
         // Colori telai
-        if (r2Pivot3D && r2Pivot3D.userData && r2Pivot3D.userData.frameMesh) {
+        if (r2Pivot3D && r2Pivot3D.userData && r2Pivot3D.userData.frameMesh && r2Pivot3D.userData.frameMesh.material) {
             r2Pivot3D.userData.frameMesh.material.color.setHex(hexColor);
         }
-        if (r13D && r13D.children[0]) {
+        if (r13D && r13D.children && r13D.children[0] && r13D.children[0].material) {
             r13D.children[0].material.color.setHex(hexColor);
         }
-        if (biesse3D && biesse3D.children[0]) {
+        if (biesse3D && biesse3D.children && biesse3D.children[0] && biesse3D.children[0].material) {
             biesse3D.children[0].material.color.setHex(hexColor);
         }
 
