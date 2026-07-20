@@ -4,12 +4,15 @@
     "refresh": 0.3,
     "syslog_ip": "127.0.0.1",
     "syslog_port": 514,
+    "syslog_file_path": "\\\\nassp3\\syslog\\messages-kv.log",
+    "syslog_username": "",
+    "syslog_password": "",
     "carrello": {
         "corsa_max_y": 28500
     },
     "caricatore": {
         "corsa_max_z": 1500,
-        "posizione_y": 2000
+        "posizione_y": 1500
     },
     "navette": {
         "Navetta_1": {

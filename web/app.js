@@ -12,13 +12,16 @@ let ultimoJobsTableHTML = "";
 // --- VARIABILI DI STATO SYSLOG MONITOR ---
 let syslogLogs = [];
 let syslogEventSource = null;
-let syslogCurrentPage = 1;
 const syslogLogsPerPage = 100;
-let syslogSearchQuery = "";
-let syslogSelectedSeverity = "all";
-let syslogSelectedDate = "";
 let syslogRenderTimeout = null;
-let syslogDeferredRender = false;
+
+// Stati per ogni tipo di console: navette, carrello, caricatore, rulliere
+let syslogConsoleStates = {
+    navette: { currentPage: 1, searchQuery: "", selectedSeverity: "all", selectedDate: "", autoscroll: true, deferredRender: false },
+    carrello: { currentPage: 1, searchQuery: "", selectedSeverity: "all", selectedDate: "", autoscroll: true, deferredRender: false },
+    caricatore: { currentPage: 1, searchQuery: "", selectedSeverity: "all", selectedDate: "", autoscroll: true, deferredRender: false },
+    rulliere: { currentPage: 1, searchQuery: "", selectedSeverity: "all", selectedDate: "", autoscroll: true, deferredRender: false }
+};
 
 const SEVERITY_LABELS = {
     0: "EMERG",
@@ -63,41 +66,91 @@ function inviaScritturaAvanzata(parameter, customVal = -1) {
     inviaScrittura(nomeMacchina, parameter, targetVal);
 }
 
-function aggiornaStatoSyslog() {
-    const switchEl = document.getElementById("switch-attiva-syslog");
-    const consoleEl = document.getElementById("syslog-console");
-    const placeholderEl = document.getElementById("syslog-placeholder");
-    const linesContainer = document.getElementById("syslog-lines-container");
-    const badgeEl = document.getElementById("syslog-status-badge");
+function getConsoleElements(type) {
+    const suffix = type === "navette" ? "" : `-${type}`;
+    return {
+        switchEl: document.getElementById(`switch-attiva-syslog${suffix}`),
+        consoleEl: document.getElementById(`syslog-console${suffix}`),
+        placeholderEl: document.getElementById(`syslog-placeholder${suffix}`),
+        linesContainer: document.getElementById(`syslog-lines-container${suffix}`),
+        badgeEl: document.getElementById(`syslog-status-badge${suffix}`),
+        searchEl: document.getElementById(`syslog-search${suffix}`),
+        filterSeverityEl: document.getElementById(`syslog-filter-severity${suffix}`),
+        filterDateEl: document.getElementById(`syslog-filter-date${suffix}`),
+        btnClearDateEl: document.getElementById(`syslog-btn-clear-date${suffix}`),
+        btnExportEl: document.getElementById(`syslog-btn-export${suffix}`),
+        btnClearEl: document.getElementById(`syslog-btn-clear${suffix}`),
+        autoscrollEl: document.getElementById(`syslog-autoscroll${suffix}`),
+        statsEl: document.getElementById(`syslog-stats${suffix}`),
+        pageNumEl: document.getElementById(`syslog-page-num${suffix}`),
+        btnFirst: document.getElementById(`syslog-page-first${suffix}`),
+        btnPrev: document.getElementById(`syslog-page-prev${suffix}`),
+        btnNext: document.getElementById(`syslog-page-next${suffix}`),
+        btnLast: document.getElementById(`syslog-page-last${suffix}`)
+    };
+}
+
+function getMachineFromLog(log) {
+    if (!log || !log.message) return null;
     
-    if (!switchEl || !consoleEl) return;
+    // Controlla host o testo del messaggio
+    const text = log.message.toLowerCase();
     
-    if (switchEl.checked) {
-        consoleEl.classList.remove("disabled");
-        consoleEl.classList.add("active");
-        if (placeholderEl) placeholderEl.style.display = "none";
-        if (linesContainer) linesContainer.style.display = "block";
-        if (badgeEl) {
-            badgeEl.className = "syslog-badge-live";
-            badgeEl.innerText = "LIVE";
+    // Controlla Navette in ordine decrescente per evitare conflitti con prefissi (es: navetta10 che contiene navetta1)
+    for (let i = 10; i >= 1; i--) {
+        const numStr2 = String(i).padStart(2, "0"); // "01", "02"...
+        const keywords = [`navetta${numStr2}`, `navetta_${i}`, `navetta${i}`];
+        if (keywords.some(kw => text.includes(kw))) {
+            return `navetta_${i}`;
+        }
+    }
+    
+    // Controlla Carrello
+    if (text.includes("carrello") || text.includes("carriage") || text.includes("carr")) {
+        return "carrello";
+    }
+    
+    // Controlla Caricatore
+    if (text.includes("caricatore") || text.includes("loader") || text.includes("caric")) {
+        return "caricatore";
+    }
+    
+    // Controlla Rulliere
+    if (text.includes("rulliere") || text.includes("rulliera") || text.includes("conveyor") || text.includes("rulli")) {
+        return "rulliere";
+    }
+    
+    return null;
+}
+
+function aggiornaStatoSyslog(type) {
+    const el = getConsoleElements(type);
+    if (!el.switchEl || !el.consoleEl) return;
+    
+    if (el.switchEl.checked) {
+        el.consoleEl.classList.remove("disabled");
+        el.consoleEl.classList.add("active");
+        if (el.placeholderEl) el.placeholderEl.style.display = "none";
+        if (el.linesContainer) el.linesContainer.style.display = "block";
+        if (el.badgeEl) {
+            el.badgeEl.className = "syslog-badge-live";
+            el.badgeEl.innerText = "LIVE";
         }
         attivaSyslogStream();
+        renderSyslogFor(type);
     } else {
-        consoleEl.classList.remove("active");
-        consoleEl.classList.add("disabled");
-        if (badgeEl) {
-            badgeEl.className = "syslog-badge-paused";
-            badgeEl.innerText = "IN PAUSA";
+        el.consoleEl.classList.remove("active");
+        el.consoleEl.classList.add("disabled");
+        if (el.badgeEl) {
+            el.badgeEl.className = "syslog-badge-paused";
+            el.badgeEl.innerText = "IN PAUSA";
         }
-        disattivaSyslogStream();
+        controllaEChiudiSyslogStream();
     }
 }
 
 function attivaSyslogStream() {
     if (syslogEventSource) return;
-    
-    syslogLogs = [];
-    syslogCurrentPage = 1;
     
     syslogEventSource = new EventSource("/api/syslog_stream");
     
@@ -121,6 +174,19 @@ function attivaSyslogStream() {
     };
 }
 
+function controllaEChiudiSyslogStream() {
+    const switches = [
+        document.getElementById("switch-attiva-syslog"),
+        document.getElementById("switch-attiva-syslog-carrello"),
+        document.getElementById("switch-attiva-syslog-caricatore"),
+        document.getElementById("switch-attiva-syslog-rulliere")
+    ];
+    const anyActive = switches.some(s => s && s.checked);
+    if (!anyActive) {
+        disattivaSyslogStream();
+    }
+}
+
 function disattivaSyslogStream() {
     if (syslogEventSource) {
         syslogEventSource.close();
@@ -134,38 +200,164 @@ function triggerSyslogRender() {
     syslogRenderTimeout = setTimeout(() => {
         syslogRenderTimeout = null;
         
-        const consoleEl = document.getElementById("syslog-console");
-        const selection = window.getSelection();
-        let hasSelection = false;
-        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-            const range = selection.getRangeAt(0);
-            if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
-                hasSelection = true;
+        const types = ["navette", "carrello", "caricatore", "rulliere"];
+        types.forEach(type => {
+            const suffix = type === "navette" ? "" : `-${type}`;
+            const switchEl = document.getElementById(`switch-attiva-syslog${suffix}`);
+            if (switchEl && switchEl.checked) {
+                const consoleEl = document.getElementById(`syslog-console${suffix}`);
+                const selection = window.getSelection();
+                let hasSelection = false;
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                    const range = selection.getRangeAt(0);
+                    if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
+                        hasSelection = true;
+                    }
+                }
+                
+                if (hasSelection) {
+                    syslogConsoleStates[type].deferredRender = true;
+                } else {
+                    renderSyslogFor(type);
+                    syslogConsoleStates[type].deferredRender = false;
+                }
             }
-        }
-        
-        if (hasSelection) {
-            syslogDeferredRender = true;
-        } else {
-            renderSyslog();
-            syslogDeferredRender = false;
-        }
+        });
     }, 50);
 }
 
-function renderSyslog() {
-    const consoleEl = document.getElementById("syslog-console");
-    const container = document.getElementById("syslog-lines-container");
-    const statsEl = document.getElementById("syslog-stats");
-    const pageNumEl = document.getElementById("syslog-page-num");
+function formatSyslogMessage(rawMessage) {
+    if (!rawMessage) return "";
     
-    if (!consoleEl || !container) return;
+    // Clean ANSI escape sequences
+    let cleanMessage = rawMessage.replace(/\x1B\[[0-9;]*[mK]/g, "");
     
-    const query = syslogSearchQuery.toLowerCase().trim();
-    const severityFilter = syslogSelectedSeverity;
-    const dateFilter = syslogSelectedDate;
+    // Regexp to match key=value or key="value" or key='value'
+    const kvRegex = /(?:([a-zA-Z0-9_\-]+)=([^"\s]+|"[^"]*"|'[^']*'))/g;
+    let match;
+    const kvPairs = {};
+    let matchCount = 0;
     
-    const filtered = syslogLogs.filter(log => {
+    // Scan the message for KV pairs
+    while ((match = kvRegex.exec(cleanMessage)) !== null) {
+        let key = match[1];
+        let val = match[2];
+        // strip quotes if present
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.substring(1, val.length - 1);
+        }
+        kvPairs[key] = val;
+        matchCount++;
+    }
+    
+    // If we have at least 2 KV pairs, we render it structured
+    if (matchCount >= 2) {
+        let devname = kvPairs.devname || kvPairs.device || kvPairs.machine || "";
+        let action = kvPairs.action || kvPairs.op || kvPairs.cmd || "";
+        let result = kvPairs.result || kvPairs.status || kvPairs.res || "";
+        let msg = kvPairs.msg || kvPairs.message || kvPairs.info || "";
+        
+        let htmlParts = [];
+        
+        // 1. Device badge
+        if (devname) {
+            htmlParts.push(`<span class="syslog-badge-machine">${escapeHtml(devname)}</span>`);
+        }
+        
+        // 2. Action badge
+        if (action) {
+            htmlParts.push(`<span class="syslog-badge-action">${escapeHtml(action)}</span>`);
+        }
+        
+        // 3. Result badge
+        if (result) {
+            const resLower = result.toLowerCase();
+            let resClass = "syslog-badge-result-info";
+            if (resLower.includes("success") || resLower.includes("ok") || resLower.includes("done") || resLower.includes("true") || resLower.includes("completed") || resLower.includes("finito")) {
+                resClass = "syslog-badge-result-success";
+            } else if (resLower.includes("fail") || resLower.includes("error") || resLower.includes("err") || resLower.includes("false") || resLower.includes("fault") || resLower.includes("allarme") || resLower.includes("blocco")) {
+                resClass = "syslog-badge-result-fail";
+            } else if (resLower.includes("warn") || resLower.includes("warning") || resLower.includes("attenzio")) {
+                resClass = "syslog-badge-result-warn";
+            }
+            htmlParts.push(`<span class="syslog-badge-result ${resClass}">${escapeHtml(result.toUpperCase())}</span>`);
+        }
+        
+        // 4. Main message content
+        if (msg) {
+            htmlParts.push(`<span class="syslog-main-msg">${escapeHtml(msg)}</span>`);
+        }
+        
+        // 5. Remaining attributes
+        let attrHtmls = [];
+        const specialKeys = ["devname", "device", "machine", "action", "op", "cmd", "result", "status", "res", "msg", "message", "info"];
+        for (const [key, value] of Object.entries(kvPairs)) {
+            if (!specialKeys.includes(key)) {
+                attrHtmls.push(`
+                    <span class="syslog-attr-chip">
+                        <span class="syslog-attr-key">${escapeHtml(key)}</span>: 
+                        <span class="syslog-attr-val">${escapeHtml(value)}</span>
+                    </span>
+                `);
+            }
+        }
+        
+        if (attrHtmls.length > 0) {
+            htmlParts.push(`<span class="syslog-attr-container">${attrHtmls.join("")}</span>`);
+        }
+        
+        if (htmlParts.length > 0) {
+            return htmlParts.join(" ");
+        }
+    }
+    
+    // Fallback: Plain text log message with keyword highlighting
+    let escaped = escapeHtml(cleanMessage);
+    
+    // Highlight Error / Failure terms
+    escaped = escaped.replace(/\b(ERROR|ERR|FAIL|FAILED|FALLITO|FAULT|ALLARME|BLOCCO|EMERGENCY|CRITICAL)\b/gi, 
+        (match) => `<span class="syslog-highlight-error">${match}</span>`);
+        
+    // Highlight Warning terms
+    escaped = escaped.replace(/\b(WARN|WARNING|ATTENZIONE|PAUSA)\b/gi, 
+        (match) => `<span class="syslog-highlight-warn">${match}</span>`);
+        
+    // Highlight Success terms
+    escaped = escaped.replace(/\b(OK|SUCCESS|SUCCESSFUL|SUCCESSFULLY|COMPLETED|FINITO|ATTIVO|RIUSCITO|RIUSCITA)\b/gi, 
+        (match) => `<span class="syslog-highlight-success">${match}</span>`);
+        
+    // Highlight Machine terms
+    escaped = escaped.replace(/\b(Navetta_\d+|Navetta\s+\d+|Carrello|Caricatore|Rulliere)\b/gi, 
+        (match) => `<span class="syslog-highlight-machine">${match}</span>`);
+        
+    return escaped;
+}
+
+function renderSyslogFor(type) {
+    const el = getConsoleElements(type);
+    if (!el.consoleEl || !el.linesContainer) return;
+    
+    const state = syslogConsoleStates[type];
+    const query = state.searchQuery.toLowerCase().trim();
+    const severityFilter = state.selectedSeverity;
+    const dateFilter = state.selectedDate;
+    
+    // 1. Filtra per macchina specifica
+    let filtered = syslogLogs.filter(log => {
+        const logMachine = getMachineFromLog(log);
+        if (type === "navette") {
+            const activeNavName = `navetta_${activeNavettaIndex + 1}`;
+            return logMachine === activeNavName;
+        } else {
+            return logMachine === type;
+        }
+    });
+    
+    // 2. Ordina cronologicamente per timestamp
+    filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    
+    // 3. Filtra per parametri di ricerca/gravita/data
+    filtered = filtered.filter(log => {
         if (query && !log.message.toLowerCase().includes(query)) return false;
         if (severityFilter !== "all") {
             const sev = log.severity;
@@ -183,60 +375,68 @@ function renderSyslog() {
     const totalLogs = filtered.length;
     const totalPages = Math.max(1, Math.ceil(totalLogs / syslogLogsPerPage));
     
-    if (syslogCurrentPage > totalPages) {
-        syslogCurrentPage = totalPages;
+    if (state.currentPage > totalPages) {
+        state.currentPage = totalPages;
     }
     
-    if (statsEl) {
-        statsEl.innerText = `${totalLogs} log trovati`;
+    if (el.statsEl) {
+        el.statsEl.innerText = `${totalLogs} log trovati`;
     }
-    if (pageNumEl) {
-        pageNumEl.innerText = `Pagina ${syslogCurrentPage} di ${totalPages}`;
+    if (el.pageNumEl) {
+        el.pageNumEl.innerText = `Pagina ${state.currentPage} di ${totalPages}`;
     }
     
-    const startIdx = (syslogCurrentPage - 1) * syslogLogsPerPage;
+    const startIdx = (state.currentPage - 1) * syslogLogsPerPage;
     const endIdx = Math.min(startIdx + syslogLogsPerPage, totalLogs);
     const visibleLogs = filtered.slice(startIdx, endIdx);
     
-    const wasAtBottom = (consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight) < 30;
+    const wasAtBottom = (el.consoleEl.scrollHeight - el.consoleEl.scrollTop - el.consoleEl.clientHeight) < 30;
     
     if (visibleLogs.length === 0) {
-        container.innerHTML = `<div style="color: #64748b; font-style: italic; text-align: center; padding: 20px;">Nessun log corrisponde ai criteri.</div>`;
+        el.linesContainer.innerHTML = `<div style="color: #64748b; font-style: italic; text-align: center; padding: 20px;">Nessun log corrisponde ai criteri.</div>`;
     } else {
-        container.innerHTML = visibleLogs.map(log => {
+        el.linesContainer.innerHTML = visibleLogs.map(log => {
             const label = SEVERITY_LABELS[log.severity] || "LOG";
             return `
                 <div class="syslog-line syslog-sev-${log.severity}">
                     <span class="syslog-time">${log.timestamp}</span>
                     <span class="syslog-tag">${label}</span>
-                    <span class="syslog-msg">${escapeHtml(log.message)}</span>
+                    <span class="syslog-msg">${formatSyslogMessage(log.message)}</span>
                 </div>
             `;
         }).join("");
     }
     
-    const autoscrollEnabled = document.getElementById("syslog-autoscroll")?.checked;
-    if (wasAtBottom && autoscrollEnabled && syslogCurrentPage === totalPages) {
-        consoleEl.scrollTop = consoleEl.scrollHeight;
+    const autoscrollEnabled = el.autoscrollEl ? el.autoscrollEl.checked : true;
+    if (wasAtBottom && autoscrollEnabled && state.currentPage === totalPages) {
+        el.consoleEl.scrollTop = el.consoleEl.scrollHeight;
     }
     
-    const btnFirst = document.getElementById("syslog-page-first");
-    const btnPrev = document.getElementById("syslog-page-prev");
-    const btnNext = document.getElementById("syslog-page-next");
-    const btnLast = document.getElementById("syslog-page-last");
-    
-    if (btnFirst) btnFirst.disabled = (syslogCurrentPage === 1);
-    if (btnPrev) btnPrev.disabled = (syslogCurrentPage === 1);
-    if (btnNext) btnNext.disabled = (syslogCurrentPage === totalPages);
-    if (btnLast) btnLast.disabled = (syslogCurrentPage === totalPages);
+    if (el.btnFirst) el.btnFirst.disabled = (state.currentPage === 1);
+    if (el.btnPrev) el.btnPrev.disabled = (state.currentPage === 1);
+    if (el.btnNext) el.btnNext.disabled = (state.currentPage === totalPages);
+    if (el.btnLast) el.btnLast.disabled = (state.currentPage === totalPages);
 }
 
-function exportSyslogLogs() {
-    const query = syslogSearchQuery.toLowerCase().trim();
-    const severityFilter = syslogSelectedSeverity;
-    const dateFilter = syslogSelectedDate;
+function exportSyslogLogsFor(type) {
+    const state = syslogConsoleStates[type];
+    const query = state.searchQuery.toLowerCase().trim();
+    const severityFilter = state.selectedSeverity;
+    const dateFilter = state.selectedDate;
     
-    const filtered = syslogLogs.filter(log => {
+    let filtered = syslogLogs.filter(log => {
+        const logMachine = getMachineFromLog(log);
+        if (type === "navette") {
+            const activeNavName = `navetta_${activeNavettaIndex + 1}`;
+            return logMachine === activeNavName;
+        } else {
+            return logMachine === type;
+        }
+    });
+    
+    filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    
+    filtered = filtered.filter(log => {
         if (query && !log.message.toLowerCase().includes(query)) return false;
         if (severityFilter !== "all") {
             const sev = log.severity;
@@ -260,7 +460,8 @@ function exportSyslogLogs() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `syslog_export_${new Date().toISOString().slice(0,10)}.txt`;
+    const machineLabel = type === "navette" ? `Navetta_${activeNavettaIndex + 1}` : type.charAt(0).toUpperCase() + type.slice(1);
+    link.download = `syslog_${machineLabel}_${new Date().toISOString().slice(0,10)}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -307,84 +508,96 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("logs-console").innerHTML = "";
     });
 
-    // Event listener per attivazione syslog
-    document.getElementById("switch-attiva-syslog")?.addEventListener("change", aggiornaStatoSyslog);
+    // Inizializzazione controlli Syslog per tutte le console (navette, carrello, caricatore, rulliere)
+    const syslogTypes = ["navette", "carrello", "caricatore", "rulliere"];
+    syslogTypes.forEach(type => {
+        const suffix = type === "navette" ? "" : `-${type}`;
+        
+        document.getElementById(`switch-attiva-syslog${suffix}`)?.addEventListener("change", () => {
+            aggiornaStatoSyslog(type);
+        });
 
-    // Filtri Syslog
-    document.getElementById("syslog-search")?.addEventListener("input", (e) => {
-        syslogSearchQuery = e.target.value;
-        syslogCurrentPage = 1;
-        triggerSyslogRender();
-    });
-    
-    document.getElementById("syslog-filter-severity")?.addEventListener("change", (e) => {
-        syslogSelectedSeverity = e.target.value;
-        syslogCurrentPage = 1;
-        triggerSyslogRender();
-    });
-    
-    document.getElementById("syslog-filter-date")?.addEventListener("change", (e) => {
-        syslogSelectedDate = e.target.value;
-        syslogCurrentPage = 1;
-        triggerSyslogRender();
-    });
-    
-    document.getElementById("syslog-btn-clear-date")?.addEventListener("click", () => {
-        const dateInput = document.getElementById("syslog-filter-date");
-        if (dateInput) dateInput.value = "";
-        syslogSelectedDate = "";
-        syslogCurrentPage = 1;
-        triggerSyslogRender();
-    });
-    
-    document.getElementById("syslog-btn-clear")?.addEventListener("click", () => {
-        syslogLogs = [];
-        syslogCurrentPage = 1;
-        triggerSyslogRender();
-    });
-    
-    document.getElementById("syslog-btn-export")?.addEventListener("click", exportSyslogLogs);
-    
-    // Paginazione Syslog
-    document.getElementById("syslog-page-first")?.addEventListener("click", () => {
-        syslogCurrentPage = 1;
-        renderSyslog();
-    });
-    
-    document.getElementById("syslog-page-prev")?.addEventListener("click", () => {
-        if (syslogCurrentPage > 1) {
-            syslogCurrentPage--;
-            renderSyslog();
-        }
-    });
-    
-    document.getElementById("syslog-page-next")?.addEventListener("click", () => {
-        syslogCurrentPage++;
-        renderSyslog();
-    });
-    
-    document.getElementById("syslog-page-last")?.addEventListener("click", () => {
-        syslogCurrentPage = 99999;
-        renderSyslog();
+        document.getElementById(`syslog-search${suffix}`)?.addEventListener("input", (e) => {
+            syslogConsoleStates[type].searchQuery = e.target.value;
+            syslogConsoleStates[type].currentPage = 1;
+            triggerSyslogRender();
+        });
+        
+        document.getElementById(`syslog-filter-severity${suffix}`)?.addEventListener("change", (e) => {
+            syslogConsoleStates[type].selectedSeverity = e.target.value;
+            syslogConsoleStates[type].currentPage = 1;
+            triggerSyslogRender();
+        });
+        
+        document.getElementById(`syslog-filter-date${suffix}`)?.addEventListener("change", (e) => {
+            syslogConsoleStates[type].selectedDate = e.target.value;
+            syslogConsoleStates[type].currentPage = 1;
+            triggerSyslogRender();
+        });
+        
+        document.getElementById(`syslog-btn-clear-date${suffix}`)?.addEventListener("click", () => {
+            const dateInput = document.getElementById(`syslog-filter-date${suffix}`);
+            if (dateInput) dateInput.value = "";
+            syslogConsoleStates[type].selectedDate = "";
+            syslogConsoleStates[type].currentPage = 1;
+            triggerSyslogRender();
+        });
+        
+        document.getElementById(`syslog-btn-clear${suffix}`)?.addEventListener("click", () => {
+            syslogLogs = [];
+            syslogConsoleStates[type].currentPage = 1;
+            triggerSyslogRender();
+        });
+        
+        document.getElementById(`syslog-btn-export${suffix}`)?.addEventListener("click", () => {
+            exportSyslogLogsFor(type);
+        });
+        
+        // Paginazione
+        document.getElementById(`syslog-page-first${suffix}`)?.addEventListener("click", () => {
+            syslogConsoleStates[type].currentPage = 1;
+            renderSyslogFor(type);
+        });
+        
+        document.getElementById(`syslog-page-prev${suffix}`)?.addEventListener("click", () => {
+            if (syslogConsoleStates[type].currentPage > 1) {
+                syslogConsoleStates[type].currentPage--;
+                renderSyslogFor(type);
+            }
+        });
+        
+        document.getElementById(`syslog-page-next${suffix}`)?.addEventListener("click", () => {
+            syslogConsoleStates[type].currentPage++;
+            renderSyslogFor(type);
+        });
+        
+        document.getElementById(`syslog-page-last${suffix}`)?.addEventListener("click", () => {
+            syslogConsoleStates[type].currentPage = 99999;
+            renderSyslogFor(type);
+        });
     });
 
-    // Ascolto cambio selezione per ripristinare il render rimandato
+    // Ascolto cambio selezione per ripristinare il render rimandato su tutte le console
     document.addEventListener("selectionchange", () => {
-        if (syslogDeferredRender) {
-            const selection = window.getSelection();
-            const consoleEl = document.getElementById("syslog-console");
-            let hasSelection = false;
-            if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-                const range = selection.getRangeAt(0);
-                if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
-                    hasSelection = true;
+        const types = ["navette", "carrello", "caricatore", "rulliere"];
+        types.forEach(type => {
+            if (syslogConsoleStates[type].deferredRender) {
+                const suffix = type === "navette" ? "" : `-${type}`;
+                const consoleEl = document.getElementById(`syslog-console${suffix}`);
+                const selection = window.getSelection();
+                let hasSelection = false;
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                    const range = selection.getRangeAt(0);
+                    if (consoleEl && consoleEl.contains(range.commonAncestorContainer)) {
+                        hasSelection = true;
+                    }
+                }
+                if (!hasSelection) {
+                    renderSyslogFor(type);
+                    syslogConsoleStates[type].deferredRender = false;
                 }
             }
-            if (!hasSelection) {
-                renderSyslog();
-                syslogDeferredRender = false;
-            }
-        }
+        });
     });
 
     // Toggle 2D/3D Sinottico
@@ -465,11 +678,15 @@ function switchTab(targetId) {
     if (switchEl) switchEl.checked = false;
     
     // Disattiva anche il syslog reader al cambio scheda/tab
-    const switchSyslog = document.getElementById("switch-attiva-syslog");
-    if (switchSyslog) {
-        switchSyslog.checked = false;
-        aggiornaStatoSyslog();
-    }
+    const syslogTypesToReset = ["navette", "carrello", "caricatore", "rulliere"];
+    syslogTypesToReset.forEach(type => {
+        const suffix = type === "navette" ? "" : `-${type}`;
+        const switchSyslog = document.getElementById(`switch-attiva-syslog${suffix}`);
+        if (switchSyslog) {
+            switchSyslog.checked = false;
+            aggiornaStatoSyslog(type);
+        }
+    });
     
     activeTab = targetId;
     
@@ -506,7 +723,7 @@ function selectNavetta(i) {
         const switchSyslog = document.getElementById("switch-attiva-syslog");
         if (switchSyslog) {
             switchSyslog.checked = false;
-            aggiornaStatoSyslog();
+            aggiornaStatoSyslog("navette");
         }
         
         const isNav4 = (i === 4);

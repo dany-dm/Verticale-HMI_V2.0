@@ -3,6 +3,7 @@ import os
 import time
 import threading
 import subprocess
+import platform
 
 class SyslogReader:
     def __init__(self, datastore, file_path="", username="", password=""):
@@ -38,6 +39,53 @@ class SyslogReader:
         # Attendiamo brevemente che il thread termini
         time.sleep(0.2)
         self.start(file_path, username, password)
+
+    def _open_file(self, path):
+        """Apre il file in modalità sola lettura senza porre alcun blocco (share read/write/delete)."""
+        if platform.system() == "Windows":
+            import ctypes
+            from ctypes import wintypes
+            import msvcrt
+
+            GENERIC_READ = 0x80000000
+            FILE_SHARE_READ = 0x00000001
+            FILE_SHARE_WRITE = 0x00000002
+            FILE_SHARE_DELETE = 0x00000004
+            OPEN_EXISTING = 3
+            FILE_ATTRIBUTE_NORMAL = 0x80
+            INVALID_HANDLE_VALUE = -1
+
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            CreateFileW = kernel32.CreateFileW
+            CreateFileW.argtypes = [
+                wintypes.LPCWSTR,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                ctypes.c_void_p,
+                wintypes.DWORD,
+                wintypes.DWORD,
+                wintypes.HANDLE
+            ]
+            CreateFileW.restype = wintypes.HANDLE
+
+            handle = CreateFileW(
+                path,
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                None,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                None
+            )
+
+            if handle == INVALID_HANDLE_VALUE:
+                err = ctypes.get_last_error()
+                raise ctypes.WinError(err)
+
+            fd = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+            return open(fd, 'r', encoding='utf-8', errors='replace')
+        else:
+            return open(path, 'r', encoding='utf-8', errors='replace')
 
     def _authenticate_unc(self, path):
         # Se il percorso inizia con \\ ed è fornito username, esegui "net use"
@@ -81,7 +129,7 @@ class SyslogReader:
         # Prova ad autenticarsi se è un percorso UNC
         self._authenticate_unc(file_path)
         
-        self.datastore.add_log("SyslogReader", f"Avvio monitoraggio file syslog: {file_path}", level="INFO")
+        self.datastore.add_log("SyslogReader", f"Avvio monitoraggio file syslog (modalità non bloccante): {file_path}", level="INFO")
         
         # Attesa del file se non esiste ancora
         wait_cycles = 0
@@ -94,55 +142,52 @@ class SyslogReader:
         if not self.running:
             return
             
+        # Inizializziamo last_position
+        last_position = 0
         try:
-            # Apri il file e leggi dall'inizio o dalla fine
-            # Per evitare di inondare il client all'inizio, leggiamo le ultime ~100 righe se il file è grande,
-            # oppure iniziamo dall'inizio se è piccolo.
             file_size = os.path.getsize(file_path)
-            f = open(file_path, "r", encoding="utf-8", errors="replace")
-            
-            # Se il file è grande, posizioniamoci verso la fine
-            if file_size > 50000: # circa 50KB
-                f.seek(file_size - 50000)
-                # Salta la prima riga parziale
-                f.readline()
-            else:
-                f.seek(0)
-                
-            self.datastore.add_log("SyslogReader", f"File syslog aperto correttamente.", level="INFO")
-            
-            last_size = os.path.getsize(file_path)
-            
-            while self.running:
-                # Controlla se il file è stato rotto o svuotato (rotazione log)
+            if file_size > 50000:  # circa 50KB
+                last_position = file_size - 50000
+                # Salta la prima riga parziale per allineamento
                 try:
-                    curr_size = os.path.getsize(file_path)
-                except OSError:
-                    curr_size = last_size
-                    
-                if curr_size < last_size:
-                    # Il file è stato troncato o ruotato
-                    self.datastore.add_log("SyslogReader", "Rilevata rotazione o troncamento del file syslog. Riapertura...", level="INFO")
-                    f.close()
-                    time.sleep(0.5)
-                    try:
-                        f = open(file_path, "r", encoding="utf-8", errors="replace")
-                        last_size = 0
-                    except Exception:
-                        continue
-                
-                line = f.readline()
-                if line:
-                    # parsing del syslog log
-                    self._parse_and_store_line(line)
-                    last_size = f.tell()
-                else:
-                    # Nessuna nuova riga, attendi un attimo
-                    time.sleep(0.2)
-                    
-            f.close()
+                    with self._open_file(file_path) as f:
+                        f.seek(last_position)
+                        f.readline()
+                        last_position = f.tell()
+                except Exception:
+                    last_position = file_size
+            else:
+                last_position = 0
         except Exception as e:
-            self.datastore.add_log("SyslogReader", f"Errore durante il monitoraggio del file: {e}", level="ERROR")
+            self.datastore.add_log("SyslogReader", f"Errore inizializzazione posizione: {e}", level="WARNING")
+
+        while self.running:
+            try:
+                if not os.path.exists(file_path):
+                    time.sleep(0.5)
+                    continue
+                    
+                curr_size = os.path.getsize(file_path)
+                
+                if curr_size < last_position:
+                    # Il file è stato troncato o ruotato
+                    self.datastore.add_log("SyslogReader", "Rilevata rotazione o troncamento del file syslog. Riapertura da inizio file...", level="INFO")
+                    last_position = 0
+                
+                if curr_size > last_position:
+                    with self._open_file(file_path) as f:
+                        f.seek(last_position)
+                        while self.running:
+                            line = f.readline()
+                            if not line:
+                                break
+                            self._parse_and_store_line(line)
+                        last_position = f.tell()
+            except Exception as e:
+                # Evita loop rapidi se ci sono errori persistenti
+                time.sleep(0.5)
+                
+            time.sleep(0.2)
 
     def _parse_and_store_line(self, line):
         line = line.strip()
