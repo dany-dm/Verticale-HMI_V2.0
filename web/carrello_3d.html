@@ -489,7 +489,7 @@
                 <span class="logo-icon">▲</span>
                 <div class="logo-text">
                     <h1>CARRELLO TRASLATORE 3D</h1>
-                    <span>Gomma Cinghie in ROSSO VIVO Saturo &middot; Rimozione 8 Supporti Traversi &middot; Vista CAD</span>
+                    <span>Vista Isometrica Ruotata 90° verso -X &middot; Binari Orientati su Corsa -Y</span>
                 </div>
             </div>
             <div class="header-actions">
@@ -499,6 +499,16 @@
         
         <!-- CONTROLLI (SINISTRA) -->
         <div class="sidebar-left interactive">
+            <div>
+                <h3 class="panel-title">Modalità Riferimento Movimento</h3>
+                <div class="control-group" style="margin-top: 8px;">
+                    <div class="btn-grid">
+                        <button class="btn-action active" id="btn-mode-overview">Vista 3D (Binario Fisso)</button>
+                        <button class="btn-action" id="btn-mode-machine">Vista Macchina (Carrello Fisso)</button>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <h3 class="panel-title">Stato Fotocellule &amp; Sensori</h3>
                 <div class="control-group" style="margin-top: 8px;">
@@ -517,17 +527,40 @@
             </div>
 
             <div>
-                <h3 class="panel-title">Simulazione Traslazione</h3>
-                <div class="control-group" style="margin-top: 8px;">
+                <h3 class="panel-title">Traslazione Corsa Reale Carrello</h3>
+                <div class="control-group" style="margin-top: 8px; gap:10px;">
                     <div class="control-header">
-                        <span class="control-label">Spostamento Carrello</span>
+                        <span class="control-label">Spostamento Y (Direzione -Y)</span>
                         <span class="control-value" id="val-pos-y">0 mm</span>
                     </div>
-                    <input type="range" id="slider-pos-y" min="-500" max="500" step="5" value="0">
-                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); font-family:'JetBrains Mono'; margin-top:2px;">
-                        <span>-500mm</span>
-                        <span>0mm (Home)</span>
-                        <span>+500mm</span>
+                    <input type="range" id="slider-pos-y" min="0" max="28500" step="50" value="0">
+                    <div class="btn-grid-3">
+                        <button class="btn-preset active" id="btn-pos-home">0 mm (R1)</button>
+                        <button class="btn-preset" id="btn-pos-mid">14250 mm (Metà)</button>
+                        <button class="btn-preset" id="btn-pos-max">28500 mm (Max)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="panel-title">Posizione &amp; Animazione Cinghie</h3>
+                <div class="control-group" style="margin-top: 8px; gap:10px;">
+                    <div class="toggle-group">
+                        <span class="switch-label">Movimento Continuo Cinghie</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-belts-running">
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="control-header">
+                        <span class="control-label">Traslazione Y Pannello</span>
+                        <span class="control-value" id="val-panel-y">0 mm (Centro)</span>
+                    </div>
+                    <input type="range" id="slider-panel-y" min="-170" max="170" step="1" value="0">
+                    <div class="btn-grid-3">
+                        <button class="btn-preset" id="btn-panel-neg-y">Riscontro -Y</button>
+                        <button class="btn-preset active" id="btn-panel-center">Centro</button>
+                        <button class="btn-preset" id="btn-panel-pos-y">Riscontro +Y</button>
                     </div>
                 </div>
             </div>
@@ -544,22 +577,6 @@
                         <span>0mm (Interno)</span>
                         <span>200mm</span>
                         <span>400mm (Filo X=0)</span>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h3 class="panel-title">Posizione Pannello Legno</h3>
-                <div class="control-group" style="margin-top: 8px; gap:10px;">
-                    <div class="control-header">
-                        <span class="control-label">Traslazione Y Pannello</span>
-                        <span class="control-value" id="val-panel-y">0 mm (Centro)</span>
-                    </div>
-                    <input type="range" id="slider-panel-y" min="-170" max="170" step="1" value="0">
-                    <div class="btn-grid-3">
-                        <button class="btn-preset" id="btn-panel-neg-y">Riscontro -Y</button>
-                        <button class="btn-preset active" id="btn-panel-center">Centro</button>
-                        <button class="btn-preset" id="btn-panel-pos-y">Riscontro +Y</button>
                     </div>
                 </div>
             </div>
@@ -616,6 +633,13 @@
                 <h3 class="panel-title">Visualizzazione</h3>
                 <div class="control-group" style="margin-top: 8px; gap: 10px;">
                     <div class="toggle-group">
+                        <span class="switch-label">Tooltip Info Hover (SN &amp; Dettagli)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-tooltip">
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-group">
                         <span class="switch-label">Mostra Pannello Legno</span>
                         <label class="switch">
                             <input type="checkbox" id="toggle-panel" checked>
@@ -656,7 +680,7 @@
             <div>
                 <h3 class="panel-title">Inquadrature</h3>
                 <div class="btn-grid" style="margin-top: 8px;">
-                    <button class="btn-action active" id="btn-cam-iso">Isometrica</button>
+                    <button class="btn-action active" id="btn-cam-iso">Isometrica (-X)</button>
                     <button class="btn-action" id="btn-cam-top">Dall'Alto</button>
                     <button class="btn-action" id="btn-cam-front">Frontale (X-Z)</button>
                     <button class="btn-action" id="btn-cam-side">Laterale (Y-Z)</button>
@@ -670,28 +694,32 @@
             
             <div class="specs-list">
                 <div class="spec-item">
-                    <span class="spec-title" style="color:#ef4444;">Gomma Cinghie Rosso Vivo Saturo</span>
-                    <span class="spec-desc">Il rivestimento superiore in gomma delle cinghie è stato aggiornato con un colore <strong>ROSSO VIVO INTENSO E SATURO</strong> (eliminato l'effetto rosa/desaturato).</span>
+                    <span class="spec-title" style="color:#00f2fe;">Disattivazione Tooltip in Modalità Modello</span>
+                    <span class="spec-desc">I tooltip pop-up al passaggio del mouse sono <strong>disattivati di default nelle due viste modello</strong> (<code>?mode=machine</code> e <code>?mode=overview</code>), rimanendo attivi solo nella finestra di debug standalone o se attivato lo switch in UI.</span>
                 </div>
 
                 <div class="spec-item">
-                    <span class="spec-title">Rimosse Piastrine Supporto Traversi</span>
-                    <span class="spec-desc">Le 8 piastrine 45x45x10 mm sotto i traversi della tavola (ex 1321..1328) sono state <strong>completamente rimosse</strong>.</span>
+                    <span class="spec-title" style="color:#00f2fe;">Vista Isometrica Ruotata 90° (-X)</span>
+                    <span class="spec-desc">Inquadratura principale ruotata di 90° verso l'estremità <strong>-X</strong> (Posizione Camera: $X=-1600$, $Y=2500$, $Z=1500$).</span>
                 </div>
 
                 <div class="spec-item">
-                    <span class="spec-title">3 Fotocellule M18 a Candela Alzate di 30mm (SN-1751..1753)</span>
-                    <span class="spec-desc">3 fotocellule cilindriche M18 Ø18mm h65mm montate sottosopra ad altezza Y=-5.5mm (lente inferiore Y=-40.5mm), distanziate di +20mm in Y (Z=525mm).</span>
+                    <span class="spec-title" style="color:#00f2fe;">Binari Allineati alla Corsa -Y</span>
+                    <span class="spec-desc">
+                        - <strong>Extremità Positiva (Home Y=0)</strong>: $Y = 0 + (1100/2) + 200 + 400 = +1150\text{ mm}$<br>
+                        - <strong>Extremità Negativa (Max Y)</strong>: $Y = -(Y_{\text{max}} + (1100/2) + 200) = -29250\text{ mm}$<br>
+                        - <strong>Lunghezza Totale Binari</strong>: $30400\text{ mm}$ (Il carrello rimane **sempre sui binari** durante tutta la corsa reale).
+                    </span>
                 </div>
 
                 <div class="spec-item">
-                    <span class="spec-title">Fotocellula M18 Sottosopra sopra Binario (SN-1748)</span>
-                    <span class="spec-desc">Sensore M18 Ø18mm h65mm montato <strong>sottosopra (ruotato di 180°)</strong> sopra il binario 2 tra ruota 1105 e 1106.</span>
+                    <span class="spec-title" style="color:#f97316;">Direzione Movimento Invertita</span>
+                    <span class="spec-desc">L'aumento della traslazione sposta il carrello verso <strong>-Y</strong> (in Vista 3D Impianto) o sposta i binari verso <strong>+Y</strong> (in Vista Macchina).</span>
                 </div>
 
                 <div class="spec-item">
-                    <span class="spec-title">Tangenza Ruote a Filo Telaio</span>
-                    <span class="spec-desc">L'asse delle ruote è posizionato a <strong>X = -17.5 mm</strong> e <strong>X = 4017.5 mm</strong>, tangente a filo del telaio senza sovrapposizione né aria.</span>
+                    <span class="spec-title" style="color:#ef4444;">Animazione Movimento Cinghia</span>
+                    <span class="spec-desc">Scorrimento dinamico della gomma vulcanizzata sulle cinghie: guidato dal movimento Y del pannello o attivabile in <strong>Movimento Continuo</strong>.</span>
                 </div>
             </div>
         </div>
@@ -700,14 +728,35 @@
 
     <!-- MAIN 3D LOGIC -->
     <script>
+        // Lettura parametri URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasModeParam = urlParams.has('mode');
+        const initialMode = urlParams.get('mode') === 'machine' ? 'machine' : 'overview';
+
+        // Disattivazione di default del Tooltip Hover nelle viste modello (quando ?mode= è specificato), attivo invece in finestra debug standalone
+        const defaultShowTooltip = urlParams.get('tooltip') !== null 
+            ? (urlParams.get('tooltip') === '1' || urlParams.get('tooltip') === 'true') 
+            : !hasModeParam;
+
+        // Quota Corsa Max Y (mm) dalla configurazione (Limiti Meccanici, default 28500 mm)
+        const maxCarrelloY = parseFloat(urlParams.get('max_y')) || (window.parent && window.parent.HMI_CONFIG && window.parent.HMI_CONFIG.carrello && window.parent.HMI_CONFIG.carrello.corsa_max_y) || 28500;
+
+        // FORMULA ESATTA ORIENTATA IN DIREZIONE DI CORSA -Y:
+        // Extremità su lato Home (Y=0):   Z = 0 + (1100 / 2) + 200 + 400 = +1150 mm
+        // Extremità su lato Max (Y=Max): Z = -(maxCarrelloY + (1100 / 2) + 200) = -(maxCarrelloY + 750) mm (-29250 mm)
+        const railStartZ = -(maxCarrelloY + (1100 / 2) + 200); // -29250 mm per max_y=28500
+        const railEndZ = 0 + (1100 / 2) + 200 + 400;          // +1150 mm
+        const railLength = railEndZ - railStartZ;             // maxCarrelloY + 1900 mm (30400 mm)
+        const railCenterZ = (railStartZ + railEndZ) / 2;     // -(maxCarrelloY - 400) / 2 (-14050 mm)
+
         // Configurazione e Costanti Geometriche (in mm)
         const GEO = {
             frame: { length: 4000, width: 1000, height: 110 }, 
             upperFrame: { length: 4000, width: 800, profileSize: 45 }, 
-            wheel: { diameter: 150, radius: 75, width: 35, countPerSide: 4, outerSpacing: 1000, xOffset: 17.5 }, // [xOffset=17.5]: metà larghezza ruota 35mm, per tangenza esatta a filo senza aria né sovrapposizione
-            rail: { length: 2000, width: 40, height: 40 }, 
+            wheel: { diameter: 150, radius: 75, width: 35, countPerSide: 4, outerSpacing: 1000, xOffset: 17.5 }, 
+            rail: { length: railLength, width: 40, height: 40 }, 
             column: { depth: 45, width: 250, height: 900, count: 4, edgeOffset: 500 },
-            shaft: { length: 3045 }, 
+            shaft: { length: 3055 }, // Allungato +10mm in -X
             disk: { radius: 300, thickness: 45, cutY: 1055 }, 
             beltDeck: { raiseHeight: 70, length: 1100, pulleyRadius: 27.5, pulleyWidth: 30, width: 26 },
             sideTraverso: { length: 250, zOffsetFromEnd: 105 },
@@ -732,22 +781,23 @@
         // Variabili globali Three.js
         let scene, camera, renderer, controls;
         let carriageGroup; // Gruppo mobile principale
-        let rotatingUpperGroup; // Gruppo rotante (tavola + dischi + cinghie + alette + pannello + nuovo asse)
+        let rotatingUpperGroup; // Gruppo rotante
+        let railsGroup; // Gruppo binari e pavimento (per movimentazione relativa in Vista Macchina)
         let woodPanelMesh; // Mesh del pannello di legno
-        let linearAxisCarriageGroup; // Gruppo mobile dei pattini, traversino e fotocellule dell'asse lineare
-        let candleStatusRingMat; // Materiale luminoso dell'anello circolare di stato sul basso della fotocellula M18
-        let photocellSideStatusMaterials = []; // Array dei materiali LED di stato sul FIANCO / BASSO (Giallo/Verde)
-        let leftFlaps = []; // Array per i flap del lato sinistro (Z < 0)
-        let rightFlaps = []; // Array per i flap del lato destro (Z > 0)
+        let linearAxisCarriageGroup; // Gruppo mobile dei pattini dell'asse lineare
+        let candleStatusRingMat; 
+        let photocellSideStatusMaterials = []; 
+        let leftFlaps = []; 
+        let rightFlaps = []; 
         let wheelsGroup = []; 
         let dimensionsGroup; 
         let gridHelper, axesGroup;
+        let redBeltTexture; 
         let container = document.getElementById('viewport-container');
 
         // Mappa globale per l'accesso diretto per Numero Seriale (SN)
         const serialMap = new Map();
 
-        // Helper per la registrazione seriale dei poligoni
         function setPartMetadata(mesh, sn, name, category, info) {
             mesh.userData = {
                 serialNumber: sn,
@@ -760,13 +810,16 @@
 
         // Stato dell'applicazione
         const state = {
+            motionMode: initialMode, 
             posY: 0, 
             rotAngle: 0, 
             flapLeftAngle: 0,  
             flapRightAngle: 0, 
             panelY: 0, 
-            axisX: 400, // [INVERTITO]: 400mm = pattino a filo del longherone (X=0)
-            photocellsActive: false, // false = Inattivo (Giallo Brillante), true = Attivo (Verde Neon)
+            axisX: 400, 
+            photocellsActive: false, 
+            beltsRunning: false, 
+            showTooltip: defaultShowTooltip, 
             showPanel: true,
             showGrid: true,
             showAxes: true,
@@ -782,10 +835,10 @@
             // 1. Scena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x111625);
-            scene.fog = new THREE.FogExp2(0x111625, 0.00008);
+            scene.fog = new THREE.FogExp2(0x111625, 0.00004);
 
             // 2. Camera
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 30000);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 80000);
 
             // 3. Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -804,7 +857,7 @@
                 controls.dampingFactor = 0.05;
                 controls.maxPolarAngle = Math.PI / 2 - 0.01;
                 controls.minDistance = 500;
-                controls.maxDistance = 15000;
+                controls.maxDistance = 60000;
                 controls.target.set(GEO.frame.length / 2, 500, 0);
             }
             
@@ -813,7 +866,7 @@
             // 5. Luci
             setupLights();
 
-            // 6. Elementi Fissi della Scena
+            // 6. Elementi Fissi / Binari della Scena (in `railsGroup`)
             setupEnvironment();
 
             // 7. Costruzione del Carrello
@@ -822,9 +875,10 @@
             // 8. Costruzione Quote CAD
             buildDimensions();
 
-            // 9. Event Listeners
+            // 9. Event Listeners & Inizializzazione UI
             window.addEventListener('resize', onWindowResize, false);
             setupUIHandlers();
+            updateMotionModeUI();
         }
 
         function setupLights() {
@@ -841,8 +895,8 @@
             dirLight1.shadow.mapSize.width = 2048;
             dirLight1.shadow.mapSize.height = 2048;
             dirLight1.shadow.camera.near = 100;
-            dirLight1.shadow.camera.far = 15000;
-            const d = 4000;
+            dirLight1.shadow.camera.far = 40000;
+            const d = 15000;
             dirLight1.shadow.camera.left = -d;
             dirLight1.shadow.camera.right = d;
             dirLight1.shadow.camera.top = d;
@@ -853,21 +907,24 @@
             dirLight2.position.set(2000, 4000, -5000);
             scene.add(dirLight2);
 
-            const cyanLight = new THREE.PointLight(0x06b6d4, 1.8, 8000);
+            const cyanLight = new THREE.PointLight(0x06b6d4, 1.8, 12000);
             cyanLight.position.set(-1500, 1500, -2000);
             scene.add(cyanLight);
 
-            const orangeLight = new THREE.PointLight(0xf97316, 1.5, 8000);
+            const orangeLight = new THREE.PointLight(0xf97316, 1.5, 12000);
             orangeLight.position.set(5500, 2000, 2000);
             scene.add(orangeLight);
         }
 
         function setupEnvironment() {
-            gridHelper = new THREE.GridHelper(12000, 24, 0x475569, 0x223344);
-            gridHelper.position.y = -78.1;
+            railsGroup = new THREE.Group();
+
+            const gridExtent = Math.max(36000, railLength + 4000);
+            gridHelper = new THREE.GridHelper(gridExtent, 72, 0x475569, 0x223344);
+            gridHelper.position.set(GEO.frame.length / 2, -78.1, railCenterZ);
             gridHelper.material.opacity = 0.65;
             gridHelper.material.transparent = true;
-            scene.add(gridHelper);
+            railsGroup.add(gridHelper);
 
             axesGroup = new THREE.Group();
             
@@ -929,9 +986,9 @@
             spriteY.position.set(0, 0, axisLen + 80);
             axesGroup.add(spriteY);
 
-            scene.add(axesGroup);
+            railsGroup.add(axesGroup);
 
-            // --- BINARI (Fissi, paralleli a Y, posizionati tangenti a filo X=0 e X=4000 senza aria e senza sovrapposizione) ---
+            // --- BINARI DEL CARRELLO (Inizio Y = +1150 mm, Fine Y = -29250 mm) ---
             const railMat = new THREE.MeshStandardMaterial({
                 color: 0xa1a1aa,
                 metalness: 0.95,
@@ -942,25 +999,27 @@
 
             railXPositions.forEach((xPos, idx) => {
                 const rail = new THREE.Mesh(
-                    new THREE.BoxGeometry(GEO.rail.width, GEO.rail.height, GEO.rail.length),
+                    new THREE.BoxGeometry(GEO.rail.width, GEO.rail.height, railLength),
                     railMat
                 );
-                rail.position.set(xPos, -50, 0);
+                rail.position.set(xPos, -50, railCenterZ);
                 rail.castShadow = true;
                 rail.receiveShadow = true;
-                setPartMetadata(rail, `SN-${1010 + idx}`, `Binario di Scorrimento Guida ${idx+1}`, "Binario Base", `Posizione X: ${xPos}mm (Tangente a filo del telaio base)`);
-                scene.add(rail);
+                setPartMetadata(rail, `SN-${1010 + idx}`, `Binario di Scorrimento Guida ${idx+1}`, "Binario Base", `Posizione X: ${xPos}mm, Lunghezza Totale: ${railLength}mm (da Y=+${railEndZ}mm a Y=${railStartZ}mm per Corsa Max Y=${maxCarrelloY}mm)`);
+                railsGroup.add(rail);
 
-                for(let z = -800; z <= 800; z += 400) {
+                for(let z = railStartZ + 150; z <= railEndZ - 150; z += 500) {
                     const plate = new THREE.Mesh(
                         new THREE.BoxGeometry(100, 8, 120),
                         new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.4 })
                     );
                     plate.position.set(xPos, -74, z);
                     plate.receiveShadow = true;
-                    scene.add(plate);
+                    railsGroup.add(plate);
                 }
             });
+
+            scene.add(railsGroup);
         }
 
         // Texture di Legno procedurale 2D
@@ -995,7 +1054,33 @@
             return texture;
         }
 
-        // Helper per creare un materiale LED di stato ALTA BRILLANTEZZA (di base Giallo inattivo) per il FIANCO / BASSO
+        // Texture procedurale scanalata per la gomma rosso vivo della cinghia
+        function createBeltRubberTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#dc2626';
+            ctx.fillRect(0, 0, 512, 64);
+
+            ctx.fillStyle = 'rgba(110, 10, 10, 0.7)';
+            for (let x = 0; x < 512; x += 16) {
+                ctx.fillRect(x, 0, 4, 64);
+            }
+
+            ctx.fillStyle = 'rgba(255, 140, 140, 0.45)';
+            for (let x = 0; x < 512; x += 16) {
+                ctx.fillRect(x + 4, 0, 2, 64);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(16, 1);
+            return texture;
+        }
+
         function createSideStatusLedMaterial() {
             const mat = new THREE.MeshStandardMaterial({
                 color: 0xffcc00,
@@ -1030,7 +1115,6 @@
                 roughness: 0.08
             });
 
-            // Materiale per l'emettitore ottico ROSSO in alto (sempre ROSSO ALTA BRILLANTEZZA)
             const redBeamOpticMat = new THREE.MeshStandardMaterial({
                 color: 0xff0000,
                 emissive: 0xff0000,
@@ -1081,12 +1165,10 @@
                 carriageGroup.add(midBeam);
             });
 
-            // ========================================================
-            // QUADRO ELETTRICO PARALLELEPIPEDO SEMPLIFICATO (SN-1801)
-            // ========================================================
-            const boxXLength = 3460 - 2540; // 920 mm (da X=2540 a X=3460)
-            const boxYHeight = 200;         // 200 mm (altezza esatta)
-            const boxZWidth = 600;          // 600 mm (larghezza Y)
+            // QUADRO ELETTRICO PARALLELEPIPEDO BASE (SN-1801)
+            const boxXLength = 3460 - 2540; 
+            const boxYHeight = 200;         
+            const boxZWidth = 600;          
 
             const boxMat = new THREE.MeshStandardMaterial({
                 color: 0x334155, 
@@ -1101,10 +1183,10 @@
             boxMesh.position.set(3000, 32, -120);
             boxMesh.castShadow = true;
             boxMesh.receiveShadow = true;
-            setPartMetadata(boxMesh, "SN-1801", "Quadro Elettrico Parallelepipedo Base", "Quadro Elettrico", "Parallelepipedo 3D semplificato tra traversa 1007 (X=2500) e 1008 (X=3500), adiacente a longherone 1001. A 10mm dal pavimento reale (Y=-68mm), Altezza 200mm, Larghezza 600mm");
+            setPartMetadata(boxMesh, "SN-1801", "Quadro Elettrico Parallelepipedo Base", "Quadro Elettrico", "Parallelepipedo 3D tra traversa 1007 e 1008, adiacente a longherone 1001. A 10mm dal pavimento reale (Y=-68mm)");
             carriageGroup.add(boxMesh);
 
-            // 2. RUOTE (Tangenti a filo del telaio base: X = -17.5 mm e X = 4017.5 mm, zero aria e zero sovrapposizione)
+            // 2. RUOTE
             const wheelTreadMat = new THREE.MeshStandardMaterial({
                 color: 0x334155,
                 roughness: 0.6,
@@ -1123,7 +1205,7 @@
                 const tread = new THREE.Mesh(treadGeo, wheelTreadMat);
                 tread.rotation.z = Math.PI / 2; 
                 tread.castShadow = true;
-                setPartMetadata(tread, snCode, labelName, "Ruota Flangiata", "Diametro 150mm su binario tangente a filo del telaio base senza sovrapposizione né aria");
+                setPartMetadata(tread, snCode, labelName, "Ruota Flangiata", "Diametro 150mm su binario tangente a filo del telaio base");
                 wheelAssembly.add(tread);
 
                 const rimGeo = new THREE.CylinderGeometry(GEO.wheel.radius * 0.7, GEO.wheel.radius * 0.7, GEO.wheel.width + 4, 16);
@@ -1155,12 +1237,10 @@
                 });
             });
 
-            // ========================================================
-            // FOTOCELLULA A CANDELA CILINDRICA M18 (SN-1748) SOPRA IL BINARIO 2 (X=4017.5mm, Z=-333.3mm) — SOTTOSOPRA (RUOTATA 180°)
-            // ========================================================
+            // FOTOCELLULA M18 (SN-1748) SOPRA IL BINARIO 2
             const candleRailGroup = new THREE.Group();
             candleRailGroup.position.set(GEO.frame.length + GEO.wheel.xOffset, 35, -333.33);
-            candleRailGroup.rotation.z = Math.PI; // [SOTTOSOPRA]: Ruotata 180° con il raggio verso il basso
+            candleRailGroup.rotation.z = Math.PI; 
 
             const chromeMat = new THREE.MeshStandardMaterial({
                 color: 0xf1f5f9,
@@ -1177,7 +1257,7 @@
 
             const candleRailBody = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 65, 24), chromeMat);
             candleRailBody.castShadow = true;
-            setPartMetadata(candleRailBody, "SN-1748", "Fotocellula Ottica a Candela Cilindrica M18 Sottosopra (Sopra Binario 2, tra Ruota 1105 e 1106)", "Sensore Ottico Cilindrico", "Sensore a candela M18 Ø18mm h65mm montata SOTTOSOPRA (ruotata di 180°) sopra il binario di scorrimento guida 2 a X=4017.5mm, tra ruota 1105 e 1106 a Z=-333.3mm con lente ottica ROSSA rivolta in BASSO");
+            setPartMetadata(candleRailBody, "SN-1748", "Fotocellula Ottica a Candela Cilindrica M18 Sottosopra (Sopra Binario 2)", "Sensore Ottico Cilindrico", "Sensore a candela M18 Ø18mm h65mm montata SOTTOSOPRA sopra il binario di scorrimento 2");
             candleRailGroup.add(candleRailBody);
 
             const nut1R = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), brassNutMat);
@@ -1190,7 +1270,6 @@
 
             const statusRingMeshR = new THREE.Mesh(new THREE.CylinderGeometry(11.5, 11.5, 5.5, 24), candleRailStatusRingMat);
             statusRingMeshR.position.y = -22; 
-            setPartMetadata(statusRingMeshR, "SN-1748-LED", "Anello Indicatore di Stato LED M18 (Binario 2)", "Indicatore di Stato", "Anello circolare luminoso di stato: Luce Gialla se Inattivo, Luce Verde se Attivo");
             candleRailGroup.add(statusRingMeshR);
 
             const sensorMat = new THREE.MeshStandardMaterial({
@@ -1207,58 +1286,78 @@
             candleRailGroup.add(candleLedDotRedR);
 
             const bracketCandleR = new THREE.Mesh(new THREE.BoxGeometry(35, 8, 20), darkJointMat);
-            bracketCandleR.position.set(17.5, -20, 0); // Staffa al telaio base
+            bracketCandleR.position.set(17.5, -20, 0); 
             candleRailGroup.add(bracketCandleR);
 
             carriageGroup.add(candleRailGroup);
 
-            // ========================================================
-            // 3 FOTOCELLULE A CANDELA CILINDRICHE M18 SOTTOSOPRA (SN-1751, SN-1752, SN-1753) — ALZATE DI 30mm (Y = -5.5mm)
-            // DISTANZIATE DI +20mm IN Y (Z=525mm), A 150mm DALLA RUOTA 1108 (X=3867.5, 3837.5, 3807.5mm) EQUIDISTANTI DI 30mm
-            // CAPOVOLTE SOTTOSOPRA CON LENTE RIVOLTA IN BASSO (Y = -40.5mm)
-            // ========================================================
-            const startX1108 = GEO.frame.length + GEO.wheel.xOffset - 150; // 4017.5 - 150 = 3867.5 mm
-            const sideDistZ = 525; // Distanziate di +20mm in Y da faccia esterna 1002 (505 + 20 = 525mm)
-            const candleBaseY = -5.5; // Alzate di 30mm (da -35.5mm a -5.5mm)
+            // 3 FOTOCELLULE M18 SOTTOSOPRA (SN-1751, SN-1752, SN-1753 disattivata al 90%)
+            const startX1108 = GEO.frame.length + GEO.wheel.xOffset - 150; 
+            const sideDistZ = 525; 
+            const candleBaseY = -5.5; 
 
             for(let pIdx = 0; pIdx < 3; pIdx++) {
-                const pXPos = startX1108 - pIdx * 30; // 3867.5, 3837.5, 3807.5 mm
+                const pXPos = startX1108 - pIdx * 30; 
                 const candleGroupP = new THREE.Group();
                 candleGroupP.position.set(pXPos, candleBaseY, sideDistZ);
-                candleGroupP.rotation.z = Math.PI; // [SOTTOSOPRA]: Capovolta di 180°
+                candleGroupP.rotation.z = Math.PI; 
 
-                const candleBodyP = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 65, 24), chromeMat);
-                candleBodyP.castShadow = true;
-                setPartMetadata(candleBodyP, `SN-${1751 + pIdx}`, `Fotocellula Ottica a Candela Cilindrica M18 #${pIdx+1} Sottosopra (Longherone 1002)`, "Sensore Ottico Cilindrico", `Sensore a candela M18 Ø18mm h65mm montata SOTTOSOPRA ad altezza Y=-5.5mm (alzata di 30mm), Z=525mm (+20mm in Y), con lente ROSSA rivolta in BASSO a Y=-40.5mm`);
+                const isDeactivated = (pIdx === 2); 
+
+                const bodyMatP = isDeactivated 
+                    ? new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.98, roughness: 0.08, transparent: true, opacity: 0.10 }) 
+                    : chromeMat;
+
+                const nutMatP = isDeactivated 
+                    ? new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.85, roughness: 0.2, transparent: true, opacity: 0.10 }) 
+                    : brassNutMat;
+
+                const candleBodyP = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 65, 24), bodyMatP);
+                candleBodyP.castShadow = !isDeactivated;
+                
+                const snCodeP = `SN-${1751 + pIdx}`;
+                const statusLabelP = isDeactivated ? " (DISATTIVATA — 90% Trasparente)" : "";
+                setPartMetadata(candleBodyP, snCodeP, `Fotocellula Ottica M18 #${pIdx+1} Sottosopra${statusLabelP}`, "Sensore Ottico Cilindrico", `M18 Ø18mm h65mm capovolta ad altezza Y=-5.5mm. ${isDeactivated ? 'DISATTIVATA' : 'Attiva'}`);
                 candleGroupP.add(candleBodyP);
 
-                const nut1P = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), brassNutMat);
+                const nut1P = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), nutMatP);
                 nut1P.position.y = -10;
                 candleGroupP.add(nut1P);
 
-                const nut2P = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), brassNutMat);
+                const nut2P = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), nutMatP);
                 nut2P.position.y = 10;
                 candleGroupP.add(nut2P);
 
-                // Anello circolare di stato (ora in alto nella posizione capovolta)
-                const statusRingPMat = createSideStatusLedMaterial();
+                let statusRingPMat;
+                if (isDeactivated) {
+                    statusRingPMat = new THREE.MeshStandardMaterial({ color: 0x475569, transparent: true, opacity: 0.10 });
+                } else {
+                    statusRingPMat = createSideStatusLedMaterial();
+                }
+                
                 const statusRingMeshP = new THREE.Mesh(new THREE.CylinderGeometry(11.5, 11.5, 5.5, 24), statusRingPMat);
                 statusRingMeshP.position.y = -22; 
-                setPartMetadata(statusRingMeshP, `SN-${1751 + pIdx}-LED`, `Anello Indicatore di Stato LED M18 #${pIdx+1}`, "Indicatore di Stato", "Anello circolare luminoso di stato: Luce Gialla se Inattivo, Luce Verde se Attivo");
                 candleGroupP.add(statusRingMeshP);
 
-                const lensCapP = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 4, 16), sensorMat);
+                const capMatP = isDeactivated 
+                    ? new THREE.MeshStandardMaterial({ color: 0x0f172a, transparent: true, opacity: 0.10 }) 
+                    : sensorMat;
+                const lensCapP = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 4, 16), capMatP);
                 lensCapP.position.y = 33;
                 candleGroupP.add(lensCapP);
 
-                // Lente ROSSA in BASSO (a Y=-40.5mm, alzata di 30mm)
-                const candleLedDotRedP = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 2, 16), redBeamOpticMat);
+                const redMatP = isDeactivated 
+                    ? new THREE.MeshStandardMaterial({ color: 0xff0000, transparent: true, opacity: 0.10 }) 
+                    : redBeamOpticMat;
+                const candleLedDotRedP = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 2, 16), redMatP);
                 candleLedDotRedP.position.y = 35;
                 candleGroupP.add(candleLedDotRedP);
 
-                // Staffa di montaggio estesa verso il longherone 1002
-                const bracketCandleP = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 55), darkJointMat);
-                bracketCandleP.position.set(0, 10, -27.5); // Staffa verso longherone 1002 (Z=500mm)
+                const bracketMatP = isDeactivated 
+                    ? new THREE.MeshStandardMaterial({ color: 0x64748b, transparent: true, opacity: 0.10 }) 
+                    : darkJointMat;
+                const bracketCandleP = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 55), bracketMatP);
+                bracketCandleP.position.set(0, 10, -27.5); 
                 candleGroupP.add(bracketCandleP);
 
                 carriageGroup.add(candleGroupP);
@@ -1322,9 +1421,9 @@
             const shaftGeo = new THREE.CylinderGeometry(15, 15, GEO.shaft.length, 24);
             const shaft1 = new THREE.Mesh(shaftGeo, steelMat);
             shaft1.rotation.z = Math.PI / 2;
-            shaft1.position.set(2000, shaft1Y, 0); 
+            shaft1.position.set(1995, shaft1Y, 0); 
             shaft1.castShadow = true;
-            setPartMetadata(shaft1, "SN-1210", "Albero di Trasmissione 1 (Inferiore Y=460)", "Albero Acciaio", "Diametro 30mm, Lunghezza 3045mm");
+            setPartMetadata(shaft1, "SN-1210", "Albero di Trasmissione 1 (Inferiore Y=460)", "Albero Acciaio", "Diametro 30mm, Lunghezza 3055mm (Allungato +10mm in -X fino a X=467.5mm)");
             carriageGroup.add(shaft1);
 
             const motorGroup = new THREE.Group();
@@ -1356,15 +1455,15 @@
 
             const shaft2 = new THREE.Mesh(shaftGeo, steelMat);
             shaft2.rotation.z = Math.PI / 2;
-            shaft2.position.set(2000, shaft2Y, 0);
+            shaft2.position.set(1995, shaft2Y, 0); 
             shaft2.castShadow = true;
-            setPartMetadata(shaft2, "SN-1212", "Albero di Trasmissione 2 (Asse Rotazione Y=960)", "Albero Acciaio", "Asse perno rotazione tavola e dischi");
+            setPartMetadata(shaft2, "SN-1212", "Albero di Trasmissione 2 (Asse Rotazione Y=960)", "Albero Acciaio", "Asse perno rotazione tavola e dischi, Diametro 30mm, Lunghezza 3055mm (Allungato +10mm in -X)");
             carriageGroup.add(shaft2);
 
             scene.add(carriageGroup);
 
             // ========================================================
-            // 5. COSTRUZIONE GRUPPO ROTANTE (TAVOLA + DISCHI + CINGHIE + ALETTE + PANNELLO LEGNO + NUOVO ASSE LINEARE + FOTOCELLULE VERSO L'ALTO)
+            // 5. COSTRUZIONE GRUPPO ROTANTE
             // ========================================================
             rotatingUpperGroup = new THREE.Group();
             rotatingUpperGroup.position.set(0, shaft2Y, 0); 
@@ -1375,7 +1474,7 @@
                 roughness: 0.12
             });
 
-            const cutYLocal = GEO.disk.cutY - shaft2Y; // 95 mm
+            const cutYLocal = GEO.disk.cutY - shaft2Y; 
             const theta = Math.asin(cutYLocal / GEO.disk.radius); 
             
             const diskShape = new THREE.Shape();
@@ -1420,7 +1519,7 @@
                 rotatingUpperGroup.add(diskSubGroup);
             });
 
-            const upperFrameYLocal = cutYLocal + GEO.upperFrame.profileSize / 2; // 117.5 mm
+            const upperFrameYLocal = cutYLocal + GEO.upperFrame.profileSize / 2; 
 
             const upSideBeamGeo = new THREE.BoxGeometry(GEO.upperFrame.length, GEO.upperFrame.profileSize, GEO.upperFrame.profileSize);
             
@@ -1446,14 +1545,10 @@
                 upMidBeam.receiveShadow = true;
                 setPartMetadata(upMidBeam, `SN-${1314 + idx}`, `Traversa Tavola sopra Disco ${idx+1}`, "Telaio Tavola", `Accoppiata a Disco ${idx+1} X=${xPos+45}mm`);
                 rotatingUpperGroup.add(upMidBeam);
-
-                // [RIMOSSE LE 8 PIASTRINE SUPPORTO TRAVERSI TAVOLA 45x45x10 SU RICHIESTA DELL'UTENTE]
             });
 
-            // ========================================================
-            // NUOVO ASSE LINEARE (BINARI 480mm PARTENZA A FILO CON LONGHERONE X=0, PATTINI, TRAVERSINO 45x15 SPORGENTE 100mm + 3 TRAVERSINI DA 250mm VERSO -X CON FOTOCELLULE VERSO L'ALTO CON RAGGIO ROSSO IN ALTO E LED DI STATO SUL FIANCO)
-            // ========================================================
-            const railSurfaceY = upperFrameYLocal + 22.5; // 140 mm
+            // ASSE LINEARE
+            const railSurfaceY = upperFrameYLocal + 22.5; 
             const linearRailMat = new THREE.MeshStandardMaterial({
                 color: 0x94a3b8,
                 metalness: 0.95,
@@ -1472,34 +1567,30 @@
 
             const railGeo = new THREE.BoxGeometry(GEO.linearAxis.railLength, GEO.linearAxis.railSection, GEO.linearAxis.railSection);
             
-            // Binario Guida Lineare 15x15 L=480mm su Longherone 1310 (Z = -377.5)
             const linearRailLeft = new THREE.Mesh(railGeo, linearRailMat);
             linearRailLeft.position.set(GEO.linearAxis.railLength / 2, railSurfaceY + GEO.linearAxis.railSection / 2, -377.5);
             linearRailLeft.castShadow = true;
             linearRailLeft.receiveShadow = true;
-            setPartMetadata(linearRailLeft, "SN-1701", "Binario Guida Lineare 15x15 (-Y)", "Guida Asse Lineare", "Sezione 15x15mm, Lunghezza 480mm (a filo X=0 mm) su longherone SN-1310");
+            setPartMetadata(linearRailLeft, "SN-1701", "Binario Guida Lineare 15x15 (-Y)", "Guida Asse Lineare", "Sezione 15x15mm, L=480mm su longherone SN-1310");
             rotatingUpperGroup.add(linearRailLeft);
 
-            // Binario Guida Lineare 15x15 L=480mm su Longherone 1311 (Z = +377.5)
             const linearRailRight = new THREE.Mesh(railGeo, linearRailMat);
             linearRailRight.position.set(GEO.linearAxis.railLength / 2, railSurfaceY + GEO.linearAxis.railSection / 2, 377.5);
             linearRailRight.castShadow = true;
             linearRailRight.receiveShadow = true;
-            setPartMetadata(linearRailRight, "SN-1702", "Binario Guida Lineare 15x15 (+Y)", "Guida Asse Lineare", "Sezione 15x15mm, Lunghezza 480mm (a filo X=0 mm) su longherone SN-1311");
+            setPartMetadata(linearRailRight, "SN-1702", "Binario Guida Lineare 15x15 (+Y)", "Guida Asse Lineare", "Sezione 15x15mm, L=480mm su longherone SN-1311");
             rotatingUpperGroup.add(linearRailRight);
 
             linearAxisCarriageGroup = new THREE.Group();
-            // [INVERTITO]: 400mm al cursore corrisponde a filo X=0mm (ossia offset X = 400 - axisX)
             linearAxisCarriageGroup.position.set(400 - state.axisX, 0, 0); 
 
-            const blockYLocal = railSurfaceY + GEO.linearAxis.railSection + 10; // 165 mm
+            const blockYLocal = railSurfaceY + GEO.linearAxis.railSection + 10; 
             const blockLength = 65; 
 
-            // Pattino Ricircolo Sfere 1 (-Y)
             const block1Mesh = new THREE.Mesh(new THREE.BoxGeometry(blockLength, 20, 30), blockBodyMat);
             block1Mesh.position.set(blockLength/2, blockYLocal, -377.5);
             block1Mesh.castShadow = true;
-            setPartMetadata(block1Mesh, "SN-1711", "Pattino a Ricircolo di Sfere 1 (-Y)", "Pattino Guida", "Pattino a ricircolo di sfere su guida SN-1701");
+            setPartMetadata(block1Mesh, "SN-1711", "Pattino 1 (-Y)", "Pattino Guida", "Pattino ricircolo sfere");
             
             const seal1A = new THREE.Mesh(new THREE.BoxGeometry(4, 21, 31), blockSealMat);
             seal1A.position.set(0, blockYLocal, -377.5);
@@ -1509,11 +1600,10 @@
             linearAxisCarriageGroup.add(seal1B);
             linearAxisCarriageGroup.add(block1Mesh);
 
-            // Pattino Ricircolo Sfere 2 (+Y)
             const block2Mesh = new THREE.Mesh(new THREE.BoxGeometry(blockLength, 20, 30), blockBodyMat);
             block2Mesh.position.set(blockLength/2, blockYLocal, 377.5);
             block2Mesh.castShadow = true;
-            setPartMetadata(block2Mesh, "SN-1712", "Pattino a Ricircolo di Sfere 2 (+Y)", "Pattino Guida", "Pattino a ricircolo di sfere su guida SN-1702");
+            setPartMetadata(block2Mesh, "SN-1712", "Pattino 2 (+Y)", "Pattino Guida", "Pattino ricircolo sfere");
 
             const seal2A = new THREE.Mesh(new THREE.BoxGeometry(4, 21, 31), blockSealMat);
             seal2A.position.set(0, blockYLocal, 377.5);
@@ -1523,19 +1613,17 @@
             linearAxisCarriageGroup.add(seal2B);
             linearAxisCarriageGroup.add(block2Mesh);
 
-            // Traversino 45x15mm sporgente di 100mm per parte
-            const connectingBeamLength = 755 + 2 * GEO.linearAxis.overhang; // 955 mm
-            const connectingBeamYLocal = blockYLocal + 10 + GEO.linearAxis.beamY / 2; // 182.5 mm
+            const connectingBeamLength = 755 + 2 * GEO.linearAxis.overhang; 
+            const connectingBeamYLocal = blockYLocal + 10 + GEO.linearAxis.beamY / 2; 
 
             const connectingBeamGeo = new THREE.BoxGeometry(GEO.linearAxis.beamX, GEO.linearAxis.beamY, connectingBeamLength);
             const connectingBeam = new THREE.Mesh(connectingBeamGeo, upperAlumMat);
             connectingBeam.position.set(GEO.linearAxis.beamX / 2, connectingBeamYLocal, 0);
             connectingBeam.castShadow = true;
             connectingBeam.receiveShadow = true;
-            setPartMetadata(connectingBeam, "SN-1720", "Traversino Asse Lineare 45x15 (Sporgenza 100mm)", "Traversino Collegamento", "Sezione 45x15mm, Lunghezza 955mm (sporge 100mm dai pattini)");
+            setPartMetadata(connectingBeam, "SN-1720", "Traversino Asse Lineare 45x15", "Traversino Collegamento", "Sezione 45x15mm, Lunghezza 955mm");
             linearAxisCarriageGroup.add(connectingBeam);
 
-            // 3 Traversini lunghi 250mm verso -X con fotocellule orientate verso l'alto
             const armZPositions = [-477.5, 0, 477.5];
             const armLabels = ["Sinistra (-Y)", "Centrale (Z=0)", "Destra (+Y)"];
 
@@ -1545,7 +1633,7 @@
                 armMesh.position.set(-GEO.linearAxis.armLength / 2, connectingBeamYLocal, zPos);
                 armMesh.castShadow = true;
                 armMesh.receiveShadow = true;
-                setPartMetadata(armMesh, `SN-${1731 + armIdx}`, `Braccio Supporto Fotocellula ${armLabels[armIdx]}`, "Braccio Supporto", `Alluminio 15x15mm Lunghezza 250mm orientato verso -X a Z=${zPos}mm`);
+                setPartMetadata(armMesh, `SN-${1731 + armIdx}`, `Braccio Supporto Fotocellula ${armLabels[armIdx]}`, "Braccio Supporto", `Alluminio 15x15mm L=250mm`);
                 linearAxisCarriageGroup.add(armMesh);
 
                 const sensorGroup = new THREE.Group();
@@ -1553,15 +1641,13 @@
 
                 const sensorBody = new THREE.Mesh(new THREE.BoxGeometry(30, 25, 20), sensorMat);
                 sensorBody.castShadow = true;
-                setPartMetadata(sensorBody, `SN-${1741 + armIdx}`, `Fotocellula Ottica ${armLabels[armIdx]} (Verso l'Alto)`, "Sensore Ottico", `Fotocellula ottica industriale con cerchio/lente in ALTO ROSSO (emettitore raggio) e LED di stato ad ALTA BRILLANTEZZA sul FIANCO (Giallo=Inattivo, Verde=Attivo)`);
+                setPartMetadata(sensorBody, `SN-${1741 + armIdx}`, `Fotocellula Ottica ${armLabels[armIdx]}`, "Sensore Ottico", `Fotocellula ottica con lente ROSSA in ALTO e LED di stato sul FIANCO`);
                 sensorGroup.add(sensorBody);
 
-                // Cerchio in ALTO: Emettitore raggio -> Sempre ROSSO!
                 const ledDotRed = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 16), redBeamOpticMat);
                 ledDotRed.position.set(0, 13, 0); 
                 sensorGroup.add(ledDotRed);
 
-                // LED di Stato sul FIANCO (Giallo/Verde Alta Brillantezza)
                 const sideStatusMat = createSideStatusLedMaterial();
                 const ledRingSide = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), sideStatusMat);
                 ledRingSide.position.set(0, 5, 11);
@@ -1572,23 +1658,17 @@
 
             rotatingUpperGroup.add(linearAxisCarriageGroup);
 
-            // ========================================================
-            // FOTOCELLULA A CANDELA CILINDRICA M18 (SN-1746) ADIACENTE AL LONGHERONE 1311 SOTTO PARTE 1508 (X=3500mm), DISTANZIATA DI +20mm IN Y (Z=422.5mm)
-            // LENTE IN ALTO ROSSA + ANELLO CIRCOLARE SUL BASSO PER L'INDICATORE DI STATO (GIALLO INATTIVO / VERDE ATTIVO)
-            // ========================================================
+            // FOTOCELLULE M18 (SN-1746 e SN-1747)
             const candleGroup = new THREE.Group();
-            candleGroup.position.set(3500, upperFrameYLocal + 30, 422.5); // Distanziata di +20mm in Y (Z=422.5mm)
+            candleGroup.position.set(3500, upperFrameYLocal + 30, 422.5); 
 
-            // Materiale per l'anello di stato in BASSO (Giallo/Verde Alta Brillantezza)
             candleStatusRingMat = createSideStatusLedMaterial();
 
-            // Corpo cilindrico M18 (diametro 18mm, altezza 65mm)
             const candleBody = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 65, 24), chromeMat);
             candleBody.castShadow = true;
-            setPartMetadata(candleBody, "SN-1746", "Fotocellula Ottica a Candela Cilindrica M18 (+Y, Sotto Flap 1508)", "Sensore Ottico Cilindrico", "Sensore a candela M18 Ø18mm h65mm adiacente al longherone SN-1311 a X=3500mm distanziata di +20mm in Y (Z=422.5mm, sotto flap 1508) con lente in ALTO ROSSA ed anello circolare in BASSO per lo stato (Giallo=Inattivo, Verde=Attivo)");
+            setPartMetadata(candleBody, "SN-1746", "Fotocellula Ottica M18 (+Y)", "Sensore Ottico Cilindrico", "Sensore M18 Ø18mm h65mm a X=3500mm Z=422.5mm");
             candleGroup.add(candleBody);
 
-            // Dadi di fissaggio esagonali M18
             const nut1 = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), brassNutMat);
             nut1.position.y = -10;
             candleGroup.add(nut1);
@@ -1597,33 +1677,24 @@
             nut2.position.y = 10;
             candleGroup.add(nut2);
 
-            // Anello Circolare sul BASSO (Indicatore Stato Giallo/Verde Alta Brillantezza)
             const statusRingMesh = new THREE.Mesh(new THREE.CylinderGeometry(11.5, 11.5, 5.5, 24), candleStatusRingMat);
             statusRingMesh.position.y = -22; 
-            setPartMetadata(statusRingMesh, "SN-1746-LED", "Anello Indicatore di Stato LED Basso M18 (+Y)", "Indicatore di Stato", "Anello circolare luminoso di stato in basso: Luce Gialla se Inattivo, Luce Verde se Attivo");
             candleGroup.add(statusRingMesh);
 
-            // Lente ottica frontale superiore
             const lensCap = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 4, 16), sensorMat);
             lensCap.position.y = 33;
             candleGroup.add(lensCap);
 
-            // Punto ottico in ALTO: Emettitore raggio -> Sempre ROSSO!
             const candleLedDotRed = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 2, 16), redBeamOpticMat);
             candleLedDotRed.position.y = 35;
             candleGroup.add(candleLedDotRed);
 
-            // Staffa di montaggio estesa al longherone 1311 (L=45mm)
             const bracketCandle = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 45), darkJointMat);
             bracketCandle.position.set(0, -10, -22.5);
             candleGroup.add(bracketCandle);
 
             rotatingUpperGroup.add(candleGroup);
 
-            // ========================================================
-            // FOTOCELLULA A CANDELA CILINDRICA M18 SPECCHIATA (SN-1747) ADIACENTE AL LONGHERONE 1310 SOTTO PARTE 1504 (X=3500mm, Z=-422.5mm)
-            // LENTE IN ALTO ROSSA + ANELLO CIRCOLARE SUL BASSO PER L'INDICATORE DI STATO (GIALLO INATTIVO / VERDE ATTIVO)
-            // ========================================================
             const candleLeftGroup = new THREE.Group();
             candleLeftGroup.position.set(3500, upperFrameYLocal + 30, -422.5);
 
@@ -1631,7 +1702,7 @@
 
             const candleLeftBody = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 65, 24), chromeMat);
             candleLeftBody.castShadow = true;
-            setPartMetadata(candleLeftBody, "SN-1747", "Fotocellula Ottica a Candela Cilindrica M18 Specchiata (-Y, Sotto Flap 1504)", "Sensore Ottico Cilindrico", "Sensore a candela M18 Ø18mm h65mm adiacente al longherone SN-1310 a X=3500mm distanziata in -Y (Z=-422.5mm, sotto flap 1504) con lente in ALTO ROSSA ed anello circolare in BASSO per lo stato (Giallo=Inattivo, Verde=Attivo)");
+            setPartMetadata(candleLeftBody, "SN-1747", "Fotocellula Ottica M18 (-Y)", "Sensore Ottico Cilindrico", "Sensore M18 Ø18mm h65mm a X=3500mm Z=-422.5mm");
             candleLeftGroup.add(candleLeftBody);
 
             const nut1L = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 6, 6), brassNutMat);
@@ -1644,7 +1715,6 @@
 
             const statusRingMeshL = new THREE.Mesh(new THREE.CylinderGeometry(11.5, 11.5, 5.5, 24), candleLeftStatusRingMat);
             statusRingMeshL.position.y = -22; 
-            setPartMetadata(statusRingMeshL, "SN-1747-LED", "Anello Indicatore di Stato LED Basso M18 (-Y)", "Indicatore di Stato", "Anello circolare luminoso di stato in basso: Luce Gialla se Inattivo, Luce Verde se Attivo");
             candleLeftGroup.add(statusRingMeshL);
 
             const lensCapL = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 4, 16), sensorMat);
@@ -1656,20 +1726,22 @@
             candleLeftGroup.add(candleLedDotRedL);
 
             const bracketCandleL = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 45), darkJointMat);
-            bracketCandleL.position.set(0, -10, 22.5); // Staffa verso longherone 1310 (direzione +Z verso -377.5mm)
+            bracketCandleL.position.set(0, -10, 22.5); 
             candleLeftGroup.add(bracketCandleL);
 
             rotatingUpperGroup.add(candleLeftGroup);
 
-            // --- C. 4 GRUPPI CINGHIA & PULEGGE (Rialzati di 70mm, quota centrale locale Y = 187.5 mm) ---
-            const beltDeckYLocal = upperFrameYLocal + GEO.beltDeck.raiseHeight; // 187.5 mm
+            // --- C. 4 GRUPPI CINGHIA & PULEGGE (Rialzati di 70mm) ---
+            const beltDeckYLocal = upperFrameYLocal + GEO.beltDeck.raiseHeight; 
             const beltWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
             
-            // MATERIALE ROSSO VIVO INTENSO E SATURO PER LA GOMMA SUPERIORE DELLE CINGHIE
+            redBeltTexture = createBeltRubberTexture();
+
             const beltRedMat = new THREE.MeshStandardMaterial({ 
-                color: 0xdc2626,       // Rosso vivo saturo
-                emissive: 0x660000,    // Lieve emissività per evitare che appaia rosa o desaturato
-                roughness: 0.25,       // Superficie in gomma liscia vulcanizzata
+                map: redBeltTexture,
+                color: 0xdc2626,       
+                emissive: 0x550000,    
+                roughness: 0.25,       
                 metalness: 0.05
             });
 
@@ -1685,6 +1757,42 @@
                 roughness: 0.15
             });
 
+            const whiteBeltShape = new THREE.Shape();
+            whiteBeltShape.moveTo(-550, 37.5);
+            whiteBeltShape.lineTo(550, 37.5);
+            whiteBeltShape.absarc(550, 0, 37.5, Math.PI / 2, -Math.PI / 2, true);
+            whiteBeltShape.lineTo(-550, -37.5);
+            whiteBeltShape.absarc(-550, 0, 37.5, -Math.PI / 2, Math.PI / 2, true);
+
+            const whiteHolePath = new THREE.Path();
+            whiteHolePath.moveTo(550, 27.5);
+            whiteHolePath.lineTo(-550, 27.5);
+            whiteHolePath.absarc(-550, 0, 27.5, Math.PI / 2, -Math.PI / 2, false);
+            whiteHolePath.lineTo(550, -27.5);
+            whiteHolePath.absarc(550, 0, 27.5, -Math.PI / 2, Math.PI / 2, false);
+            whiteBeltShape.holes.push(whiteHolePath);
+
+            const whiteBeltExtrudeGeo = new THREE.ExtrudeGeometry(whiteBeltShape, { depth: GEO.beltDeck.width, bevelEnabled: false });
+            whiteBeltExtrudeGeo.translate(0, 0, -GEO.beltDeck.width / 2);
+
+            const redBeltShape = new THREE.Shape();
+            redBeltShape.moveTo(-550, 42.5);
+            redBeltShape.lineTo(550, 42.5);
+            redBeltShape.absarc(550, 0, 42.5, Math.PI / 2, -Math.PI / 2, true);
+            redBeltShape.lineTo(-550, -42.5);
+            redBeltShape.absarc(-550, 0, 42.5, -Math.PI / 2, Math.PI / 2, true);
+
+            const redHolePath = new THREE.Path();
+            redHolePath.moveTo(550, 37.5);
+            redHolePath.lineTo(550, 37.5);
+            redHolePath.absarc(-550, 0, 37.5, Math.PI / 2, -Math.PI / 2, false);
+            redHolePath.lineTo(550, -37.5);
+            redHolePath.absarc(550, 0, 37.5, -Math.PI / 2, Math.PI / 2, false);
+            redBeltShape.holes.push(redHolePath);
+
+            const redBeltExtrudeGeo = new THREE.ExtrudeGeometry(redBeltShape, { depth: GEO.beltDeck.width, bevelEnabled: false });
+            redBeltExtrudeGeo.translate(0, 0, -GEO.beltDeck.width / 2);
+
             columnXPositions.forEach((xPos, idx) => {
                 const xCenter = xPos + 45;
 
@@ -1695,7 +1803,7 @@
                 raisedProfile.position.set(xCenter, beltDeckYLocal, 0);
                 raisedProfile.castShadow = true;
                 raisedProfile.receiveShadow = true;
-                setPartMetadata(raisedProfile, `SN-${1401 + idx}`, `Profilo Cinghia Rialzato (+70mm) Traccia ${idx+1}`, "Guida Cinghia", `Alluminio 45x45mm Lunghezza 1100mm a X=${xCenter}mm`);
+                setPartMetadata(raisedProfile, `SN-${1401 + idx}`, `Profilo Cinghia Rialzato (+70mm) Traccia ${idx+1}`, "Guida Cinghia", `Alluminio 45x45mm L=1100mm a X=${xCenter}mm`);
                 rotatingUpperGroup.add(raisedProfile);
 
                 const pulleyGeo = new THREE.CylinderGeometry(GEO.beltDeck.pulleyRadius, GEO.beltDeck.pulleyRadius, GEO.beltDeck.pulleyWidth, 24);
@@ -1704,14 +1812,14 @@
                 pulley1.rotation.z = Math.PI / 2; 
                 pulley1.position.set(xCenter, beltDeckYLocal, -550);
                 pulley1.castShadow = true;
-                setPartMetadata(pulley1, `SN-${1411 + idx*2}`, `Puleggia Compatta Ø55 Traccia ${idx+1} (-Y)`, "Puleggia Cinghia", "Diametro 55mm, Larghezza 30mm a Z=-550mm");
+                setPartMetadata(pulley1, `SN-${1411 + idx*2}`, `Puleggia Compatta Ø55 Traccia ${idx+1} (-Y)`, "Puleggia Cinghia", "Diametro 55mm a Z=-550mm");
                 rotatingUpperGroup.add(pulley1);
 
                 const pulley2 = new THREE.Mesh(pulleyGeo, pulleyMat);
                 pulley2.rotation.z = Math.PI / 2;
                 pulley2.position.set(xCenter, beltDeckYLocal, 550);
                 pulley2.castShadow = true;
-                setPartMetadata(pulley2, `SN-${1412 + idx*2}`, `Puleggia Compatta Ø55 Traccia ${idx+1} (+Y)`, "Puleggia Cinghia", "Diametro 55mm, Larghezza 30mm a Z=550mm");
+                setPartMetadata(pulley2, `SN-${1412 + idx*2}`, `Puleggia Compatta Ø55 Traccia ${idx+1} (+Y)`, "Puleggia Cinghia", "Diametro 55mm a Z=550mm");
                 rotatingUpperGroup.add(pulley2);
 
                 const flangeGeo = new THREE.CylinderGeometry(32.5, 32.5, 2, 24);
@@ -1732,12 +1840,9 @@
                 flangeR2.position.x = xCenter + 16;
                 rotatingUpperGroup.add(flangeR2);
 
-                // ========================================================
-                // 3. ALETTE ROTANTI SEPARATE (Z < 0 Sinistra, Z > 0 Destra)
-                // ========================================================
+                // FLAP LATERALI
                 const sideTraversoX = xCenter - 45; 
 
-                // --- LATO SINISTRO (Z = -320) ---
                 const leftFlapGroup = new THREE.Group();
                 leftFlapGroup.position.set(sideTraversoX, beltDeckYLocal, -320); 
 
@@ -1748,7 +1853,7 @@
                 leftProfile.position.set(0, 0, -125);
                 leftProfile.castShadow = true;
                 leftProfile.receiveShadow = true;
-                setPartMetadata(leftProfile, `SN-${1501 + idx}`, `Traverso Ribaltabile Sinistra (-Y) Traccia ${idx+1}`, "Aletta Flap Laterale", "Alluminio 45x45mm L=250mm, Incernierato a Z=-320mm");
+                setPartMetadata(leftProfile, `SN-${1501 + idx}`, `Traverso Ribaltabile Sinistra (-Y) Traccia ${idx+1}`, "Aletta Flap Laterale", "Alluminio 45x45mm L=250mm");
                 leftFlapGroup.add(leftProfile);
 
                 const leftGreenCap = new THREE.Mesh(
@@ -1757,37 +1862,30 @@
                 );
                 leftGreenCap.position.set(0, 25, -254);
                 leftGreenCap.castShadow = true;
-                setPartMetadata(leftGreenCap, `SN-${1521 + idx}`, `Tappo Arresto Verde (-Y) Traccia ${idx+1}`, "Arresto di Fine Corsa", "Acciaio verde +50mm in Z, Fine corsa -Y");
+                setPartMetadata(leftGreenCap, `SN-${1521 + idx}`, `Tappo Arresto Verde (-Y) Traccia ${idx+1}`, "Arresto di Fine Corsa", "Acciaio verde +50mm in Z");
                 leftFlapGroup.add(leftGreenCap);
-
-                const leftBracket = new THREE.Mesh(new THREE.BoxGeometry(10, 45, 45), darkJointMat);
-                leftBracket.position.set(22, 0, -125); 
-                leftFlapGroup.add(leftBracket);
 
                 const leftHingePin = new THREE.Mesh(
                     new THREE.CylinderGeometry(8, 8, 48, 12),
                     brassHingeMat
                 );
                 leftHingePin.rotation.z = Math.PI / 2; 
-                setPartMetadata(leftHingePin, `SN-${1511 + idx}`, `Perno Hinge Ottone (-Y) Traccia ${idx+1}`, "Cardine Meccanico", "Perno di rotazione 0..-10 gradi");
+                setPartMetadata(leftHingePin, `SN-${1511 + idx}`, `Perno Hinge Ottone (-Y) Traccia ${idx+1}`, "Cardine Meccanico", "Perno di rotazione");
                 leftFlapGroup.add(leftHingePin);
 
-                // FOTOCELLULA SPECCHIATA SUL FIANCO DEL TRAVERSO 1502 (Traccia 2 Sinistra, idx = 1)
-                if (idx === 1) { // Traccia 2 Sinistra (Traverso SN-1502, Tappo SN-1522)
+                if (idx === 1) { 
                     const extraSensorLeftGroup = new THREE.Group();
                     extraSensorLeftGroup.position.set(-37.5, 12.5, -244); 
 
                     const extraSensorLeftBody = new THREE.Mesh(new THREE.BoxGeometry(30, 25, 20), sensorMat);
                     extraSensorLeftBody.castShadow = true;
-                    setPartMetadata(extraSensorLeftBody, "SN-1745", "Fotocellula Ottica Specchiata sul Fianco 1502 (A filo del Tappo 1522)", "Sensore Ottico", "Fotocellula ottica fissata sul fianco del traverso SN-1502 (Sinistra -Y) a filo con il tappo verde SN-1522, orientata verso l'alto (+Y) con lente in ALTO ROSSA e LED di stato ad ALTA BRILLANTEZZA sul FIANCO (Giallo=Inattivo, Verde=Attivo)");
+                    setPartMetadata(extraSensorLeftBody, "SN-1745", "Fotocellula Ottica 1502", "Sensore Ottico", "Fotocellula fissata sul fianco di SN-1502");
                     extraSensorLeftGroup.add(extraSensorLeftBody);
 
-                    // Cerchio in ALTO: Emettitore raggio -> Sempre ROSSO!
                     const extraLedDotLRed = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 16), redBeamOpticMat);
                     extraLedDotLRed.position.set(0, 13, 0); 
                     extraSensorLeftGroup.add(extraLedDotLRed);
 
-                    // LED di Stato sul FIANCO (Giallo/Verde Alta Brillantezza)
                     const photocellSideStatusMatLeft = createSideStatusLedMaterial();
                     const extraLedRingLStatus = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), photocellSideStatusMatLeft);
                     extraLedRingLStatus.position.set(0, 5, 11);
@@ -1799,7 +1897,6 @@
                 rotatingUpperGroup.add(leftFlapGroup);
                 leftFlaps.push(leftFlapGroup);
 
-                // --- LATO DESTRO (Z = 320) ---
                 const rightFlapGroup = new THREE.Group();
                 rightFlapGroup.position.set(sideTraversoX, beltDeckYLocal, 320); 
 
@@ -1810,7 +1907,7 @@
                 rightProfile.position.set(0, 0, 125);
                 rightProfile.castShadow = true;
                 rightProfile.receiveShadow = true;
-                setPartMetadata(rightProfile, `SN-${1505 + idx}`, `Traverso Ribaltabile Destra (+Y) Traccia ${idx+1}`, "Aletta Flap Laterale", "Alluminio 45x45mm L=250mm, Incernierato a Z=320mm");
+                setPartMetadata(rightProfile, `SN-${1505 + idx}`, `Traverso Ribaltabile Destra (+Y) Traccia ${idx+1}`, "Aletta Flap Laterale", "Alluminio 45x45mm L=250mm");
                 rightFlapGroup.add(rightProfile);
 
                 const rightGreenCap = new THREE.Mesh(
@@ -1819,37 +1916,30 @@
                 );
                 rightGreenCap.position.set(0, 25, 254);
                 rightGreenCap.castShadow = true;
-                setPartMetadata(rightGreenCap, `SN-${1525 + idx}`, `Tappo Arresto Verde (+Y) Traccia ${idx+1}`, "Arresto di Fine Corsa", "Acciaio verde +50mm in Z, Fine corsa +Y");
+                setPartMetadata(rightGreenCap, `SN-${1525 + idx}`, `Tappo Arresto Verde (+Y) Traccia ${idx+1}`, "Arresto di Fine Corsa", "Acciaio verde +50mm in Z");
                 rightFlapGroup.add(rightGreenCap);
-
-                const rightBracket = new THREE.Mesh(new THREE.BoxGeometry(10, 45, 45), darkJointMat);
-                rightBracket.position.set(22, 0, 125); 
-                rightFlapGroup.add(rightBracket);
 
                 const rightHingePin = new THREE.Mesh(
                     new THREE.CylinderGeometry(8, 8, 48, 12),
                     brassHingeMat
                 );
                 rightHingePin.rotation.z = Math.PI / 2; 
-                setPartMetadata(rightHingePin, `SN-${1515 + idx}`, `Perno Hinge Ottone (+Y) Traccia ${idx+1}`, "Cardine Meccanico", "Perno di rotazione 0..-10 gradi");
+                setPartMetadata(rightHingePin, `SN-${1515 + idx}`, `Perno Hinge Ottone (+Y) Traccia ${idx+1}`, "Cardine Meccanico", "Perno di rotazione");
                 rightFlapGroup.add(rightHingePin);
 
-                // FOTOCELLULA SUL FIANCO DEL TRAVERSO 1506 (Traccia 2 Destra, idx = 1)
-                if (idx === 1) { // Traccia 2 Destra (Traverso SN-1506, Tappo SN-1526)
+                if (idx === 1) { 
                     const extraSensorGroup = new THREE.Group();
                     extraSensorGroup.position.set(-37.5, 12.5, 244); 
 
                     const extraSensorBody = new THREE.Mesh(new THREE.BoxGeometry(30, 25, 20), sensorMat);
                     extraSensorBody.castShadow = true;
-                    setPartMetadata(extraSensorBody, "SN-1744", "Fotocellula Ottica sul Fianco 1506 (A filo del Tappo 1526)", "Sensore Ottico", "Fotocellula fissata sul fianco del traverso SN-1506 a filo con il tappo verde SN-1526, orientata verso l'alto (+Y) con lente in ALTO ROSSA e LED di stato ad ALTA BRILLANTEZZA sul FIANCO (Giallo=Inattivo, Verde=Attivo)");
+                    setPartMetadata(extraSensorBody, "SN-1744", "Fotocellula Ottica 1506", "Sensore Ottico", "Fotocellula fissata sul fianco di SN-1506");
                     extraSensorGroup.add(extraSensorBody);
 
-                    // Cerchio in ALTO: Emettitore raggio -> Sempre ROSSO!
                     const extraLedDotRed = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 16), redBeamOpticMat);
                     extraLedDotRed.position.set(0, 13, 0); 
                     extraSensorGroup.add(extraLedDotRed);
 
-                    // LED di Stato sul FIANCO (Giallo/Verde Alta Brillantezza)
                     const photocellSideStatusMatRight = createSideStatusLedMaterial();
                     const extraLedRingStatus = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 16), photocellSideStatusMatRight);
                     extraLedRingStatus.position.set(0, 5, 11);
@@ -1861,69 +1951,22 @@
                 rotatingUpperGroup.add(rightFlapGroup);
                 rightFlaps.push(rightFlapGroup);
 
-                // --- 4. Cinghie ---
-                const whiteTop = new THREE.Mesh(
-                    new THREE.BoxGeometry(GEO.beltDeck.width, 10, GEO.beltDeck.length),
-                    beltWhiteMat
-                );
-                whiteTop.position.set(xCenter, beltDeckYLocal + 32.5, 0);
-                whiteTop.castShadow = true;
-                setPartMetadata(whiteTop, `SN-${1421 + idx*2}`, `Cinghia Bianco Poliuretano Traccia ${idx+1}`, "Strato Interno Cinghia", "Spessore 10mm, Larghezza 26mm");
-                rotatingUpperGroup.add(whiteTop);
+                const whiteBeltMesh = new THREE.Mesh(whiteBeltExtrudeGeo, beltWhiteMat);
+                whiteBeltMesh.rotation.y = Math.PI / 2;
+                whiteBeltMesh.position.set(xCenter, beltDeckYLocal, 0);
+                whiteBeltMesh.castShadow = true;
+                setPartMetadata(whiteBeltMesh, `SN-${1421 + idx*2}`, `Cinghia Bianco Poliuretano Traccia ${idx+1}`, "Strato Interno Cinghia", "Spessore 10mm");
+                rotatingUpperGroup.add(whiteBeltMesh);
 
-                const whiteBottom = new THREE.Mesh(
-                    new THREE.BoxGeometry(GEO.beltDeck.width, 10, GEO.beltDeck.length),
-                    beltWhiteMat
-                );
-                whiteBottom.position.set(xCenter, beltDeckYLocal - 32.5, 0);
-                whiteBottom.castShadow = true;
-                rotatingUpperGroup.add(whiteBottom);
-
-                const whiteWrap1 = new THREE.Mesh(
-                    new THREE.CylinderGeometry(32.5, 32.5, GEO.beltDeck.width, 24),
-                    beltWhiteMat
-                );
-                whiteWrap1.rotation.z = Math.PI / 2;
-                whiteWrap1.position.set(xCenter, beltDeckYLocal, -550);
-                rotatingUpperGroup.add(whiteWrap1);
-
-                const whiteWrap2 = whiteWrap1.clone();
-                whiteWrap2.position.z = 550;
-                rotatingUpperGroup.add(whiteWrap2);
-
-                const redTop = new THREE.Mesh(
-                    new THREE.BoxGeometry(GEO.beltDeck.width, 5, GEO.beltDeck.length),
-                    beltRedMat
-                );
-                redTop.position.set(xCenter, beltDeckYLocal + 40, 0);
-                redTop.castShadow = true;
-                setPartMetadata(redTop, `SN-${1422 + idx*2}`, `Cinghia Rosso Vivo Gomma Traccia ${idx+1}`, "Strato Esterno Gomma Cinghia", "Spessore 5mm, Larghezza 26mm, Gomma vulcanizzata ROSSO VIVO");
-                rotatingUpperGroup.add(redTop);
-
-                const redBottom = new THREE.Mesh(
-                    new THREE.BoxGeometry(GEO.beltDeck.width, 5, GEO.beltDeck.length),
-                    beltRedMat
-                );
-                redBottom.position.set(xCenter, beltDeckYLocal - 40, 0);
-                redBottom.castShadow = true;
-                rotatingUpperGroup.add(redBottom);
-
-                const redWrap1 = new THREE.Mesh(
-                    new THREE.CylinderGeometry(40.0, 40.0, GEO.beltDeck.width, 24),
-                    beltRedMat
-                );
-                redWrap1.rotation.z = Math.PI / 2;
-                redWrap1.position.set(xCenter, beltDeckYLocal, -550);
-                rotatingUpperGroup.add(redWrap1);
-
-                const redWrap2 = redWrap1.clone();
-                redWrap2.position.z = 550;
-                rotatingUpperGroup.add(redWrap2);
+                const redBeltMesh = new THREE.Mesh(redBeltExtrudeGeo, beltRedMat);
+                redBeltMesh.rotation.y = Math.PI / 2;
+                redBeltMesh.position.set(xCenter, beltDeckYLocal, 0);
+                redBeltMesh.castShadow = true;
+                setPartMetadata(redBeltMesh, `SN-${1422 + idx*2}`, `Cinghia Rosso Vivo Gomma Traccia ${idx+1}`, "Strato Esterno Gomma Cinghia", "Spessore 5mm, Gomma vulcanizzata ROSSO VIVO");
+                rotatingUpperGroup.add(redBeltMesh);
             });
 
-            // ========================================================
-            // D. PANNELLO DI LEGNO (4200x800x50 mm) CON TRASPARENZA DEL 40% (OPACITÀ 60%)
-            // ========================================================
+            // PANNELLO DI LEGNO
             const woodTexture = createWoodTexture();
             const woodMat = new THREE.MeshStandardMaterial({
                 map: woodTexture,
@@ -1952,7 +1995,6 @@
             scene.add(rotatingUpperGroup);
         }
 
-        // 7. QUOTE E MISURE CAD (DISEGNO LINEE DI QUOTATURA)
         function buildDimensions() {
             dimensionsGroup = new THREE.Group();
 
@@ -2006,57 +2048,24 @@
                 return group;
             }
 
-            // --- QUOTA 1: LUNGHEZZA TELAIO BASE (X = 4000 mm) ---
             const q1Start = new THREE.Vector3(0, 55, 500);
             const q1End = new THREE.Vector3(4000, 55, 500);
             const q1Offset = new THREE.Vector3(0, 0, 250);
             dimensionsGroup.add(drawDimensionLine(q1Start, q1End, q1Offset, '4000 mm (X Base)', 120));
 
-            // --- QUOTA 2: LARGHEZZA TELAIO BASE (Y = 1000 mm) ---
             const q2Start = new THREE.Vector3(0, 55, -500);
             const q2End = new THREE.Vector3(0, 55, 500);
             const q2Offset = new THREE.Vector3(-250 - GEO.wheel.xOffset, 0, 0);
             dimensionsGroup.add(drawDimensionLine(q2Start, q2End, q2Offset, '1000 mm (Y Base)', 120));
 
-            // --- QUOTA 3: LUNGHEZZA PANNELLO LEGNO (X = 4200 mm) ---
-            const cutY = GEO.disk.cutY; 
-            const beltY = cutY + 22.5 + GEO.beltDeck.raiseHeight; 
-            const panelTopY = beltY + 42.5 + 50; 
-            const q3StartP = new THREE.Vector3(0, panelTopY, 0);
-            const q3EndP = new THREE.Vector3(4200, panelTopY, 0);
-            const q3OffsetP = new THREE.Vector3(0, 200, 0);
-            dimensionsGroup.add(drawDimensionLine(q3StartP, q3EndP, q3OffsetP, '4200 mm (Pannello Legno)', 100));
-
-            // --- QUOTA 4: DIAMETRO DISCHI (D = 600 mm) ---
-            const shaft2Y = GEO.frame.height + GEO.column.height - 50;  
-            const q4StartD = new THREE.Vector3(545, shaft2Y - 300, 0);
-            const q4EndD = new THREE.Vector3(545, cutY, 0);
-            const q4OffsetD = new THREE.Vector3(0, 0, 300);
-            dimensionsGroup.add(drawDimensionLine(q4StartD, q4EndD, q4OffsetD, 'D 600 mm (Dischi)', 120));
-
-            // --- QUOTA 5: INTERASSE PULEGGE / CINGHIA (1100 mm) ---
-            const q5StartP = new THREE.Vector3(545, beltY, -550);
-            const q5EndP = new THREE.Vector3(545, beltY, 550);
-            const q5OffsetP = new THREE.Vector3(120, 0, 0);
-            dimensionsGroup.add(drawDimensionLine(q5StartP, q5EndP, q5OffsetP, '1100 mm (Interasse Pulegge)', 120));
-
-            // --- QUOTA 6: LUNGHEZZA BINARIO ASSE LINEARE (480 mm) ---
-            const railY = cutY + 22.5 + 15;
-            const q10StartR = new THREE.Vector3(0, railY, -377.5);
-            const q10EndR = new THREE.Vector3(480, railY, -377.5);
-            const q10OffsetR = new THREE.Vector3(0, 0, -100);
-            dimensionsGroup.add(drawDimensionLine(q10StartR, q10EndR, q10OffsetR, '480 mm (Binario a filo X=0)', 60));
-
-            // --- QUOTA 7: LARGHEZZA BOX QUADRO BASE (Y = 600 mm) ---
-            const q13StartBox = new THREE.Vector3(3000, 32, -420);
-            const q13EndBox = new THREE.Vector3(3000, 32, 180);
-            const q13OffsetBox = new THREE.Vector3(0, -150, 0);
-            dimensionsGroup.add(drawDimensionLine(q13StartBox, q13EndBox, q13OffsetBox, '600 mm (Larghezza Box SN-1801)', 60));
+            const qRailStart = new THREE.Vector3(-GEO.wheel.xOffset, 0, railStartZ);
+            const qRailEnd = new THREE.Vector3(-GEO.wheel.xOffset, 0, railEndZ);
+            const qRailOffset = new THREE.Vector3(-400, 0, 0);
+            dimensionsGroup.add(drawDimensionLine(qRailStart, qRailEnd, qRailOffset, `${railLength} mm (Binario Carrello: da ${railStartZ} a +${railEndZ} mm)`, 200));
 
             scene.add(dimensionsGroup);
         }
 
-        // Sprite Text Generator Helper
         function createTextSprite(text, colorStr, size = 120) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -2082,7 +2091,7 @@
 
         function resetCamera(view) {
             if (view === 'iso') {
-                camera.position.set(3500, 2500, 3600);
+                camera.position.set(-1600, 2500, 1500);
             } else if (view === 'top') {
                 camera.position.set(2000, 5500, 0.1);
             } else if (view === 'front') {
@@ -2103,6 +2112,67 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
+        function updateMotionModeUI() {
+            const btnOverview = document.getElementById('btn-mode-overview');
+            const btnMachine = document.getElementById('btn-mode-machine');
+
+            btnOverview.classList.remove('active');
+            btnMachine.classList.remove('active');
+
+            if (state.motionMode === 'machine') {
+                btnMachine.classList.add('active');
+            } else {
+                btnOverview.classList.add('active');
+            }
+
+            updateCarriagePosition();
+        }
+
+        function updateCarriagePosition() {
+            const wheelRadius = GEO.wheel.radius; 
+            const rotationAngle = -state.posY / wheelRadius;
+
+            wheelsGroup.forEach(wheel => {
+                wheel.rotation.x = rotationAngle; 
+            });
+
+            if (state.motionMode === 'machine') {
+                if (carriageGroup) carriageGroup.position.z = 0;
+                if (rotatingUpperGroup) rotatingUpperGroup.position.z = 0;
+                if (railsGroup) railsGroup.position.z = state.posY;
+            } else {
+                if (carriageGroup) carriageGroup.position.z = -state.posY;
+                if (rotatingUpperGroup) rotatingUpperGroup.position.z = -state.posY;
+                if (railsGroup) railsGroup.position.z = 0;
+            }
+        }
+
+        function updateCarriagePosYUI() {
+            const valPosY = document.getElementById('val-pos-y');
+            const sliderPosY = document.getElementById('slider-pos-y');
+            const btnHome = document.getElementById('btn-pos-home');
+            const btnMid = document.getElementById('btn-pos-mid');
+            const btnMax = document.getElementById('btn-pos-max');
+
+            sliderPosY.value = state.posY;
+            valPosY.innerText = `${state.posY} mm`;
+
+            btnHome.classList.remove('active');
+            btnMid.classList.remove('active');
+            btnMax.classList.remove('active');
+
+            const midY = Math.round(maxCarrelloY / 2);
+            if (state.posY === 0) {
+                btnHome.classList.add('active');
+            } else if (state.posY === midY) {
+                btnMid.classList.add('active');
+            } else if (state.posY === maxCarrelloY) {
+                btnMax.classList.add('active');
+            }
+
+            updateCarriagePosition();
+        }
+
         function updatePanelPositionUI() {
             const valPanelY = document.getElementById('val-panel-y');
             const sliderPanelY = document.getElementById('slider-panel-y');
@@ -2113,6 +2183,10 @@
             sliderPanelY.value = state.panelY;
             if (woodPanelMesh) {
                 woodPanelMesh.position.z = state.panelY;
+            }
+
+            if (redBeltTexture && !state.beltsRunning) {
+                redBeltTexture.offset.x = state.panelY / 150.0;
             }
 
             btnNegY.classList.remove('active');
@@ -2141,12 +2215,10 @@
 
             photocellSideStatusMaterials.forEach(mat => {
                 if (state.photocellsActive) {
-                    // Stato ATTIVO: Luce Verde NEON ALTA BRILLANTEZZA
                     mat.color.setHex(0x00ff66);
                     mat.emissive.setHex(0x00ff44);
                     mat.emissiveIntensity = 3.2;
                 } else {
-                    // Stato INATTIVO: Luce Gialla INTENSA ALTA BRILLANTEZZA
                     mat.color.setHex(0xffcc00);
                     mat.emissive.setHex(0xffbb00);
                     mat.emissiveIntensity = 2.8;
@@ -2163,32 +2235,66 @@
         }
 
         function setupUIHandlers() {
-            // Toggle Stato Fotocellule
+            const sliderPosY = document.getElementById('slider-pos-y');
+            const btnMid = document.getElementById('btn-pos-mid');
+            const btnMax = document.getElementById('btn-pos-max');
+
+            sliderPosY.max = maxCarrelloY;
+            const midY = Math.round(maxCarrelloY / 2);
+            btnMid.innerText = `${midY} mm (Metà)`;
+            btnMax.innerText = `${maxCarrelloY} mm (Max)`;
+
+            document.getElementById('btn-mode-overview').addEventListener('click', () => {
+                state.motionMode = 'overview';
+                updateMotionModeUI();
+            });
+
+            document.getElementById('btn-mode-machine').addEventListener('click', () => {
+                state.motionMode = 'machine';
+                updateMotionModeUI();
+            });
+
+            const toggleTooltip = document.getElementById('toggle-tooltip');
+            toggleTooltip.checked = state.showTooltip;
+            toggleTooltip.addEventListener('change', (e) => {
+                state.showTooltip = e.target.checked;
+                if (!state.showTooltip) {
+                    const tooltip = document.getElementById('canvas-tooltip');
+                    if (tooltip) tooltip.style.opacity = 0;
+                }
+            });
+
             const togglePhotocellStatus = document.getElementById('toggle-photocell-status');
             togglePhotocellStatus.addEventListener('change', (e) => {
                 state.photocellsActive = e.target.checked;
                 updatePhotocellsStatusUI();
             });
 
-            const sliderY = document.getElementById('slider-pos-y');
-            const valY = document.getElementById('val-pos-y');
-            
-            sliderY.addEventListener('input', (e) => {
-                state.posY = parseFloat(e.target.value);
-                valY.innerText = `${state.posY} mm`;
-                
-                if (carriageGroup) carriageGroup.position.z = state.posY;
-                if (rotatingUpperGroup) rotatingUpperGroup.position.z = state.posY; 
-                
-                const wheelRadius = GEO.wheel.radius; 
-                const rotationAngle = state.posY / wheelRadius;
-                
-                wheelsGroup.forEach(wheel => {
-                    wheel.rotation.x = rotationAngle; 
-                });
+            const toggleBeltsRunning = document.getElementById('toggle-belts-running');
+            toggleBeltsRunning.addEventListener('change', (e) => {
+                state.beltsRunning = e.target.checked;
             });
 
-            // Slider Asse Lineare X [INVERTITO: 400mm = filo longherone X=0]
+            sliderPosY.addEventListener('input', (e) => {
+                state.posY = parseFloat(e.target.value);
+                updateCarriagePosYUI();
+            });
+
+            document.getElementById('btn-pos-home').addEventListener('click', () => {
+                state.posY = 0;
+                updateCarriagePosYUI();
+            });
+
+            document.getElementById('btn-pos-mid').addEventListener('click', () => {
+                state.posY = midY;
+                updateCarriagePosYUI();
+            });
+
+            document.getElementById('btn-pos-max').addEventListener('click', () => {
+                state.posY = maxCarrelloY;
+                updateCarriagePosYUI();
+            });
+
             const sliderAxisX = document.getElementById('slider-axis-x');
             const valAxisX = document.getElementById('val-axis-x');
 
@@ -2200,7 +2306,6 @@
                 }
             });
 
-            // Slider e Pulsanti Posizione Pannello Legno
             const sliderPanelY = document.getElementById('slider-panel-y');
             sliderPanelY.addEventListener('input', (e) => {
                 state.panelY = parseFloat(e.target.value);
@@ -2222,7 +2327,6 @@
                 updatePanelPositionUI();
             });
 
-            // Slider Rotazione Tavola
             const sliderRot = document.getElementById('slider-rot-angle');
             const valRot = document.getElementById('val-rot-angle');
 
@@ -2234,7 +2338,6 @@
                 if (rotatingUpperGroup) rotatingUpperGroup.rotation.x = angleRad;
             });
 
-            // Slider Flap Sinistra (-Y)
             const sliderFlapLeft = document.getElementById('slider-flap-left');
             const valFlapLeft = document.getElementById('val-flap-left');
 
@@ -2248,7 +2351,6 @@
                 });
             });
 
-            // Slider Flap Destra (+Y)
             const sliderFlapRight = document.getElementById('slider-flap-right');
             const valFlapRight = document.getElementById('val-flap-right');
 
@@ -2307,6 +2409,10 @@
             const tooltip = document.getElementById('canvas-tooltip');
 
             window.addEventListener('mousemove', (e) => {
+                if (!state.showTooltip) {
+                    if (tooltip) tooltip.style.opacity = 0;
+                    return;
+                }
                 if (!carriageGroup || !rotatingUpperGroup) return;
 
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -2361,16 +2467,6 @@
                                 componentName = "Longherone Telaio Base";
                                 infoText = `Dimensioni: 4000x110x80 mm<br>Alluminio Naturale`;
                             }
-                        } else if (hitObj.geometry.type === "CylinderGeometry") {
-                            if (hitObj.geometry.parameters.radiusTop === 9) {
-                                serialNumber = "SN-1751..1753";
-                                componentName = "Fotocellula Ottica a Candela Cilindrica M18 Sottosopra";
-                                infoText = `Sensore M18 Ø18mm h65mm capovolta ad altezza Y=-5.5mm (alzata di 30mm)<br>Stato LED Anello: <strong>${state.photocellsActive ? 'ATTIVO (VERDE NEON)' : 'INATTIVO (GIALLO INTENSO)'}</strong>`;
-                            } else if (hitObj.geometry.parameters.radiusTop === 11.5) {
-                                serialNumber = "SN-1751..1753-LED";
-                                componentName = "Anello Indicatore di Stato LED M18";
-                                infoText = `Indicatore di Stato Circolare<br>Stato Attuale: <strong>${state.photocellsActive ? 'ATTIVO (LUCE VERDE NEON)' : 'INATTIVO (LUCE GIALLA INTENSA)'}</strong>`;
-                            }
                         }
                     }
 
@@ -2386,6 +2482,10 @@
 
         function animate() {
             requestAnimationFrame(animate);
+
+            if (redBeltTexture && state.beltsRunning) {
+                redBeltTexture.offset.x += 0.006;
+            }
 
             if (controls) {
                 controls.update();
